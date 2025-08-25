@@ -92,7 +92,7 @@ let bag=new Array(BAG_SIZE).fill(null);
 // HUD refs
 const hpFill=document.getElementById('hpFill'); const mpFill=document.getElementById('mpFill');
 const hpLbl=document.getElementById('hpLbl'); const mpLbl=document.getElementById('mpLbl');
-const hudFloor=document.getElementById('hudFloor'); const hudSeed=document.getElementById('hudSeed'); const hudGold=document.getElementById('hudGold');
+const hudFloor=document.getElementById('hudFloor'); const hudSeed=document.getElementById('hudSeed'); const hudGold=document.getElementById('hudGold'); const hudDmg=document.getElementById('hudDmg');
 
 // --- Smooth helpers & settings ---
 function smoothstep01(t){ return t*t*(3-2*t); }
@@ -234,6 +234,31 @@ function pickupHere(){
   redrawInventory();
 }
 
+
+function equipFromBag(idx){
+  const it = bag[idx];
+  if(!it) return;
+  const slot = it.slot;
+  const prev = equip[slot];
+  equip[slot] = it;
+  bag[idx] = prev || null;
+  showToast(`Equipped ${it.name}`);
+  redrawInventory();
+  recalcStats();
+}
+
+function unequip(slot){
+  const it = equip[slot];
+  if(!it) return;
+  const idx = bag.findIndex(b=>!b);
+  if(idx === -1){ showToast('Bag full'); return; }
+  bag[idx] = it;
+  equip[slot] = null;
+  showToast(`Unequipped ${it.name}`);
+  redrawInventory();
+  recalcStats();
+}
+
 function redrawInventory(){
   let panel = document.getElementById('inventory');
   if(!panel){
@@ -251,15 +276,43 @@ function redrawInventory(){
   let html = '<div style="font-weight:bold;margin-bottom:4px">Equipped</div>';
   for(const slot of SLOTS){
     const it = equip[slot];
-    html += `<div>${slot}: ${it?`<span style="color:${it.color}">${it.name}</span>`:'-'}</div>`;
+    html += `<div onclick="unequip('${slot}')" style="cursor:pointer">${slot}: ${it?`<span style="color:${it.color}">${it.name}</span>`:'-'}</div>`;
   }
   html += '<div style="font-weight:bold;margin:6px 0 4px">Bag</div>';
   for(let i=0;i<BAG_SIZE;i++){
     const it = bag[i];
-    html += `<div>${i+1}. ${it?`<span style="color:${it.color}">${it.name}</span>`:'(empty)'}</div>`;
+    html += `<div onclick="equipFromBag(${i})" style="cursor:pointer">${i+1}. ${it?`<span style="color:${it.color}">${it.name}</span>`:'(empty)'}</div>`;
   }
   panel.innerHTML = html;
 }
+
+function recalcStats(){
+  let dmgMin=2,dmgMax=4,crit=5,armor=0;
+  let hpMax=100, mpMax=60, speedPct=0;
+  for(const slot of SLOTS){
+    const it=equip[slot];
+    if(!it) continue;
+    const m=it.mods;
+    if(m.dmgMin) dmgMin+=m.dmgMin;
+    if(m.dmgMax) dmgMax+=m.dmgMax;
+    if(m.crit) crit+=m.crit;
+    if(m.armor) armor+=m.armor;
+    if(m.hpMax) hpMax+=m.hpMax;
+    if(m.mpMax) mpMax+=m.mpMax;
+    if(m.speedPct) speedPct+=m.speedPct;
+  }
+  player.hpMax=hpMax;
+  player.mpMax=mpMax;
+  player.speedPct=speedPct;
+  if(player.hp>hpMax) player.hp=hpMax;
+  if(player.mp>mpMax) player.mp=mpMax;
+  hudDmg.textContent = `ATK ${dmgMin}-${dmgMax} | CRIT ${crit}% | ARM ${armor}`;
+  hpFill.style.width = `${(player.hp/player.hpMax)*100}%`;
+  mpFill.style.width = `${(player.mp/player.mpMax)*100}%`;
+  hpLbl.textContent = `HP ${player.hp}/${player.hpMax}`;
+  mpLbl.textContent = `Mana ${player.mp}/${player.mpMax}`;
+}
+
 
 // ===== Combat / Click =====
 canvas.addEventListener('mousedown', (e)=>{
@@ -267,8 +320,10 @@ canvas.addEventListener('mousedown', (e)=>{
   const tx = Math.floor((mx+camX)/TILE), ty=Math.floor((my+camY)/TILE);
   const m = monsters.find(mm=>mm.x===tx && mm.y===ty);
   if(!m) return;
-  let dmg=rng.int(2,4);
-  if(Math.random()*100 < (equip.weapon && equip.weapon.mods.crit || 5)) dmg = Math.floor(dmg*1.5);
+  let baseMin=2, baseMax=4, crit=(equip.weapon && equip.weapon.mods.crit)||5;
+  if(equip.weapon){ baseMin += equip.weapon.mods.dmgMin||0; baseMax += equip.weapon.mods.dmgMax||0; }
+  let dmg=rng.int(baseMin, baseMax);
+  if(Math.random()*100 < crit) dmg = Math.floor(dmg*1.5);
   dmg=Math.max(1,dmg);
   m.hp-=dmg; m.hitFlash=4;
   const ls=(equip.weapon && equip.weapon.mods.ls)||0; if(ls>0){ const heal=Math.max(1,Math.floor(dmg*ls/100)); player.hp=Math.min(player.hpMax, player.hp+heal); }
@@ -438,7 +493,8 @@ window.addEventListener('keypress',e=>{
 
 // ===== Inventory UI (toggle only) =====
 function toggleInv(){
-  const panel=document.getElementById('inv');
+  let panel=document.getElementById('inventory');
+  if(!panel){ redrawInventory(); panel=document.getElementById('inventory'); }
   if(!panel) return;
   const show=panel.style.display===''||panel.style.display==='none';
   panel.style.display=show?'block':'none';
@@ -483,6 +539,7 @@ function loop(now){
 function startGame(){
   hudFloor.textContent=floorNum; hudSeed.textContent=seed>>>0; hudGold.textContent=player.gold;
   generate();
+  recalcStats();
   // UI bindings for smooth + speed
   const smoothToggle=document.getElementById('smoothToggle');
   const speedRange=document.getElementById('speedRange');
