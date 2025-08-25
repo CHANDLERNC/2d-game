@@ -45,7 +45,7 @@
 </style>
 </head>
 <body>
-<canvas id="gameCanvas" width="1280" height="720"></canvas>
+<canvas id="gameCanvas"></canvas>
 
 <div id="ui">
   <div class="topbar">
@@ -128,10 +128,12 @@
 
 <script>
 // ===== Config / Globals =====
-const VIEW_W=1280, VIEW_H=720;
+let VIEW_W=window.innerWidth, VIEW_H=window.innerHeight;
 const TILE=32, MAP_W=48, MAP_H=48; const MONSTER_COUNT=24; const FOV_RADIUS=8; const LOOT_CHANCE=0.18;
 const MONSTER_LOOT_CHANCE=0.3;
 let canvas=document.getElementById('gameCanvas'); let ctx=canvas.getContext('2d');
+function resizeCanvas(){ canvas.width = VIEW_W = window.innerWidth; canvas.height = VIEW_H = window.innerHeight; }
+window.addEventListener('resize', resizeCanvas); resizeCanvas();
 let camX=0, camY=0; let floorLayer=null, wallLayer=null;
 let floorTex=(function(){ const c=document.createElement('canvas'); c.width=c.height=64; const g=c.getContext('2d'); g.fillStyle='#151821'; g.fillRect(0,0,64,64); g.fillStyle='rgba(255,255,255,0.03)'; for(let i=0;i<120;i++){ g.fillRect((Math.random()*64)|0,(Math.random()*64)|0,1,1);} return c; })();
 
