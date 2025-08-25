@@ -95,7 +95,7 @@ const MAP_W=90, MAP_H=70;
 const FOV_RADIUS=11;
 const ROOM_COUNT=24;
 const MONSTER_COUNT=16;
-const LOOT_CHANCE=0.18;
+const LOOT_CHANCE=0.3; // chance for loot to drop when a monster dies
 const VIEW_W=1280, VIEW_H=720;
 
 let camX=0, camY=0;
@@ -385,7 +385,7 @@ function monsterStep(m){
   if(m.cd>0){ m.cd--; return; }
   const dirs=[[1,0],[-1,0],[0,1],[0,-1],[0,0]]; const d=dirs[rng.int(0,dirs.length-1)];
   const nx=m.x+d[0], ny=m.y+d[1];
-  if(nx>=0&&ny>=0&&nx<MAP_W&&ny<MAP_H && map[ny*MAP_W+nx]!==T_WALL && map[ny*MAP_W+nx]!==T_EMPTY){ m.x=nx; m.y=ny; if(rng.next()<LOOT_CHANCE*0.04) dropLoot(nx,ny); }
+  if(nx>=0&&ny>=0&&nx<MAP_W&&ny<MAP_H && map[ny*MAP_W+nx]!==T_WALL && map[ny*MAP_W+nx]!==T_EMPTY){ m.x=nx; m.y=ny; }
   m.cd=rng.int(2,8);
 }
 function dist(a,b){ return Math.abs(a.x-b.x)+Math.abs(a.y-b.y); }
@@ -453,7 +453,7 @@ function draw(){
     if(m.hitFlash>0) m.hitFlash--;
     if(m.hp<=0){
       // death
-      if(Math.random()<0.3) dropLoot(m.x,m.y);
+      if(Math.random()<LOOT_CHANCE) dropLoot(m.x,m.y);
       const idx=monsters.indexOf(m); if(idx>=0) monsters.splice(idx,1);
     }
   }
