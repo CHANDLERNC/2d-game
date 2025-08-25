@@ -1,9 +1,10 @@
+<!-- /index.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>Dungeon — Fix Ordered (48/24) — Smooth + Diagonal + Toggle</title>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1.0" />
+<title>Dungeon — Sprites + Gender + Shop/Stairs (Single-file)</title>
 <style>
   html,body{margin:0;background:#0b0b0e;color:#ddd;font-family:system-ui,Segoe UI,Roboto,Ubuntu,Arial,sans-serif;overflow:hidden}
   #ui{position:fixed;inset:0;display:grid;grid-template-rows:auto 1fr auto;pointer-events:none}
@@ -37,6 +38,10 @@
   .item-title{font-weight:600}
   .green{color:#76d38b}
   .red{color:#ff6b6b}
+  .gender-card{display:flex;align-items:center;gap:10px;padding:8px;border:1px solid #2a2d39;border-radius:10px;cursor:pointer}
+  .gender-card:hover{background:#12141f}
+  .gender-card input{accent-color:#7a4bd9}
+  .gender-preview{width:32px;height:32px;border-radius:6px;background:#0f1119;display:grid;place-items:center}
 </style>
 </head>
 <body>
@@ -71,7 +76,7 @@
     </div>
   </div>
   <div></div>
-  <div class="footer">Fix Ordered (48/24) — offline single file</div>
+  <div class="footer">Sprites inline (base64) — offline single file</div>
 </div>
 
 <!-- Inventory -->
@@ -81,20 +86,43 @@
 <div id="shop" class="panel"></div>
 
 <div id="start" class="stone" style="position:fixed;inset:0;display:grid;place-items:center">
-  <div class="panel" style="padding:18px 22px;max-width:720px">
-    <h2 style="margin:6px 0 12px 0">Dungeon — Fix Ordered (48/24)</h2>
-    <div style="display:flex;gap:16px">
-      <p style="flex:1;opacity:.9">Procedurally generated dungeon with fog‑of‑war. Find loot, equip gear, buy & sell at the merchant, and descend the stairs to a new floor.</p>
+  <div class="panel" style="padding:18px 22px;max-width:780px">
+    <h2 style="margin:6px 0 12px 0">Dungeon</h2>
+    <div style="display:flex;gap:16px;align-items:flex-start">
+      <p style="flex:1;opacity:.9">Procedurally generated dungeon with fog‑of‑war. Pick a character, find loot, trade at the merchant, and descend the stairs.</p>
       <ul>
         <li>WASD / Arrow Keys — Move (8‑directional)</li>
         <li>I — Toggle Inventory</li>
         <li>E — Use Stairs / Merchant</li>
-        <li>Click monster — Attack (range depends on weapon)</li>
+        <li>Click monster — Attack</li>
       </ul>
     </div>
-    <p class="hint">48×48 tiles; 24×24 entities. Single file, no CDNs.</p>
-    <button id="playBtn" class="btn">Play</button>
-    <button class="btn" onclick="alert('Thanks for playing!')">Quit</button>
+
+    <div class="section-title" style="margin-top:10px">Choose your character</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;pointer-events:auto">
+      <label class="gender-card">
+        <input type="radio" name="gender" value="m" checked>
+        <div class="gender-preview"><img id="prevMale" alt="male" /></div>
+        <div>
+          <div><b>Male</b></div>
+          <div class="muted" style="font-size:12px">Balanced adventurer</div>
+        </div>
+      </label>
+      <label class="gender-card">
+        <input type="radio" name="gender" value="f">
+        <div class="gender-preview"><img id="prevFemale" alt="female" /></div>
+        <div>
+          <div><b>Female</b></div>
+          <div class="muted" style="font-size:12px">Swift adventurer</div>
+        </div>
+      </label>
+    </div>
+
+    <p class="hint" style="margin-top:10px">All sprites (player, monsters, stairs, shop) are generated and embedded as base64 data URLs.</p>
+    <div style="display:flex;gap:8px;margin-top:8px">
+      <button id="playBtn" class="btn">Play</button>
+      <button class="btn" onclick="alert('Thanks for playing!')">Quit</button>
+    </div>
   </div>
 </div>
 
@@ -107,10 +135,119 @@ let canvas=document.getElementById('gameCanvas'); let ctx=canvas.getContext('2d'
 let camX=0, camY=0; let floorLayer=null, wallLayer=null;
 let floorTex=(function(){ const c=document.createElement('canvas'); c.width=c.height=64; const g=c.getContext('2d'); g.fillStyle='#151821'; g.fillRect(0,0,64,64); g.fillStyle='rgba(255,255,255,0.03)'; for(let i=0;i<120;i++){ g.fillRect((Math.random()*64)|0,(Math.random()*64)|0,1,1);} return c; })();
 
+// ====== Sprites (inline base64) ======
+// why: generate pixel art once, store data URLs so everything stays single-file & offline
+const SPRITES = {}; // key -> { url, cv }
+function makeSprite(size, draw){ const c=document.createElement('canvas'); c.width=c.height=size; const g=c.getContext('2d'); g.imageSmoothingEnabled=false; draw(g, size); return { url: c.toDataURL('image/png'), cv: c }; }
+function px(g,x,y,w,h,col){ g.fillStyle=col; g.fillRect(x,y,w,h); }
+function outline(g,size){ g.globalCompositeOperation='destination-over'; g.strokeStyle='rgba(0,0,0,0.6)'; g.lineWidth=1; g.strokeRect(0.5,0.5,size-1,size-1); g.globalCompositeOperation='source-over'; }
+function genSprites(){
+  // Player male 24x24
+  SPRITES.player_m = makeSprite(24,(g,S)=>{
+    // boots & pants
+    px(g,5,18,14,3,'#2b2f3a'); px(g,6,16,12,3,'#3a4060');
+    // tunic
+    px(g,6,10,12,6,'#7a9cff'); px(g,8,8,8,2,'#7a9cff');
+    // arms
+    px(g,5,12,2,4,'#d8bb9a'); px(g,17,12,2,4,'#d8bb9a');
+    // head
+    px(g,8,2,8,6,'#e3c6a6'); px(g,9,4,2,2,'#000'); px(g,13,4,2,2,'#000');
+    // hair
+    px(g,7,1,10,2,'#3c2c1a'); px(g,7,2,2,3,'#3c2c1a'); px(g,15,2,2,3,'#3c2c1a');
+    outline(g,S);
+  });
+
+  // Player female 24x24
+  SPRITES.player_f = makeSprite(24,(g,S)=>{
+    // boots & leggings
+    px(g,5,18,14,3,'#303446'); px(g,6,16,12,3,'#c65f92');
+    // dress/armor
+    px(g,6,10,12,6,'#ff7ab3'); px(g,8,8,8,2,'#ff7ab3');
+    // arms
+    px(g,5,12,2,4,'#f1d3b1'); px(g,17,12,2,4,'#f1d3b1');
+    // head
+    px(g,8,2,8,6,'#f1d3b1'); px(g,9,4,2,2,'#000'); px(g,13,4,2,2,'#000');
+    // hair (long)
+    px(g,7,1,10,2,'#6b3a2d'); px(g,6,3,2,6,'#6b3a2d'); px(g,16,3,2,6,'#6b3a2d');
+    outline(g,S);
+  });
+
+  // Slime 24x24
+  SPRITES.slime = makeSprite(24,(g,S)=>{
+    px(g,4,10,16,10,'#6fd16f'); px(g,6,8,12,10,'#7ee27e'); px(g,8,6,8,8,'#9bf09b');
+    px(g,9,11,2,2,'#134013'); px(g,13,11,2,2,'#134013');
+    outline(g,S);
+  });
+  // Bat 24x24
+  SPRITES.bat = makeSprite(24,(g,S)=>{
+    // wings
+    px(g,2,12,8,6,'#20222b'); px(g,14,12,8,6,'#20222b');
+    // body
+    px(g,9,10,6,8,'#2e3240'); px(g,10,8,4,3,'#2e3240');
+    px(g,10,12,1,2,'#9b0000'); px(g,13,12,1,2,'#9b0000');
+    outline(g,S);
+  });
+  // Skeleton 24x24
+  SPRITES.skeleton = makeSprite(24,(g,S)=>{
+    px(g,7,2,10,6,'#e9edf1'); px(g,9,4,2,2,'#000'); px(g,13,4,2,2,'#000');
+    px(g,8,10,8,6,'#dde3ea'); px(g,6,10,2,4,'#dde3ea'); px(g,16,10,2,4,'#dde3ea');
+    px(g,8,18,3,3,'#dde3ea'); px(g,13,18,3,3,'#dde3ea');
+    outline(g,S);
+  });
+
+  // Stairs (down) 24x24
+  SPRITES.stairs = makeSprite(24,(g,S)=>{
+    // tile base
+    px(g,2,2,20,20,'#2a2e3a');
+    // steps
+    px(g,4,5,16,3,'#c7a34a'); px(g,4,9,16,3,'#b69241'); px(g,4,13,16,3,'#a6833a'); px(g,4,17,16,3,'#977634');
+    // shadow
+    g.globalAlpha=0.25; px(g,14,4,2,16,'#000'); g.globalAlpha=1;
+    outline(g,S);
+  });
+
+  // Merchant goblin 24x24 (with lootbag)
+  SPRITES.shop_goblin = makeSprite(24,(g,S)=>{
+    // bag
+    px(g,3,14,8,6,'#6b4b2a'); px(g,4,13,6,2,'#7a5a37');
+    // goblin body
+    px(g,12,6,8,8,'#6fcf5a'); px(g,10,10,12,8,'#6fcf5a');
+    // eyes
+    px(g,14,9,2,2,'#000'); px(g,18,9,2,2,'#000');
+    // ear
+    px(g,10,7,2,2,'#6fcf5a'); px(g,20,7,2,2,'#6fcf5a');
+    // belt
+    px(g,10,15,12,2,'#3a2a1a');
+    outline(g,S);
+  });
+
+  // Merchant stall 24x24 (alternative)
+  SPRITES.shop_stall = makeSprite(24,(g,S)=>{
+    // counter
+    px(g,2,12,20,8,'#6b3f2b'); px(g,3,11,18,2,'#7e4a33');
+    // legs
+    px(g,3,20,3,2,'#3a2318'); px(g,18,20,3,2,'#3a2318');
+    // canopy
+    px(g,2,3,20,6,'#b84aff'); px(g,2,3,4,6,'#ffd24a'); px(g,10,3,4,6,'#ffd24a'); px(g,18,3,4,6,'#ffd24a');
+    outline(g,S);
+  });
+
+  // Merchant tile (purple marker) for visibility hint
+  SPRITES.merchant_tile = makeSprite(24,(g,S)=>{ px(g,4,4,16,16,'#8a5cff'); outline(g,S); });
+
+  // previews on start screen
+  const prevMale=document.getElementById('prevMale'); const prevFemale=document.getElementById('prevFemale');
+  if(prevMale) prevMale.src = SPRITES.player_m.url; if(prevFemale) prevFemale.src = SPRITES.player_f.url;
+}
+
+// generate immediately so previews show on start
+genSprites();
+
 let seed=(Math.random()*1e9)|0, floorNum=1, rng=new RNG(seed);
 let map=[], fog=[], vis=[]; let rooms=[]; let stairs={x:0,y:0};
-let merchant={x:0,y:0};
-let player={x:0,y:0,hp:100,hpMax:100,mp:60,mpMax:60,gold:0,stepCD:0,stepDelay:140,speedPct:0,lvl:1,xp:0,xpToNext:50,baseAtkBonus:0};
+let merchant={x:0,y:0}; let merchantStyle = Math.random()<0.5 ? 'goblin' : 'stall';
+let player={x:0,y:0,hp:100,hpMax:100,mp:60,mpMax:60,gold:0,stepCD:0,stepDelay:140,speedPct:0,lvl:1,xp:0,xpToNext:50,baseAtkBonus:0, gender:'m'};
+let playerSpriteKey = 'player_m';
 let monsters=[]; // {x,y,hp,hpMax,type,hitFlash:0,cd:0}
 const SLOTS=["helmet","chest","legs","hands","feet","weapon"];
 let equip={helmet:null,chest:null,legs:null,hands:null,feet:null,weapon:null};
@@ -406,7 +543,7 @@ function renderShop(){
   h += '<div class="section-title">Merchant</div>';
   h += '<div class="kv">Gold: <b id="shopGold" class="mono">'+player.gold+'</b></div>';
   h += '</div>';
-  h += '<div class="muted" style="margin-bottom:6px">Stand on the <span style="color:#b084ff">purple tile</span> and press <b>E</b> to open/close. Click item to buy.</div>';
+  h += '<div class="muted" style="margin-bottom:6px">Stand on the merchant and press <b>E</b> to open/close. Click an item to buy.</div>';
   for(let i=0;i<shopStock.length;i++){
     const it=shopStock[i];
     h += `<div class="list-row" data-idx="${i}">`+
@@ -484,14 +621,15 @@ function draw(dt){
   ctx.drawImage(floorLayer, -camX, -camY);
   ctx.drawImage(wallLayer, -camX, -camY);
 
-  // stairs
-  ctx.fillStyle='#c7a34a';
-  ctx.fillRect(stairs.x*TILE - camX + (TILE*0.25), stairs.y*TILE - camY + (TILE*0.25), TILE*0.5, TILE*0.5);
+  // stairs (sprite)
+  const stairsX = stairs.x*TILE - camX + (TILE-24)/2; const stairsY = stairs.y*TILE - camY + (TILE-24)/2;
+  ctx.drawImage(SPRITES.stairs.cv, stairsX, stairsY);
 
-  // merchant
+  // merchant (sprite)
   if(vis[merchant.y*MAP_W+merchant.x]){
-    ctx.fillStyle='#8a5cff';
-    ctx.fillRect(merchant.x*TILE - camX + (TILE*0.25), merchant.y*TILE - camY + (TILE*0.25), TILE*0.5, TILE*0.5);
+    const mx = merchant.x*TILE - camX + (TILE-24)/2; const my = merchant.y*TILE - camY + (TILE-24)/2;
+    const sprite = merchantStyle==='goblin'? SPRITES.shop_goblin.cv : SPRITES.shop_stall.cv;
+    ctx.drawImage(sprite, mx, my);
   }
 
   // loot
@@ -504,20 +642,20 @@ function draw(dt){
     }
   }
 
-  // monsters
+  // monsters (sprites by type)
   for(const m of monsters){
     if(!vis[m.y*MAP_W+m.x]) continue;
     const mtx = (m.rx!==undefined ? m.rx : m.x);
     const mty = (m.ry!==undefined ? m.ry : m.y);
     const mx = mtx*TILE - camX + (TILE-24)/2; const my = mty*TILE - camY + (TILE-24)/2;
-    ctx.fillStyle = m.hitFlash>0 ? '#ff6666' : ['#9bd','#bd9','#db9'][m.type];
-    ctx.fillRect(mx, my, 24, 24);
-    // hp
+    const key = m.type===0?'slime': (m.type===1?'bat':'skeleton');
+    ctx.drawImage(SPRITES[key].cv, mx, my);
+    if(m.hitFlash>0){ ctx.globalAlpha=0.5; ctx.fillStyle='#ff6666'; ctx.fillRect(mx,my,24,24); ctx.globalAlpha=1; }
+    // hp bar
     ctx.fillStyle='#111'; ctx.fillRect(mx, my-6, 24, 3);
     ctx.fillStyle='#e33'; const hw=24*(Math.max(0,m.hp)/m.hpMax); ctx.fillRect(mx, my-6, hw, 3);
     if(m.hitFlash>0) m.hitFlash--;
     if(m.hp<=0){
-      // Drop loot on death with a chance + small gold chance
       if(Math.random()<MONSTER_LOOT_CHANCE) dropLoot(m.x,m.y);
       if(Math.random()<0.55){ lootMap.set(`${m.x},${m.y}`,{color:'#ffd24a',type:'gold',amt:rng.int(3,12)}); }
       grantXP(10 + rng.int(0,6));
@@ -525,11 +663,11 @@ function draw(dt){
     }
   }
 
-  // player
+  // player (sprite)
   const ptx = (smoothEnabled && player.rx!==undefined ? player.rx : player.x);
   const pty = (smoothEnabled && player.ry!==undefined ? player.ry : player.y);
   const px = ptx*TILE - camX + (TILE-24)/2; const py = pty*TILE - camY + (TILE-24)/2;
-  ctx.fillStyle='#e9e9f9'; ctx.fillRect(px, py, 24, 24);
+  ctx.drawImage(SPRITES[playerSpriteKey].cv, px, py);
 
   // fog
   ctx.fillStyle='#000';
@@ -653,8 +791,13 @@ function loop(now){ const dt = Math.min(50, now - __last); __last = now; update(
 
 // ===== Start =====
 function startGame(){
+  // gender pick -> sprite
+  const gSel = document.querySelector('input[name="gender"]:checked');
+  player.gender = (gSel?.value==='f')?'f':'m';
+  playerSpriteKey = player.gender==='f' ? 'player_f' : 'player_m';
+
   hudFloor.textContent=floorNum; hudSeed.textContent=seed>>>0; hudGold.textContent=player.gold; hudLvl.textContent=player.lvl;
-  generate(); recalcStats();
+  generate(); recalcStats(); recomputeFOV();
   const smoothToggle=document.getElementById('smoothToggle'); const speedRange=document.getElementById('speedRange');
   if(smoothToggle){ smoothToggle.checked = smoothEnabled; smoothToggle.addEventListener('change', e=>{ smoothEnabled = e.target.checked; if(!smoothEnabled){ player.rx=player.x; player.ry=player.y; } }); }
   if(speedRange){ baseStepDelay = player.stepDelay; speedRange.value = String(baseStepDelay); speedRange.addEventListener('input', e=>{ const v=parseInt(e.target.value,10); if(!isNaN(v)) baseStepDelay=v; }); }
