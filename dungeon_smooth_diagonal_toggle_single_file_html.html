@@ -84,6 +84,8 @@ let player={x:0,y:0,hp:100,hpMax:100,mp:60,mpMax:60,gold:0,stepCD:0,stepDelay:14
 let monsters=[]; // {x,y,hp,hpMax,type,hitFlash:0,cd:0}
 const SLOTS=["helmet","chest","legs","hands","feet","weapon"];
 let equip={helmet:null,chest:null,legs:null,hands:null,feet:null,weapon:null};
+const BAG_SIZE=12;
+let bag=new Array(BAG_SIZE).fill(null);
 
 // HUD refs
 const hpFill=document.getElementById('hpFill'); const mpFill=document.getElementById('mpFill');
@@ -207,9 +209,55 @@ function seedRoomLoot(){
   for(const r of rooms){ if(rng.next()<LOOT_CHANCE){ const x=rng.int(r.x+1,r.x+r.w-2), y=rng.int(r.y+1,r.y+r.h-2); lootMap.set(`${x},${y}`,{color:'#ffd24a',type:'gold',amt:rng.int(5,20)}); } }
 }
 
-function pickupHere(){ const key=`${player.x},${player.y}`; const it=lootMap.get(key); if(it){ if(it.type==='gold'){ player.gold+=it.amt; hudGold.textContent=player.gold; showToast(`+${it.amt} gold`); } lootMap.delete(key); } }
+function pickupHere(){
+  const key = `${player.x},${player.y}`;
+  const it = lootMap.get(key);
+  if(!it) return;
+  if(it.type === 'gold'){
+    player.gold += it.amt;
+    hudGold.textContent = player.gold;
+    showToast(`+${it.amt} gold`);
+    lootMap.delete(key);
+    return;
+  }
+  // equipment
+  const idx = bag.findIndex(b=>!b);
+  if(idx === -1){
+    showToast('Bag full');
+    return;
+  }
+  bag[idx] = it;
+  lootMap.delete(key);
+  showToast(`Picked up ${it.name}`);
+  redrawInventory();
+}
 
-function redrawInventory(){ /* omitted for brevity; unchanged */ }
+function redrawInventory(){
+  let panel = document.getElementById('inventory');
+  if(!panel){
+    panel = document.createElement('div');
+    panel.id = 'inventory';
+    panel.className = 'panel';
+    panel.style.position = 'fixed';
+    panel.style.right = '8px';
+    panel.style.top = '64px';
+    panel.style.padding = '8px 12px';
+    panel.style.pointerEvents = 'auto';
+    panel.style.fontSize = '13px';
+    document.body.appendChild(panel);
+  }
+  let html = '<div style="font-weight:bold;margin-bottom:4px">Equipped</div>';
+  for(const slot of SLOTS){
+    const it = equip[slot];
+    html += `<div>${slot}: ${it?`<span style="color:${it.color}">${it.name}</span>`:'-'}</div>`;
+  }
+  html += '<div style="font-weight:bold;margin:6px 0 4px">Bag</div>';
+  for(let i=0;i<BAG_SIZE;i++){
+    const it = bag[i];
+    html += `<div>${i+1}. ${it?`<span style="color:${it.color}">${it.name}</span>`:'(empty)'}</div>`;
+  }
+  panel.innerHTML = html;
+}
 
 // ===== Combat / Click =====
 canvas.addEventListener('mousedown', (e)=>{
@@ -396,7 +444,21 @@ function toggleInv(){
 }
 
 // ===== Loot helpers =====
-function dropLoot(x,y){ lootMap.set(`${x},${y}`,{color:'#ffd24a',type:'gold',amt:rng.int(4,10)}); }
+function dropLoot(x,y){
+  const slot = SLOTS[rng.int(0, SLOTS.length-1)];
+  const rarityIdx = rng.int(0, RARITY.length-1);
+  const base = slot === 'weapon' ? WEAPONS[rng.int(0, WEAPONS.length-1)] : slot.charAt(0).toUpperCase()+slot.slice(1);
+  const name = `${RARITY[rarityIdx].n} ${base}`;
+  const item = {
+    color: RARITY[rarityIdx].c,
+    type: 'gear',
+    slot,
+    name,
+    rarity: rarityIdx,
+    mods: affixMods(slot)
+  };
+  lootMap.set(`${x},${y}`, item);
+}
 
 // ===== Toast =====
 let toastTimer=0;
