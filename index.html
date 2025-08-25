@@ -135,7 +135,7 @@ let canvas=document.getElementById('gameCanvas'); let ctx=canvas.getContext('2d'
 function resizeCanvas(){ canvas.width = VIEW_W = window.innerWidth; canvas.height = VIEW_H = window.innerHeight; }
 window.addEventListener('resize', resizeCanvas); resizeCanvas();
 let camX=0, camY=0; let floorLayer=null, wallLayer=null;
-const FLOOR_DATA="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAeElEQVR4nLWSMQ7AIAhFXxtnVxdXj+TpXV1YvUA71iZCjaZ/hORB4B0554uNOICU0rBZSaEghDDsiwjn7KQY47D+AnjvVUCt9RvQWptdaAxYyTbAwXNtLSLy8wbWn8H25L8jauJMAzRxpgFWemOXAL2xDuw/g+3JDbgwJL7JubgDAAAAAElFTkSuQmCC";
+const FLOOR_DATA="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAIAAACQkWg2AAAAGUlEQVR4nGO8fPkyAymAiSTVoxpGNQwpDQDCFwKZh4ZSzQAAAABJRU5ErkJggg==";
 const WALL_DATA="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAASUlEQVR4nGPMMjb+z4AHHH38mEGFnx+nPBM+zcSAUQMGgwGM+mJieNMBIcCiLSKCInD1zRsGa1lZnBqOPn7MgKxn4MNg1AAGBgDIxAxqYqux4wAAAABJRU5ErkJggg==";
 const floorTex = (()=>{ const img=new Image(); img.src=FLOOR_DATA; return img; })();
 const wallTex = (()=>{ const img=new Image(); img.src=WALL_DATA; return img; })();
