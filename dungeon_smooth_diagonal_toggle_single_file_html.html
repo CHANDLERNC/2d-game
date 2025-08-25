@@ -382,7 +382,13 @@ window.addEventListener('keypress',e=>{
 });
 
 // ===== Inventory UI (toggle only) =====
-function toggleInv(){ /* panel elided; still toggled by I */ }
+function toggleInv(){
+  const panel=document.getElementById('inv');
+  if(!panel) return;
+  const show=panel.style.display===''||panel.style.display==='none';
+  panel.style.display=show?'block':'none';
+  if(show) redrawInventory();
+}
 
 // ===== Loot helpers =====
 function dropLoot(x,y){ lootMap.set(`${x},${y}`,{color:'#ffd24a',type:'gold',amt:rng.int(4,10)}); }
