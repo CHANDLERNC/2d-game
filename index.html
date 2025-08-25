@@ -13,6 +13,7 @@
   .fill{position:absolute;left:0;top:0;height:100%;background:#3c7}
   .fill.hp{background:#d44}
   .fill.mp{background:#47c}
+  .fill.xp{background:#7a4bd9}
   .label{position:absolute;left:0;right:0;top:-18px;font-size:12px;opacity:.85;text-align:center}
   .hud-kv{font-size:13px;opacity:.9}
   #gameCanvas{position:fixed;left:0;top:0}
@@ -20,7 +21,22 @@
   .btn:hover{background:#1a1d2a}
   .stone{background-image:linear-gradient(180deg,rgba(255,255,255,.03),rgba(0,0,0,.08));}
   .footer{padding:6px 12px;border-top:1px solid #2a2d39;background:linear-gradient(#0f1016,#0b0c11);opacity:.85}
-  #inventory{display:none;position:fixed;right:8px;top:64px;padding:8px 12px;pointer-events:auto;font-size:13px}
+  #inventory{display:none;position:fixed;right:8px;top:64px;padding:8px 12px;pointer-events:auto;font-size:13px;max-width:340px}
+  #shop{display:none;position:fixed;left:8px;top:64px;min-width:320px;padding:10px 12px;pointer-events:auto;font-size:13px}
+  .list-row{display:flex;justify-content:space-between;gap:8px;padding:6px 6px;border-radius:6px}
+  .list-row:hover{background:#1a1d28}
+  .muted{opacity:.75}
+  .kv{display:flex;gap:6px;align-items:center}
+  .mono{font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace}
+  .pill{display:inline-block;padding:1px 6px;border:1px solid #2d3140;border-radius:999px;background:#10131c}
+  .hr{height:1px;background:#2a2d39;margin:8px -8px}
+  .hint{opacity:.8}
+  .actions{display:flex;gap:8px;flex-wrap:wrap}
+  .sml{padding:6px 8px;font-size:12px;border-radius:6px}
+  .section-title{font-weight:bold;margin:6px 0 4px}
+  .item-title{font-weight:600}
+  .green{color:#76d38b}
+  .red{color:#ff6b6b}
 </style>
 </head>
 <body>
@@ -37,7 +53,12 @@
       <div id="mpFill" class="fill mp" style="width:40%"></div>
       <div class="label" id="mpLbl">Mana 40/100</div>
     </div>
+    <div class="stat panel" style="width:220px">
+      <div id="xpFill" class="fill xp" style="width:0%"></div>
+      <div class="label" id="xpLbl">XP 0/50</div>
+    </div>
     <div class="hud-kv"><b>Gold:</b> <span id="hudGold">0</span></div>
+    <div class="hud-kv"><b>Lvl:</b> <span id="hudLvl">1</span></div>
     <div class="hud-kv" id="hudDmg" style="opacity:.85;margin-left:auto">ATK 2-4 | CRIT 5% | ARM 0</div>
     <div class="hud-kv" style="margin-left:8px; pointer-events:auto">
       <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
@@ -53,15 +74,21 @@
   <div class="footer">Fix Ordered (48/24) — offline single file</div>
 </div>
 
+<!-- Inventory -->
+<div id="inventory" class="panel"></div>
+
+<!-- Shop -->
+<div id="shop" class="panel"></div>
+
 <div id="start" class="stone" style="position:fixed;inset:0;display:grid;place-items:center">
   <div class="panel" style="padding:18px 22px;max-width:720px">
     <h2 style="margin:6px 0 12px 0">Dungeon — Fix Ordered (48/24)</h2>
     <div style="display:flex;gap:16px">
-      <p style="flex:1;opacity:.9">Procedurally generated dungeon with fog‑of‑war. Find loot, equip gear, and descend the stairs to a new floor.</p>
+      <p style="flex:1;opacity:.9">Procedurally generated dungeon with fog‑of‑war. Find loot, equip gear, buy & sell at the merchant, and descend the stairs to a new floor.</p>
       <ul>
-        <li>WASD / Arrow Keys — Move (now 8‑directional)</li>
+        <li>WASD / Arrow Keys — Move (8‑directional)</li>
         <li>I — Toggle Inventory</li>
-        <li>E — Use Stairs / Portal</li>
+        <li>E — Use Stairs / Merchant</li>
         <li>Click monster — Attack (range depends on weapon)</li>
       </ul>
     </div>
@@ -75,24 +102,26 @@
 // ===== Config / Globals =====
 const VIEW_W=1280, VIEW_H=720;
 const TILE=32, MAP_W=48, MAP_H=48; const MONSTER_COUNT=24; const FOV_RADIUS=8; const LOOT_CHANCE=0.18;
-const MONSTER_LOOT_CHANCE=0.3; // chance for a monster to drop loot on death
+const MONSTER_LOOT_CHANCE=0.3;
 let canvas=document.getElementById('gameCanvas'); let ctx=canvas.getContext('2d');
 let camX=0, camY=0; let floorLayer=null, wallLayer=null;
 let floorTex=(function(){ const c=document.createElement('canvas'); c.width=c.height=64; const g=c.getContext('2d'); g.fillStyle='#151821'; g.fillRect(0,0,64,64); g.fillStyle='rgba(255,255,255,0.03)'; for(let i=0;i<120;i++){ g.fillRect((Math.random()*64)|0,(Math.random()*64)|0,1,1);} return c; })();
 
 let seed=(Math.random()*1e9)|0, floorNum=1, rng=new RNG(seed);
 let map=[], fog=[], vis=[]; let rooms=[]; let stairs={x:0,y:0};
-let player={x:0,y:0,hp:100,hpMax:100,mp:60,mpMax:60,gold:0,stepCD:0,stepDelay:140,speedPct:0};
+let merchant={x:0,y:0};
+let player={x:0,y:0,hp:100,hpMax:100,mp:60,mpMax:60,gold:0,stepCD:0,stepDelay:140,speedPct:0,lvl:1,xp:0,xpToNext:50,baseAtkBonus:0};
 let monsters=[]; // {x,y,hp,hpMax,type,hitFlash:0,cd:0}
 const SLOTS=["helmet","chest","legs","hands","feet","weapon"];
 let equip={helmet:null,chest:null,legs:null,hands:null,feet:null,weapon:null};
-const BAG_SIZE=12;
-let bag=new Array(BAG_SIZE).fill(null);
+const BAG_SIZE=12; let bag=new Array(BAG_SIZE).fill(null);
+let shopStock=[];
 
 // HUD refs
 const hpFill=document.getElementById('hpFill'); const mpFill=document.getElementById('mpFill');
 const hpLbl=document.getElementById('hpLbl'); const mpLbl=document.getElementById('mpLbl');
 const hudFloor=document.getElementById('hudFloor'); const hudSeed=document.getElementById('hudSeed'); const hudGold=document.getElementById('hudGold'); const hudDmg=document.getElementById('hudDmg');
+const xpFill=document.getElementById('xpFill'); const xpLbl=document.getElementById('xpLbl'); const hudLvl=document.getElementById('hudLvl');
 
 // --- Smooth helpers & settings ---
 function smoothstep01(t){ return t*t*(3-2*t); }
@@ -101,14 +130,10 @@ function walkable(x,y){ if(x<0||y<0||x>=MAP_W||y>=MAP_H) return false; const t=m
 function canMoveFrom(x,y,dx,dy){
   const nx=x+dx, ny=y+dy;
   if(!walkable(nx,ny)) return false;
-  if(dx!==0 && dy!==0){
-    // avoid cutting through two blocking corners
-    if(!walkable(x+dx,y) && !walkable(x,y+dy)) return false;
-  }
+  if(dx!==0 && dy!==0){ if(!walkable(x+dx,y) && !walkable(x,y+dy)) return false; }
   return true;
 }
-let smoothEnabled = true;
-let baseStepDelay = 140; // will sync to player.stepDelay on start
+let smoothEnabled = true; let baseStepDelay = 140; // sync to player.stepDelay on start
 
 // ===== RNG =====
 function RNG(seed){ this.s=seed|0; }
@@ -137,22 +162,28 @@ function generate(){
   }
   // walls
   for(let y=0;y<MAP_H;y++) for(let x=0;x<MAP_W;x++) if(map[y*MAP_W+x]===T_FLOOR){ for(const d of [[1,0],[-1,0],[0,1],[0,-1]]){ const nx=x+d[0], ny=y+d[1]; if(nx>=0&&ny>=0&&nx<MAP_W&&ny<MAP_H && map[ny*MAP_W+nx]===T_EMPTY) map[ny*MAP_W+nx]=T_WALL; } }
-  // place player + stairs
+  // place player + stairs + merchant
   const r=rooms[rng.int(0,rooms.length-1)]; player.x=r.x+((r.w/2)|0); player.y=r.y+((r.h/2)|0);
-  const rr=rooms[rng.int(0,rooms.length-1)]; stairs.x=rr.x+((rr.w/2)|0); stairs.y=rr.y+((rr.h/2)|0);
+  let rr=rooms[rng.int(0,rooms.length-1)]; stairs.x=rr.x+((rr.w/2)|0); stairs.y=rr.y+((rr.h/2)|0);
+  let rm=rooms[rng.int(0,rooms.length-1)];
+  merchant.x=rm.x+((rm.w/2)|0); merchant.y=rm.y+((rm.h/2)|0);
+  if(merchant.x===player.x && merchant.y===player.y){ merchant.x=rng.int(rm.x+1,rm.x+rm.w-2); merchant.y=rng.int(rm.y+1,rm.y+rm.h-2); }
+  if(merchant.x===stairs.x && merchant.y===stairs.y){ merchant.x=rng.int(rm.x+1,rm.x+rm.w-2); merchant.y=rng.int(rm.y+1,rm.y+rm.h-2); }
 
   // monsters
   for(let i=0;i<MONSTER_COUNT;i++){
     const r=rooms[rng.int(0,rooms.length-1)];
     const x=rng.int(r.x+1,r.x+r.w-2), y=rng.int(r.y+1,r.y+r.h-2);
-    if(x===player.x && y===player.y) continue;
+    if((x===player.x && y===player.y) || (x===merchant.x && y===merchant.y)) continue;
     monsters.push({x,y,hp:10,hpMax:10,type:rng.int(0,2),hitFlash:0,cd:0});
   }
 
   buildLayers();
   recomputeFOV();
   seedRoomLoot();
+  genShopStock();
   redrawInventory();
+  renderShop();
 }
 
 function buildLayers(){
@@ -189,7 +220,7 @@ function recomputeFOV(){
   }
 }
 
-// ===== Loot / Inventory (trimmed visuals) =====
+// ===== Loot / Inventory =====
 const TYPES=['helmet','chest','legs','hands','feet','weapon'];
 const WEAPONS=['Sword','Axe','Mace','Dagger','Bow','Wand','Staff'];
 const RARITY=[{n:'Common',c:'#c0c8d0'},{n:'Magic',c:'#4aa3ff'},{n:'Rare',c:'#ffd24a'},{n:'Epic',c:'#b84aff'}];
@@ -216,103 +247,194 @@ function pickupHere(){
   const it = lootMap.get(key);
   if(!it) return;
   if(it.type === 'gold'){
-    player.gold += it.amt;
-    hudGold.textContent = player.gold;
-    showToast(`+${it.amt} gold`);
-    lootMap.delete(key);
-    return;
+    player.gold += it.amt; hudGold.textContent = player.gold; showToast(`+${it.amt} gold`); lootMap.delete(key); return;
   }
-  // equipment
   const idx = bag.findIndex(b=>!b);
-  if(idx === -1){
-    showToast('Bag full');
-    return;
-  }
-  bag[idx] = it;
-  lootMap.delete(key);
-  showToast(`Picked up ${it.name}`);
+  if(idx === -1){ showToast('Bag full'); return; }
+  bag[idx] = it; lootMap.delete(key); showToast(`Picked up ${it.name}`);
   redrawInventory();
 }
 
-
 function equipFromBag(idx){
-  const it = bag[idx];
-  if(!it) return;
-  const slot = it.slot;
-  const prev = equip[slot];
-  equip[slot] = it;
-  bag[idx] = prev || null;
-  showToast(`Equipped ${it.name}`);
-  redrawInventory();
-  recalcStats();
+  const it = bag[idx]; if(!it) return;
+  const slot = it.slot; const prev = equip[slot];
+  equip[slot] = it; bag[idx] = prev || null; showToast(`Equipped ${it.name}`);
+  redrawInventory(); recalcStats();
 }
 
 function unequip(slot){
-  const it = equip[slot];
-  if(!it) return;
-  const idx = bag.findIndex(b=>!b);
-  if(idx === -1){ showToast('Bag full'); return; }
-  bag[idx] = it;
-  equip[slot] = null;
-  showToast(`Unequipped ${it.name}`);
-  redrawInventory();
-  recalcStats();
+  const it = equip[slot]; if(!it) return;
+  const idx = bag.findIndex(b=>!b); if(idx === -1){ showToast('Bag full'); return; }
+  bag[idx] = it; equip[slot] = null; showToast(`Unequipped ${it.name}`);
+  redrawInventory(); recalcStats();
 }
+
+function dropFromBag(idx){ const it=bag[idx]; if(!it) return; lootMap.set(`${player.x},${player.y}`,it); bag[idx]=null; showToast(`Dropped ${it.name}`); redrawInventory(); }
+
+function sellFromBag(idx){ const it=bag[idx]; if(!it) return; const price=getSellPrice(it); player.gold+=price; hudGold.textContent=player.gold; showToast(`Sold ${it.name} for ${price}`); bag[idx]=null; redrawInventory(); }
+
+function unequipAndSell(slot){ const it=equip[slot]; if(!it) return; const price=getSellPrice(it); equip[slot]=null; player.gold+=price; hudGold.textContent=player.gold; showToast(`Sold ${it.name} for ${price}`); redrawInventory(); recalcStats(); }
 
 function redrawInventory(){
-  let panel = document.getElementById('inventory');
-  if(!panel){
-    panel = document.createElement('div');
-    panel.id = 'inventory';
-    panel.className = 'panel';
-    panel.style.position = 'fixed';
-    panel.style.right = '8px';
-    panel.style.top = '64px';
-    panel.style.padding = '8px 12px';
-    panel.style.pointerEvents = 'auto';
-    panel.style.fontSize = '13px';
-    document.body.appendChild(panel);
-  }
-  let html = '<div style="font-weight:bold;margin-bottom:4px">Equipped</div>';
+  let panel = document.getElementById('inventory'); if(!panel){ panel=document.createElement('div'); panel.id='inventory'; panel.className='panel'; document.body.appendChild(panel); }
+  let html = '';
+  html += '<div class="section-title">Equipped</div>';
+  html += '<div>';
   for(const slot of SLOTS){
     const it = equip[slot];
-    html += `<div onclick="unequip('${slot}')" style="cursor:pointer">${slot}: ${it?`<span style="color:${it.color}">${it.name}</span>`:'-'}</div>`;
+    const name = it?`<span style="color:${it.color}">${escapeHtml(it.name)}</span>`:'-';
+    html += `<div class="list-row" data-type="eq" data-slot="${slot}"><div>${slot}: ${name}</div><div class="muted">${it?shortMods(it):''}</div></div>`;
   }
-  html += '<div style="font-weight:bold;margin:6px 0 4px">Bag</div>';
+  html += '</div><div class="hr"></div>';
+  html += '<div class="section-title">Bag</div>';
   for(let i=0;i<BAG_SIZE;i++){
     const it = bag[i];
-    html += `<div onclick="equipFromBag(${i})" style="cursor:pointer">${i+1}. ${it?`<span style="color:${it.color}">${it.name}</span>`:'(empty)'}</div>`;
+    html += `<div class="list-row" data-type="bag" data-idx="${i}"><div>${i+1}. ${it?`<span style="color:${it.color}">${escapeHtml(it.name)}</span>`:'(empty)'}</div><div class="muted">${it?shortMods(it):''}</div></div>`;
   }
+  html += '<div class="hr"></div>';
+  html += '<div id="invDetails" class="muted">Hover an item to see details. Click bag item to Equip. Click equipped item to Unequip. Use buttons below for Sell/Drop.</div>';
+  html += '<div class="actions" style="margin-top:8px"><button id="btnSell" class="btn sml" disabled>Sell</button><button id="btnDrop" class="btn sml" disabled>Drop</button></div>';
   panel.innerHTML = html;
+
+  // events (why: keep DOM light using delegation instead of many listeners)
+  panel.onmouseover = (e)=>{
+    const row = e.target.closest('.list-row'); if(!row) return; showItemDetailsFromRow(row);
+  };
+  panel.onclick = (e)=>{
+    const row = e.target.closest('.list-row'); if(row){
+      const t=row.dataset.type; if(t==='bag'){ equipFromBag(parseInt(row.dataset.idx,10)); } else if(t==='eq'){ unequip(row.dataset.slot); }
+    }
+  };
+  document.getElementById('btnSell').onclick = ()=>{
+    const sel = document.getElementById('invDetails').dataset.sel;
+    const kind = document.getElementById('invDetails').dataset.kind;
+    if(kind==='bag'){ sellFromBag(parseInt(sel,10)); }
+    if(kind==='eq'){ unequipAndSell(sel); }
+  };
+  document.getElementById('btnDrop').onclick = ()=>{
+    const sel = document.getElementById('invDetails').dataset.sel;
+    const kind = document.getElementById('invDetails').dataset.kind;
+    if(kind==='bag'){ dropFromBag(parseInt(sel,10)); }
+  };
 }
 
-function recalcStats(){
-  let dmgMin=2,dmgMax=4,crit=5,armor=0;
-  let hpMax=100, mpMax=60, speedPct=0;
-  for(const slot of SLOTS){
-    const it=equip[slot];
-    if(!it) continue;
-    const m=it.mods;
-    if(m.dmgMin) dmgMin+=m.dmgMin;
-    if(m.dmgMax) dmgMax+=m.dmgMax;
-    if(m.crit) crit+=m.crit;
-    if(m.armor) armor+=m.armor;
-    if(m.hpMax) hpMax+=m.hpMax;
-    if(m.mpMax) mpMax+=m.mpMax;
-    if(m.speedPct) speedPct+=m.speedPct;
+function showItemDetailsFromRow(row){
+  const det = document.getElementById('invDetails');
+  det.dataset.sel=''; det.dataset.kind='';
+  const t=row.dataset.type;
+  if(t==='bag'){
+    const i=parseInt(row.dataset.idx,10); const it=bag[i]; if(!it){ setDetailsText('(empty slot)'); disableInvActions(); return; }
+    det.dataset.sel=String(i); det.dataset.kind='bag';
+    setDetailsText(renderDetails(it, 'bag'));
+    document.getElementById('btnSell').disabled=false; document.getElementById('btnDrop').disabled=false;
+  }else if(t==='eq'){
+    const slot=row.dataset.slot; const it=equip[slot]; if(!it){ setDetailsText(`No ${slot} equipped.`); disableInvActions(); return; }
+    det.dataset.sel=slot; det.dataset.kind='eq';
+    setDetailsText(renderDetails(it, 'eq'));
+    document.getElementById('btnSell').disabled=false; document.getElementById('btnDrop').disabled=true; // avoid dropping equipped directly
   }
-  player.hpMax=hpMax;
-  player.mpMax=mpMax;
-  player.speedPct=speedPct;
-  if(player.hp>hpMax) player.hp=hpMax;
-  if(player.mp>mpMax) player.mp=mpMax;
-  hudDmg.textContent = `ATK ${dmgMin}-${dmgMax} | CRIT ${crit}% | ARM ${armor}`;
-  hpFill.style.width = `${(player.hp/player.hpMax)*100}%`;
-  mpFill.style.width = `${(player.mp/player.mpMax)*100}%`;
-  hpLbl.textContent = `HP ${player.hp}/${player.hpMax}`;
-  mpLbl.textContent = `Mana ${player.mp}/${player.mpMax}`;
 }
 
+function disableInvActions(){ document.getElementById('btnSell').disabled=true; document.getElementById('btnDrop').disabled=true; }
+function setDetailsText(html){ const det=document.getElementById('invDetails'); det.innerHTML=html; }
+
+function shortMods(it){ const m=it.mods||{}; const bits=[];
+  if(m.dmgMin||m.dmgMax) bits.push(`ATK ${m.dmgMin||0}-${m.dmgMax||0}`);
+  if(m.crit) bits.push(`CR ${m.crit}%`);
+  if(m.armor) bits.push(`ARM ${m.armor}`);
+  if(m.hpMax) bits.push(`HP+${m.hpMax}`);
+  if(m.mpMax) bits.push(`MP+${m.mpMax}`);
+  if(m.speedPct) bits.push(`SPD+${m.speedPct}%`);
+  if(m.ls) bits.push(`LS ${m.ls}%`);
+  if(m.mp) bits.push(`MPo+${m.mp}`);
+  return bits.join(' · ');
+}
+
+function renderDetails(it, origin){
+  const val = getItemValue(it); const sell = getSellPrice(it);
+  const lines = [];
+  lines.push(`<div class="item-title" style="color:${it.color}">${escapeHtml(it.name)}</div>`);
+  lines.push(`<div class="muted">${it.slot} · ${RARITY[it.rarity]?.n||'?'}</div>`);
+  const m = it.mods||{}; const rows = [];
+  if(m.dmgMin||m.dmgMax) rows.push(`<div>Attack: <span class="mono">${m.dmgMin||0}-${m.dmgMax||0}</span></div>`);
+  if(m.crit) rows.push(`<div>Crit: <span class="mono">+${m.crit}%</span></div>`);
+  if(m.armor) rows.push(`<div>Armor: <span class="mono">+${m.armor}</span></div>`);
+  if(m.hpMax) rows.push(`<div>HP Max: <span class="mono">+${m.hpMax}</span></div>`);
+  if(m.mpMax) rows.push(`<div>MP Max: <span class="mono">+${m.mpMax}</span></div>`);
+  if(m.speedPct) rows.push(`<div>Speed: <span class="mono">+${m.speedPct}%</span></div>`);
+  if(m.ls) rows.push(`<div>Lifesteal: <span class="mono">${m.ls}%</span></div>`);
+  if(m.mp) rows.push(`<div>Mana on hit: <span class="mono">+${m.mp}</span></div>`);
+  if(rows.length===0) rows.push('<div class="muted">No magical properties.</div>');
+  lines.push(`<div style="margin:6px 0">${rows.join('')}</div>`);
+  lines.push(`<div class="kv"><span class="pill">Value ${val}</span><span class="pill">Sell ${sell}</span>${origin==='shop'?'<span class="pill">Buy</span>':''}</div>`);
+  return lines.join('');
+}
+
+// ===== Values / Shop =====
+function getItemValue(it){
+  const rBase=[10,25,60,120][it.rarity||0];
+  const slotFactor = it.slot==='weapon'?1.25:1.0;
+  const m=it.mods||{}; let score=0;
+  score+= (m.dmgMin||0)*4 + (m.dmgMax||0)*6;
+  score+= (m.crit||0)*3 + (m.armor||0)*3;
+  score+= (m.hpMax||0)*0.8 + (m.mpMax||0)*0.6 + (m.speedPct||0)*4;
+  score+= (m.ls||0)*6 + (m.mp||0)*2;
+  const floorBonus = Math.max(0,floorNum-1)*4;
+  return Math.max(5, Math.floor((rBase + score)*slotFactor + floorBonus));
+}
+function getSellPrice(it){ return Math.floor(getItemValue(it)*0.5); }
+
+function genShopStock(){
+  shopStock.length=0;
+  const count=5; for(let i=0;i<count;i++) shopStock.push(makeRandomItem());
+}
+
+function makeRandomItem(){
+  const slot = SLOTS[rng.int(0, SLOTS.length-1)];
+  const rarityIdx = rng.int(0, RARITY.length-1);
+  const base = slot === 'weapon' ? WEAPONS[rng.int(0, WEAPONS.length-1)] : slot.charAt(0).toUpperCase()+slot.slice(1);
+  const name = `${RARITY[rarityIdx].n} ${base}`;
+  const item = { color: RARITY[rarityIdx].c, type:'gear', slot, name, rarity: rarityIdx, mods: affixMods(slot) };
+  item.price = clamp(8, 9999, Math.floor(getItemValue(item) * (1.0 + (floorNum-1)*0.05)));
+  return item;
+}
+
+function renderShop(){
+  const panel=document.getElementById('shop');
+  let h='';
+  h += '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px">';
+  h += '<div class="section-title">Merchant</div>';
+  h += '<div class="kv">Gold: <b id="shopGold" class="mono">'+player.gold+'</b></div>';
+  h += '</div>';
+  h += '<div class="muted" style="margin-bottom:6px">Stand on the <span style="color:#b084ff">purple tile</span> and press <b>E</b> to open/close. Click item to buy.</div>';
+  for(let i=0;i<shopStock.length;i++){
+    const it=shopStock[i];
+    h += `<div class="list-row" data-idx="${i}">`+
+         `<div><div class="item-title" style="color:${it.color}">${escapeHtml(it.name)}</div>`+
+         `<div class="muted">${it.slot} · ${shortMods(it)}</div></div>`+
+         `<div class="kv"><div class="pill mono">${it.price}g</div><button class="btn sml" data-buy="${i}">Buy</button></div>`+
+         `</div>`+
+         `<div class="muted" style="margin:-6px 6px 6px 6px">${renderDetails(it,'shop')}</div>`;
+  }
+  h += '<div class="hr"></div><div class="actions"><button id="shopRefresh" class="btn sml">Refresh (15g)</button><button id="shopClose" class="btn sml">Close</button></div>';
+  panel.innerHTML=h;
+  panel.onclick=(e)=>{
+    const b=e.target.closest('button'); if(!b) return;
+    if(b.id==='shopClose'){ toggleShop(false); return; }
+    if(b.id==='shopRefresh'){ if(player.gold>=15){ player.gold-=15; hudGold.textContent=player.gold; genShopStock(); renderShop(); } else showToast('Need 15 gold'); return; }
+    if(b.dataset.buy){ const idx=parseInt(b.dataset.buy,10); buyItem(idx); }
+  };
+}
+
+function buyItem(idx){
+  const it=shopStock[idx]; if(!it) return;
+  if(player.gold<it.price){ showToast('Not enough gold'); return; }
+  const slot=bag.findIndex(b=>!b); if(slot===-1){ showToast('Bag full'); return; }
+  player.gold-=it.price; hudGold.textContent=player.gold; bag[slot]=stripShopFields(it); showToast(`Bought ${it.name}`); shopStock.splice(idx,1); renderShop(); redrawInventory();
+}
+function stripShopFields(it){ const {price,...rest}=it; return rest; }
+
+function toggleShop(show){ const el=document.getElementById('shop'); el.style.display=show?'block':'none'; if(show){ renderShop(); document.getElementById('shopGold').textContent=player.gold; } }
 
 // ===== Combat / Click =====
 canvas.addEventListener('mousedown', (e)=>{
@@ -320,14 +442,20 @@ canvas.addEventListener('mousedown', (e)=>{
   const tx = Math.floor((mx+camX)/TILE), ty=Math.floor((my+camY)/TILE);
   const m = monsters.find(mm=>mm.x===tx && mm.y===ty);
   if(!m) return;
-  let baseMin=2, baseMax=4, crit=(equip.weapon && equip.weapon.mods.crit)||5;
-  if(equip.weapon){ baseMin += equip.weapon.mods.dmgMin||0; baseMax += equip.weapon.mods.dmgMax||0; }
-  let dmg=rng.int(baseMin, baseMax);
+  const {min,max,crit,ls} = currentAtk();
+  let dmg=rng.int(min, max);
   if(Math.random()*100 < crit) dmg = Math.floor(dmg*1.5);
   dmg=Math.max(1,dmg);
   m.hp-=dmg; m.hitFlash=4;
-  const ls=(equip.weapon && equip.weapon.mods.ls)||0; if(ls>0){ const heal=Math.max(1,Math.floor(dmg*ls/100)); player.hp=Math.min(player.hpMax, player.hp+heal); }
+  if(ls>0){ const heal=Math.max(1,Math.floor(dmg*ls/100)); player.hp=Math.min(player.hpMax, player.hp+heal); }
 });
+
+function currentAtk(){
+  // why: single source-of-truth for attack numbers (incl. level & gear)
+  let min=2,max=4,crit=5,ls=0;
+  const lvlBonus = Math.floor((player.lvl-1)*0.6); min+=lvlBonus; max+=lvlBonus;
+  const w=equip.weapon?.mods||{}; min+=w.dmgMin||0; max+=w.dmgMax||0; crit += w.crit||0; ls=w.ls||0; return {min,max,crit,ls};
+}
 
 function dist(a,b){ return Math.abs(a.x-b.x)+Math.abs(a.y-b.y); }
 
@@ -338,13 +466,8 @@ function monsterStep(m){
   const nx=m.x+d[0], ny=m.y+d[1];
   if(walkable(nx,ny)){
     m.x=nx; m.y=ny;
-    if(smoothEnabled){
-      m.fromX = (m.rx!==undefined?m.rx:m.x); m.fromY = (m.ry!==undefined?m.ry:m.y);
-      m.toX = nx; m.toY = ny; m.moveT=0; m.moving=true; m.moveDur = rng.int(100,180);
-    }else{
-      m.rx=m.x; m.ry=m.y; m.moving=false; m.moveT=1;
-    }
-    // Removed per-step gold drops to prevent excessive loot spawning.
+    if(smoothEnabled){ m.fromX = (m.rx!==undefined?m.rx:m.x); m.fromY = (m.ry!==undefined?m.ry:m.y); m.toX = nx; m.toY = ny; m.moveT=0; m.moving=true; m.moveDur = rng.int(100,180); }
+    else{ m.rx=m.x; m.ry=m.y; m.moving=false; m.moveT=1; }
   }
   m.cd=rng.int(2,8);
 }
@@ -365,6 +488,12 @@ function draw(dt){
   ctx.fillStyle='#c7a34a';
   ctx.fillRect(stairs.x*TILE - camX + (TILE*0.25), stairs.y*TILE - camY + (TILE*0.25), TILE*0.5, TILE*0.5);
 
+  // merchant
+  if(vis[merchant.y*MAP_W+merchant.x]){
+    ctx.fillStyle='#8a5cff';
+    ctx.fillRect(merchant.x*TILE - camX + (TILE*0.25), merchant.y*TILE - camY + (TILE*0.25), TILE*0.5, TILE*0.5);
+  }
+
   // loot
   for(const [k,it] of lootMap.entries()){
     const [lx,ly]=k.split(',').map(Number);
@@ -380,8 +509,7 @@ function draw(dt){
     if(!vis[m.y*MAP_W+m.x]) continue;
     const mtx = (m.rx!==undefined ? m.rx : m.x);
     const mty = (m.ry!==undefined ? m.ry : m.y);
-    const mx = mtx*TILE - camX + (TILE-24)/2;
-    const my = mty*TILE - camY + (TILE-24)/2;
+    const mx = mtx*TILE - camX + (TILE-24)/2; const my = mty*TILE - camY + (TILE-24)/2;
     ctx.fillStyle = m.hitFlash>0 ? '#ff6666' : ['#9bd','#bd9','#db9'][m.type];
     ctx.fillRect(mx, my, 24, 24);
     // hp
@@ -389,18 +517,18 @@ function draw(dt){
     ctx.fillStyle='#e33'; const hw=24*(Math.max(0,m.hp)/m.hpMax); ctx.fillRect(mx, my-6, hw, 3);
     if(m.hitFlash>0) m.hitFlash--;
     if(m.hp<=0){
-      // Drop loot only on death with a chance
+      // Drop loot on death with a chance + small gold chance
       if(Math.random()<MONSTER_LOOT_CHANCE) dropLoot(m.x,m.y);
-      const idx=monsters.indexOf(m);
-      if(idx>=0) monsters.splice(idx,1);
+      if(Math.random()<0.55){ lootMap.set(`${m.x},${m.y}`,{color:'#ffd24a',type:'gold',amt:rng.int(3,12)}); }
+      grantXP(10 + rng.int(0,6));
+      const idx=monsters.indexOf(m); if(idx>=0) monsters.splice(idx,1);
     }
   }
 
   // player
   const ptx = (smoothEnabled && player.rx!==undefined ? player.rx : player.x);
   const pty = (smoothEnabled && player.ry!==undefined ? player.ry : player.y);
-  const px = ptx*TILE - camX + (TILE-24)/2;
-  const py = pty*TILE - camY + (TILE-24)/2;
+  const px = ptx*TILE - camX + (TILE-24)/2; const py = pty*TILE - camY + (TILE-24)/2;
   ctx.fillStyle='#e9e9f9'; ctx.fillRect(px, py, 24, 24);
 
   // fog
@@ -412,6 +540,8 @@ function draw(dt){
   // HUD
   hpFill.style.width=(100*player.hp/player.hpMax).toFixed(0)+'%';
   mpFill.style.width=(100*player.mp/player.mpMax).toFixed(0)+'%';
+  const xpPct = Math.min(100, Math.floor(100*player.xp/Math.max(1,player.xpToNext)));
+  xpFill.style.width = xpPct+'%'; xpLbl.textContent=`XP ${player.xp}/${player.xpToNext}`; hudLvl.textContent=player.lvl;
   hpLbl.textContent=`HP ${player.hp}/${player.hpMax}`; mpLbl.textContent=`Mana ${player.mp}/${player.mpMax}`;
 }
 
@@ -419,11 +549,7 @@ function draw(dt){
 function update(dt){
   // init render state
   if(player.rx===undefined){
-    player.rx=player.x; player.ry=player.y;
-    player.fromX=player.x; player.fromY=player.y;
-    player.toX=player.x;   player.toY=player.y;
-    player.moving=false; player.moveT=1; player.moveDur=player.stepDelay;
-    baseStepDelay = player.stepDelay || baseStepDelay;
+    player.rx=player.x; player.ry=player.y; player.fromX=player.x; player.fromY=player.y; player.toX=player.x; player.toY=player.y; player.moving=false; player.moveT=1; player.moveDur=player.stepDelay; baseStepDelay = player.stepDelay || baseStepDelay;
   }
   for(const m of monsters){ if(m.rx===undefined){ m.rx=m.x; m.ry=m.y; m.moving=false; m.moveT=1; m.moveDur=140; } }
 
@@ -444,9 +570,8 @@ function update(dt){
         const gearFactor = (1 - Math.min(0.5, player.speedPct/100));
         const dur = Math.max(60, baseStepDelay * gearFactor * diag);
         player.moveDur = dur; player.stepCD = dur;
-        if(smoothEnabled){
-          player.fromX=player.rx; player.fromY=player.ry; player.toX=player.x; player.toY=player.y; player.moveT=0; player.moving=true;
-        }else{ player.rx=player.x; player.ry=player.y; player.moving=false; player.moveT=1; }
+        if(smoothEnabled){ player.fromX=player.rx; player.fromY=player.ry; player.toX=player.x; player.toY=player.y; player.moveT=0; player.moving=true; }
+        else{ player.rx=player.x; player.ry=player.y; player.moving=false; player.moveT=1; }
       }
     }
   }
@@ -463,18 +588,13 @@ function update(dt){
   if(Math.random()<0.2){
     for(const m of monsters){
       monsterStep(m);
-      if(dist(player,m)===1){
-        if(!m.touchCD) m.touchCD=0; m.touchCD--; if(m.touchCD<=0){ const dmg=Math.max(1,rng.int(1,3)); player.hp=Math.max(0,player.hp-dmg); m.touchCD=30; showToast('Ouch!'); }
-      }
+      if(dist(player,m)===1){ if(!m.touchCD) m.touchCD=0; m.touchCD--; if(m.touchCD<=0){ const dmg=Math.max(1,rng.int(1,3)); player.hp=Math.max(0,player.hp-dmg); m.touchCD=30; showToast('Ouch!'); } }
     }
   }
   // advance monster tweens
   for(const m of monsters){
-    if(m.moving){
-      m.moveT=Math.min(1,m.moveT + dt / m.moveDur);
-      const t=smoothstep01(m.moveT); m.rx=lerp(m.fromX,m.toX,t); m.ry=lerp(m.fromY,m.toY,t);
-      if(m.moveT>=1){ m.moving=false; m.rx=m.toX; m.ry=m.toY; }
-    }else{ m.rx=m.x; m.ry=m.y; }
+    if(m.moving){ m.moveT=Math.min(1,m.moveT + dt / m.moveDur); const t=smoothstep01(m.moveT); m.rx=lerp(m.fromX,m.toX,t); m.ry=lerp(m.fromY,m.toY,t); if(m.moveT>=1){ m.moving=false; m.rx=m.toX; m.ry=m.toY; } }
+    else{ m.rx=m.x; m.ry=m.y; }
   }
 }
 
@@ -486,20 +606,13 @@ window.addEventListener('keypress',e=>{
   if(e.key==='e'||e.key==='E'){
     if(player.x===stairs.x && player.y===stairs.y){
       floorNum++; seed=(seed*1664525+1013904223)|0; rng=new RNG(seed);
-      generate(); hudFloor.textContent=floorNum; hudSeed.textContent=seed>>>0; showToast('Down we go');
-    }
+      generate(); hudFloor.textContent=floorNum; hudSeed.textContent=seed>>>0; showToast('Down we go'); toggleShop(false);
+    } else if(player.x===merchant.x && player.y===merchant.y){ toggleShop(document.getElementById('shop').style.display!=='block'); renderShop(); }
   }
 });
 
 // ===== Inventory UI (toggle only) =====
-function toggleInv(){
-  let panel=document.getElementById('inventory');
-  if(!panel){ redrawInventory(); panel=document.getElementById('inventory'); }
-  if(!panel) return;
-  const show=panel.style.display===''||panel.style.display==='none';
-  panel.style.display=show?'block':'none';
-  if(show) redrawInventory();
-}
+function toggleInv(){ let panel=document.getElementById('inventory'); if(!panel){ redrawInventory(); panel=document.getElementById('inventory'); } if(!panel) return; const show=panel.style.display===''||panel.style.display==='none'; panel.style.display=show?'block':'none'; if(show) redrawInventory(); }
 
 // ===== Loot helpers =====
 function dropLoot(x,y){
@@ -507,48 +620,52 @@ function dropLoot(x,y){
   const rarityIdx = rng.int(0, RARITY.length-1);
   const base = slot === 'weapon' ? WEAPONS[rng.int(0, WEAPONS.length-1)] : slot.charAt(0).toUpperCase()+slot.slice(1);
   const name = `${RARITY[rarityIdx].n} ${base}`;
-  const item = {
-    color: RARITY[rarityIdx].c,
-    type: 'gear',
-    slot,
-    name,
-    rarity: rarityIdx,
-    mods: affixMods(slot)
-  };
+  const item = { color: RARITY[rarityIdx].c, type: 'gear', slot, name, rarity: rarityIdx, mods: affixMods(slot) };
   lootMap.set(`${x},${y}`, item);
 }
 
+// ===== XP / Leveling =====
+function grantXP(x){ player.xp+=x; while(player.xp>=player.xpToNext){ player.xp-=player.xpToNext; levelUp(); } }
+function levelUp(){ player.lvl++; const hpGain=12, mpGain=6; player.hpMax+=hpGain; player.mpMax+=mpGain; player.baseAtkBonus+=1; player.hp=player.hpMax; player.mp=player.mpMax; player.xpToNext = Math.floor(50*Math.pow(1.35, player.lvl-1)); recalcStats(); showToast(`Level up! Lv ${player.lvl}`); }
+
 // ===== Toast =====
-let toastTimer=0;
-function showToast(msg){
-  const bar=document.querySelector('.topbar'); const span=document.createElement('span'); span.style.marginLeft='8px'; span.style.opacity=.85; span.textContent='• '+msg; bar.appendChild(span);
-  clearTimeout(toastTimer); toastTimer=setTimeout(()=>{ if(span.parentNode) span.remove(); }, 1600);
+let toastTimer=0; function showToast(msg){ const bar=document.querySelector('.topbar'); const span=document.createElement('span'); span.style.marginLeft='8px'; span.style.opacity=.85; span.textContent='• '+msg; bar.appendChild(span); clearTimeout(toastTimer); toastTimer=setTimeout(()=>{ if(span.parentNode) span.remove(); }, 1600); }
+
+// ===== Stats =====
+function recalcStats(){
+  let dmgMin=2,dmgMax=4,crit=5,armor=0; let hpMax=100, mpMax=60, speedPct=0;
+  // level bonus
+  const lvlBonus = Math.floor((player.lvl-1)*0.6) + (player.baseAtkBonus||0);
+  dmgMin += lvlBonus; dmgMax += lvlBonus;
+  for(const slot of SLOTS){
+    const it=equip[slot]; if(!it) continue; const m=it.mods;
+    if(m.dmgMin) dmgMin+=m.dmgMin; if(m.dmgMax) dmgMax+=m.dmgMax; if(m.crit) crit+=m.crit; if(m.armor) armor+=m.armor; if(m.hpMax) hpMax+=m.hpMax; if(m.mpMax) mpMax+=m.mpMax; if(m.speedPct) speedPct+=m.speedPct;
+  }
+  player.hpMax=hpMax; player.mpMax=mpMax; player.speedPct=speedPct; if(player.hp>hpMax) player.hp=hpMax; if(player.mp>mpMax) player.mp=mpMax;
+  hudDmg.textContent = `ATK ${dmgMin}-${dmgMax} | CRIT ${crit}% | ARM ${armor}`;
+  hpFill.style.width = `${(player.hp/player.hpMax)*100}%`; mpFill.style.width = `${(player.mp/player.mpMax)*100}%`;
+  hpLbl.textContent = `HP ${player.hp}/${player.hpMax}`; mpLbl.textContent = `Mana ${player.mp}/${player.mpMax}`;
 }
 
 // ===== Main Loop =====
 let __last = performance.now();
-function loop(now){
-  const dt = Math.min(50, now - __last);
-  __last = now;
-  update(dt);
-  draw(dt);
-  requestAnimationFrame(loop);
-}
+function loop(now){ const dt = Math.min(50, now - __last); __last = now; update(dt); draw(dt); requestAnimationFrame(loop); }
 
 // ===== Start =====
 function startGame(){
-  hudFloor.textContent=floorNum; hudSeed.textContent=seed>>>0; hudGold.textContent=player.gold;
-  generate();
-  recalcStats();
-  // UI bindings for smooth + speed
-  const smoothToggle=document.getElementById('smoothToggle');
-  const speedRange=document.getElementById('speedRange');
+  hudFloor.textContent=floorNum; hudSeed.textContent=seed>>>0; hudGold.textContent=player.gold; hudLvl.textContent=player.lvl;
+  generate(); recalcStats();
+  const smoothToggle=document.getElementById('smoothToggle'); const speedRange=document.getElementById('speedRange');
   if(smoothToggle){ smoothToggle.checked = smoothEnabled; smoothToggle.addEventListener('change', e=>{ smoothEnabled = e.target.checked; if(!smoothEnabled){ player.rx=player.x; player.ry=player.y; } }); }
   if(speedRange){ baseStepDelay = player.stepDelay; speedRange.value = String(baseStepDelay); speedRange.addEventListener('input', e=>{ const v=parseInt(e.target.value,10); if(!isNaN(v)) baseStepDelay=v; }); }
   requestAnimationFrame(loop);
 }
 
 document.getElementById('playBtn').onclick=()=>{ document.getElementById('start').style.display='none'; startGame(); };
+
+// ===== Utils =====
+function clamp(a,b,x){ return Math.max(a, Math.min(b, x)); }
+function escapeHtml(s){ return String(s).replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c])); }
 </script>
 </body>
 </html>
