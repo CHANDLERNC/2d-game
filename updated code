@@ -478,8 +478,8 @@ function draw(){
 }
 
 function update(){
-  // movement step gating
-  player.stepCD = Math.max(0, player.stepCD-16);
+  // movement step gating (refresh 25% faster)
+  player.stepCD = Math.max(0, player.stepCD-20);
   let moved=false;
   if(player.stepCD<=0){
     let dx=0, dy=0;
