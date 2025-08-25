@@ -1,63 +1,32 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>Dungeon — Fix Ordered (48/24)</title>
-<style>
-  html,body{margin:0;background:#0b0b0e;color:#ddd;font-family:system-ui,Segoe UI,Roboto,Ubuntu,Arial,sans-serif;overflow:hidden}
-  #ui{position:fixed;inset:0;display:grid;grid-template-rows:auto 1fr auto;pointer-events:none}
-  .topbar{display:flex;gap:16px;align-items:center;padding:8px 12px;background:linear-gradient(#191a1f,#111219);border-bottom:1px solid #2a2d39}
-  .panel{background:rgba(15,16,22,0.9);border:1px solid #2a2d39;border-radius:10px;box-shadow:0 0 0 1px rgba(255,255,255,0.03) inset}
-  .stat{height:14px;width:220px; background:#222;border:1px solid #333;border-radius:6px;position:relative}
-  .fill{position:absolute;left:0;top:0;bottom:0;border-radius:6px}
-  .hp{background:linear-gradient(#8b1b1b,#5c1111)}
-  .mp{background:linear-gradient(#1b3a8b,#11215c)}
-  .label{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:11px;color:#eee;text-shadow:0 1px 0 #000}
-  .hud-kv{opacity:.9}
-  .hud-kv b{color:#eee}
-  #inv{position:fixed;right:12px;top:60px;width:420px;max-height:72vh;display:none;pointer-events:auto}
-  #inv .content{padding:10px}
-  .grid{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
-  .slot,.eqslot{height:56px;display:flex;align-items:center;justify-content:center;border:1px dashed #3a3f52;border-radius:8px;background:rgba(20,22,30,.8);cursor:pointer;user-select:none}
-  .slot:hover,.eqslot:hover{outline:1px solid #6b7280}
-  .eq{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:10px}
-  .title{padding:8px 10px;border-bottom:1px solid #2a2d39;background:linear-gradient(#15161c,#101116);border-radius:10px 10px 0 0}
-  .hint{font-size:12px;opacity:.7;margin-top:6px}
-  #start{position:fixed;inset:0;background:radial-gradient(1200px 600px at 50% -200px,rgba(80,80,120,.15),transparent) ,#0b0b0e;display:flex;align-items:center;justify-content:center}
-  #card{width:540px}
-  #gameCanvas{position:fixed;left:0;top:0}
-  .btn{display:inline-block;padding:8px 14px;border:1px solid #3a3f52;border-radius:8px;background:#141622;color:#e6e6f0;cursor:pointer}
-  .btn:hover{background:#1a1d2a}
-  .stone{background-image:linear-gradient(180deg,rgba(255,255,255,.03),rgba(0,0,0,.08));}
-  .footer{padding:6px 12px;border-top:1px solid #2a2d39;background:linear-gradient(#0f1016,#0b0c11);opacity:.85}
-</style>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Dungeon Crawler — 48/24 Fullscreen</title>
+<link rel="stylesheet" href="styles.css">
 </head>
 <body>
-<canvas id="gameCanvas" width="1280" height="720"></canvas>
+<canvas id="gameCanvas"></canvas>
 
+<!-- UI HUD -->
 <div id="ui">
   <div class="topbar">
-    <div class="hud-kv"><b>Floor:</b> <span id="hudFloor">1</span> <span style="opacity:.5">|</span> <b>Seed:</b> <span id="hudSeed">-</span></div>
-    <div class="stat panel" style="width:260px">
-      <div id="hpFill" class="fill hp" style="width:70%"></div>
-      <div class="label" id="hpLbl">HP 70/100</div>
-    </div>
-    <div class="stat panel" style="width:220px">
-      <div id="mpFill" class="fill mp" style="width:40%"></div>
-      <div class="label" id="mpLbl">Mana 40/100</div>
-    </div>
+    <div class="hud-kv"><b>Floor:</b> <span id="hudFloor">1</span> | <b>Seed:</b> <span id="hudSeed">-</span></div>
+    <div class="stat" style="width:260px"><div id="hpFill" class="fill hp"></div><div class="label" id="hpLbl">HP 70/100</div></div>
+    <div class="stat" style="width:220px"><div id="mpFill" class="fill mp"></div><div class="label" id="mpLbl">Mana 40/100</div></div>
     <div class="hud-kv"><b>Gold:</b> <span id="hudGold">0</span></div>
-    <div class="hud-kv" id="hudDmg" style="opacity:.85;margin-left:auto">ATK 2-4 | CRIT 5% | ARM 0</div>
+    <div class="hud-kv" id="hudDmgWrap" style="margin-left:auto"><b id="hudDmg">ATK 1-2 | CRIT 0% | ARM 0</b></div>
+    <div class="hud-kv" style="opacity:.65">WASD/Arrows: Move • I: Inventory • E: Stairs • Click: Attack</div>
   </div>
   <div></div>
-  <div class="footer">Fix Ordered (48/24) — offline single file</div>
+  <div class="footer">48×48 terrain • 24×24 entities • Fullscreen + Render Scale</div>
 </div>
 
-<div id="inv" class="panel stone">
+<!-- Inventory Panel -->
+<div id="inv" class="panel">
   <div class="title">Inventory & Equipment</div>
   <div class="content">
-    <div class="hint">Click an item to equip if the slot matches; click equipped slot to unequip back to bag.</div>
     <div class="eq">
       <div class="eqslot" data-slot="helmet">Helmet</div>
       <div class="eqslot" data-slot="chest">Chest</div>
@@ -70,20 +39,19 @@
   </div>
 </div>
 
+<!-- Start Screen -->
 <div id="start">
-  <div id="card" class="panel stone">
-    <div class="title">Dungeon — Fix Ordered (48 terrain / 24 entities)</div>
-    <div class="content" style="padding:12px">
-      <p>Explore a procedurally generated dungeon with fog‑of‑war. Find loot, equip gear, and descend the stairs to a new floor.</p>
+  <div id="card" class="panel">
+    <div class="title">Dungeon Crawler — 48/24 Fullscreen</div>
+    <div class="content">
+      <p>Explore a procedural dungeon with fog-of-war, loot, monsters and inventory.</p>
       <ul>
-        <li>WASD / Arrow Keys — Move</li>
+        <li>WASD / Arrows — Move</li>
         <li>I — Toggle Inventory</li>
-        <li>E — Use Stairs / Portal</li>
-        <li>Click monster — Attack (range depends on weapon)</li>
+        <li>E — Use Stairs</li>
+        <li>Click — Attack</li>
       </ul>
-      <p class="hint">48×48 tiles; 24×24 entities. Single file, no CDNs.</p>
       <button id="playBtn" class="btn">Play</button>
-      <button class="btn" onclick="alert('Thanks for playing!')">Quit</button>
     </div>
   </div>
 </div>
