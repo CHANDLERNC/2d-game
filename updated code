@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Dungeon — Fix Ordered (48/24)</title>
+<style>
+  html,body{margin:0;background:#0b0b0e;color:#ddd;font-family:system-ui,Segoe UI,Roboto,Ubuntu,Arial,sans-serif;overflow:hidden}
+  #ui{position:fixed;inset:0;display:grid;grid-template-rows:auto 1fr auto;pointer-events:none}
+  .topbar{display:flex;gap:16px;align-items:center;padding:8px 12px;background:linear-gradient(#191a1f,#111219);border-bottom:1px solid #2a2d39}
+  .panel{background:rgba(15,16,22,0.9);border:1px solid #2a2d39;border-radius:10px;box-shadow:0 0 0 1px rgba(255,255,255,0.03) inset}
+  .stat{height:14px;width:220px; background:#222;border:1px solid #333;border-radius:6px;position:relative}
+  .fill{position:absolute;left:0;top:0;bottom:0;border-radius:6px}
+  .hp{background:linear-gradient(#8b1b1b,#5c1111)}
+  .mp{background:linear-gradient(#1b3a8b,#11215c)}
+  .label{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:11px;color:#eee;text-shadow:0 1px 0 #000}
+  .hud-kv{opacity:.9}
+  .hud-kv b{color:#eee}
+  #inv{position:fixed;right:12px;top:60px;width:420px;max-height:72vh;display:none;pointer-events:auto}
+  #inv .content{padding:10px}
+  .grid{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
+  .slot,.eqslot{height:56px;display:flex;align-items:center;justify-content:center;border:1px dashed #3a3f52;border-radius:8px;background:rgba(20,22,30,.8);cursor:pointer;user-select:none}
+  .slot:hover,.eqslot:hover{outline:1px solid #6b7280}
+  .eq{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:10px}
+  .title{padding:8px 10px;border-bottom:1px solid #2a2d39;background:linear-gradient(#15161c,#101116);border-radius:10px 10px 0 0}
+  .hint{font-size:12px;opacity:.7;margin-top:6px}
+  #start{position:fixed;inset:0;background:radial-gradient(1200px 600px at 50% -200px,rgba(80,80,120,.15),transparent) ,#0b0b0e;display:flex;align-items:center;justify-content:center}
+  #card{width:540px}
+  #gameCanvas{position:fixed;left:0;top:0}
+  .btn{display:inline-block;padding:8px 14px;border:1px solid #3a3f52;border-radius:8px;background:#141622;color:#e6e6f0;cursor:pointer}
+  .btn:hover{background:#1a1d2a}
+  .stone{background-image:linear-gradient(180deg,rgba(255,255,255,.03),rgba(0,0,0,.08));}
+  .footer{padding:6px 12px;border-top:1px solid #2a2d39;background:linear-gradient(#0f1016,#0b0c11);opacity:.85}
+</style>
+</head>
+<body>
+<canvas id="gameCanvas" width="1280" height="720"></canvas>
+
+<div id="ui">
+  <div class="topbar">
+    <div class="hud-kv"><b>Floor:</b> <span id="hudFloor">1</span> <span style="opacity:.5">|</span> <b>Seed:</b> <span id="hudSeed">-</span></div>
+    <div class="stat panel" style="width:260px">
+      <div id="hpFill" class="fill hp" style="width:70%"></div>
+      <div class="label" id="hpLbl">HP 70/100</div>
+    </div>
+    <div class="stat panel" style="width:220px">
+      <div id="mpFill" class="fill mp" style="width:40%"></div>
+      <div class="label" id="mpLbl">Mana 40/100</div>
+    </div>
+    <div class="hud-kv"><b>Gold:</b> <span id="hudGold">0</span></div>
+    <div class="hud-kv" id="hudDmg" style="opacity:.85;margin-left:auto">ATK 2-4 | CRIT 5% | ARM 0</div>
+  </div>
+  <div></div>
+  <div class="footer">Fix Ordered (48/24) — offline single file</div>
+</div>
+
+<div id="inv" class="panel stone">
+  <div class="title">Inventory & Equipment</div>
+  <div class="content">
+    <div class="hint">Click an item to equip if the slot matches; click equipped slot to unequip back to bag.</div>
+    <div class="eq">
+      <div class="eqslot" data-slot="helmet">Helmet</div>
+      <div class="eqslot" data-slot="chest">Chest</div>
+      <div class="eqslot" data-slot="legs">Legs</div>
+      <div class="eqslot" data-slot="hands">Hands</div>
+      <div class="eqslot" data-slot="feet">Feet</div>
+      <div class="eqslot" data-slot="weapon">Weapon</div>
+    </div>
+    <div class="grid" id="bag"></div>
+  </div>
+</div>
+
+<div id="start">
+  <div id="card" class="panel stone">
+    <div class="title">Dungeon — Fix Ordered (48 terrain / 24 entities)</div>
+    <div class="content" style="padding:12px">
+      <p>Explore a procedurally generated dungeon with fog‑of‑war. Find loot, equip gear, and descend the stairs to a new floor.</p>
+      <ul>
+        <li>WASD / Arrow Keys — Move</li>
+        <li>I — Toggle Inventory</li>
+        <li>E — Use Stairs / Portal</li>
+        <li>Click monster — Attack (range depends on weapon)</li>
+      </ul>
+      <p class="hint">48×48 tiles; 24×24 entities. Single file, no CDNs.</p>
+      <button id="playBtn" class="btn">Play</button>
+      <button class="btn" onclick="alert('Thanks for playing!')">Quit</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ===== Config / Globals =====
+const TILE=48, PLAYER_SIZE=24, MONSTER_SIZE=24, LOOT_SIZE=18;
+const MAP_W=90, MAP_H=70;
+const FOV_RADIUS=11;
+const ROOM_COUNT=24;
+const MONSTER_COUNT=16;
+const LOOT_CHANCE=0.18;
+const VIEW_W=1280, VIEW_H=720;
+
+let camX=0, camY=0;
+
+// RNG
+function RNG(seed){this.x=seed|0||123456789;} RNG.prototype.next=function(){let x=this.x|0;x^=x<<13;x^=x>>>17;x^=x<<5;this.x=x|0;return (this.x>>>0)/4294967296;}; RNG.prototype.int=function(a,b){return a+Math.floor(this.next()*(b-a+1));};
+
+// Types
+const T_EMPTY=0, T_FLOOR=1, T_WALL=2, T_STAIRS=3;
+
+// State
+let seed=(Math.random()*1e9)|0, floorNum=1, rng=new RNG(seed);
+let map=[], fog=[], vis=[]; let rooms=[]; let stairs={x:0,y:0};
+let player={x:0,y:0,hp:100,hpMax:100,mp:60,mpMax:60,gold:0,stepCD:0,stepDelay:140,speedPct:0};
+let monsters=[]; // {x,y,hp,hpMax,type,hitFlash:0,cd:0}
+const SLOTS=["helmet","chest","legs","hands","feet","weapon"];
+let equip={helmet:null,chest:null,legs:null,hands:null,feet:null,weapon:null};
+let bag=[]; const BAG_CAP=25;
+let lootMap=new Map(); // "x,y" => item
+let floorLayer, wallLayer;
+
+// Canvas
+const canvas=document.getElementById('gameCanvas'); const ctx=canvas.getContext('2d');
+function resize(){canvas.width=VIEW_W; canvas.height=VIEW_H;} resize();
+
+// UI refs
+const hudSeed=document.getElementById('hudSeed');
+const hudFloor=document.getElementById('hudFloor');
+const hudGold=document.getElementById('hudGold');
+const hpFill=document.getElementById('hpFill'); const mpFill=document.getElementById('mpFill');
+const hpLbl=document.getElementById('hpLbl'); const mpLbl=document.getElementById('mpLbl');
+const hudDmg=document.getElementById('hudDmg');
+const invPanel=document.getElementById('inv'); const bagGrid=document.getElementById('bag');
+
+// ===== Helpers (order guaranteed) =====
+function weaponKind(){
+  const w=equip.weapon;
+  if(!w) return 'melee';
+  if(/Bow/i.test(w.name)) return 'bow';
+  if(/Wand|Staff/i.test(w.name)) return 'wand';
+  return 'melee';
+}
+function weaponRange(){ return weaponKind()==='melee'?1:6; }
+function manaCost(){ return weaponKind()==='wand'?4:0; }
+
+function playerArmor(){ let a=0; for(const s of SLOTS){const it=equip[s]; if(it&&it.mods&&it.mods.armor) a+=it.mods.armor;} return a; }
+function playerCrit(){ let c=5; for(const s of SLOTS){const it=equip[s]; if(it&&it.mods&&it.mods.crit) c+=it.mods.crit;} return Math.min(50,c|0); }
+function playerLifeSteal(){ let ls=0; for(const s of SLOTS){const it=equip[s]; if(it&&it.mods&&it.mods.ls) ls+=it.mods.ls;} return Math.min(25,ls); }
+function playerManaRegen(){ let r=0; for(const s of SLOTS){const it=equip[s]; if(it&&it.mods&&it.mods.mpRegen) r+=it.mods.mpRegen;} return r; }
+function playerSpeedPct(){ let sp=0; for(const s of SLOTS){const it=equip[s]; if(it&&it.mods&&it.mods.speedPct) sp+=it.mods.speedPct;} return Math.min(50,sp); }
+function playerDamageRange(){
+  let baseMin=2, baseMax=4;
+  const w=equip.weapon;
+  if(w && w.mods){ baseMin += w.mods.dmgMin||0; baseMax += w.mods.dmgMax||0; }
+  for(const s of SLOTS){const it=equip[s]; if(it&&it.mods&&it.mods.dmgAll){ baseMin+=it.mods.dmgAll; baseMax+=it.mods.dmgAll; }}
+  return [Math.max(1,baseMin|0), Math.max(2,baseMax|0)];
+}
+
+// ===== Stats recompute BEFORE startGame =====
+function recalcStats(){
+  const hpPct = player.hp/player.hpMax, mpPct=player.mp/player.mpMax;
+  let hpB=100, mpB=60;
+  for(const s of SLOTS){
+    const it=equip[s]; if(!it) continue;
+    if(it.mods && it.mods.hpMax) hpB+=it.mods.hpMax;
+    if(it.mods && it.mods.mpMax) mpB+=it.mods.mpMax;
+  }
+  player.hpMax=hpB; player.mpMax=mpB;
+  player.hp=Math.min(player.hpMax, Math.max(1, Math.round(hpPct*player.hpMax)));
+  player.mp=Math.min(player.mpMax, Math.max(0, Math.round(mpPct*player.mpMax)));
+  player.speedPct = playerSpeedPct();
+  const [dmin,dmax]=playerDamageRange();
+  if(hudDmg) hudDmg.textContent=`ATK ${dmin}-${dmax} | CRIT ${playerCrit()}% | ARM ${playerArmor()}`;
+}
+
+// ===== Textures (procedural) =====
+function makeNoise(size, tint=[70,65,60]){
+  const c=document.createElement('canvas'); c.width=c.height=size;
+  const g=c.getContext('2d'); const img=g.createImageData(size,size);
+  for(let i=0;i<img.data.length;i+=4){
+    const n=(Math.random()*60)|0;
+    img.data[i]=tint[0]+((Math.random()*40)|0)-20;
+    img.data[i+1]=tint[1]+((Math.random()*40)|0)-20;
+    img.data[i+2]=tint[2]+((Math.random()*40)|0)-20;
+    img.data[i+3]=230 - n;
+  }
+  g.putImageData(img,0,0); return c;
+}
+function makeBrick(size=96){
+  const c=document.createElement('canvas'); c.width=c.height=size; const g=c.getContext('2d');
+  g.fillStyle='#4a4e59'; g.fillRect(0,0,size,size);
+  g.fillStyle='rgba(20,20,24,0.85)';
+  for(let y=0;y<size;y+=12){ g.fillRect(0,y,size,1); }
+  for(let y=0;y<size;y+=24){
+    for(let x=0;x<size;x+=24){ const off=(y/24%2)*12; g.fillRect(x+off,0,1,size); }
+  }
+  const n=makeNoise(size,[90,90,100]); g.globalAlpha=0.2; g.drawImage(n,0,0); g.globalAlpha=1;
+  return c;
+}
+const floorTex = makeNoise(96,[70,65,60]);
+const wallTex  = makeBrick(96);
+
+// ===== Map generation =====
+function carveRoom(m,x,y,w,h){ for(let j=y;j<y+h;j++)for(let i=x;i<x+w;i++) m[j*MAP_W+i]=T_FLOOR; }
+function line(a,b,cb){
+  let x0=a.x,y0=a.y,x1=b.x,y1=b.y;
+  const dx=Math.abs(x1-x0), dy=Math.abs(y1-y0), sx=(x0<x1)?1:-1, sy=(y0<y1)?1:-1;
+  let err=dx-dy;
+  while(true){ cb(x0,y0); if(x0===x1&&y0===y1) break; const e2=2*err; if(e2>-dy){err-=dy;x0+=sx;} if(e2<dx){err+=dx;y0+=sy;} }
+}
+function connectRooms(m, list){
+  const pts=list.map(r=>({x:r.cx,y:r.cy}));
+  const edges=[];
+  for(let i=0;i<pts.length;i++) for(let j=i+1;j<pts.length;j++){
+    const dx=pts[i].x-pts[j].x, dy=pts[i].y-pts[j].y; edges.push({i,j,w:dx*dx+dy*dy});
+  }
+  edges.sort((a,b)=>a.w-b.w);
+  const parent=Array(pts.length).fill(0).map((_,i)=>i);
+  function find(x){return parent[x]===x?x:(parent[x]=find(parent[x]));}
+  function unite(a,b){a=find(a);b=find(b); if(a!==b) parent[a]=b;}
+  let added=0;
+  for(const e of edges){
+    if(find(e.i)!==find(e.j)){ unite(e.i,e.j); added++;
+      const A=pts[e.i], B=pts[e.j];
+      if(rng.next()<0.5){
+        line({x:A.x,y:A.y},{x:B.x,y:A.y},(x,y)=>m[y*MAP_W+x]=T_FLOOR);
+        line({x:B.x,y:A.y},{x:B.x,y:B.y},(x,y)=>m[y*MAP_W+x]=T_FLOOR);
+      }else{
+        line({x:A.x,y:A.y},{x:A.x,y:B.y},(x,y)=>m[y*MAP_W+x]=T_FLOOR);
+        line({x:A.x,y:B.y},{x:B.x,y:B.y},(x,y)=>m[y*MAP_W+x]=T_FLOOR);
+      }
+      if(added===pts.length-1) break;
+    }
+  }
+}
+function generate(){
+  map=new Array(MAP_W*MAP_H).fill(T_EMPTY);
+  fog=new Array(MAP_W*MAP_H).fill(0);
+  vis=new Array(MAP_W*MAP_H).fill(0);
+  rooms=[]; lootMap.clear(); monsters=[];
+  let attempts=0;
+  while(rooms.length<ROOM_COUNT && attempts<ROOM_COUNT*12){
+    attempts++;
+    const w=rng.int(5,10), h=rng.int(5,9);
+    const x=rng.int(2,MAP_W-w-3), y=rng.int(2,MAP_H-h-3);
+    const R={x,y,w,h,cx:(x+(x+w))>>1, cy:(y+(y+h))>>1};
+    let overlap=false;
+    for(const r of rooms){ if(!(x+w+1<r.x || r.x+r.w+1<x || y+h+1<r.y || r.y+r.h+1<y)){ overlap=true; break; } }
+    if(!overlap){ rooms.push(R); carveRoom(map,x,y,w,h); }
+  }
+  connectRooms(map,rooms);
+  for(let y=1;y<MAP_H-1;y++) for(let x=1;x<MAP_W-1;x++){
+    if(map[y*MAP_W+x]===T_FLOOR) continue;
+    let wall=false;
+    for(let dy=-1;dy<=1;dy++) for(let dx=-1;dx<=1;dx++){ if(map[(y+dy)*MAP_W+(x+dx)]===T_FLOOR) wall=true; }
+    map[y*MAP_W+x]=wall?T_WALL:T_EMPTY;
+  }
+  // place player + stairs
+  const start=rooms[0]||{cx:5,cy:5}; player.x=start.cx; player.y=start.cy;
+  let far=start, best=-1;
+  for(const r of rooms){ const d=(r.cx-player.x)**2+(r.cy-player.y)**2; if(d>best){best=d; far=r;} }
+  stairs.x=far.cx; stairs.y=far.cy; map[stairs.y*MAP_W+stairs.x]=T_STAIRS;
+
+  // monsters
+  for(let i=0;i<MONSTER_COUNT;i++){
+    const r=rooms[rng.int(0,rooms.length-1)];
+    const x=rng.int(r.x+1,r.x+r.w-2), y=rng.int(r.y+1,r.y+r.h-2);
+    if(x===player.x && y===player.y) continue;
+    monsters.push({x,y,hp:10,hpMax:10,type:rng.int(0,2),hitFlash:0,cd:0});
+  }
+
+  buildLayers();
+  recomputeFOV();
+  seedRoomLoot();
+  redrawInventory();
+}
+
+function buildLayers(){
+  floorLayer=document.createElement('canvas'); floorLayer.width=MAP_W*TILE; floorLayer.height=MAP_H*TILE;
+  wallLayer=document.createElement('canvas'); wallLayer.width=MAP_W*TILE; wallLayer.height=MAP_H*TILE;
+  const f=floorLayer.getContext('2d'), w=wallLayer.getContext('2d');
+  f.fillStyle=f.createPattern(floorTex,'repeat'); f.fillRect(0,0,floorLayer.width,floorLayer.height);
+  // mask non-floor
+  const mask=document.createElement('canvas'); mask.width=floorLayer.width; mask.height=floorLayer.height;
+  const mg=mask.getContext('2d'); mg.fillStyle='#000'; mg.fillRect(0,0,mask.width,mask.height);
+  mg.globalCompositeOperation='destination-out';
+  for(let y=0;y<MAP_H;y++) for(let x=0;x<MAP_W;x++){
+    if(map[y*MAP_W+x]===T_FLOOR || map[y*MAP_W+x]===T_STAIRS){ mg.fillRect(x*TILE,y*TILE,TILE,TILE); }
+  }
+  const dim=f.getImageData(0,0,floorLayer.width,floorLayer.height);
+  f.clearRect(0,0,floorLayer.width,floorLayer.height);
+  f.putImageData(dim,0,0);
+  f.globalCompositeOperation='destination-in'; f.drawImage(mask,0,0); f.globalCompositeOperation='source-over';
+
+  // walls
+  w.fillStyle=w.createPattern(wallTex,'repeat');
+  for(let y=0;y<MAP_H;y++) for(let x=0;x<MAP_W;x++){
+    if(map[y*MAP_W+x]===T_WALL) w.fillRect(x*TILE,y*TILE,TILE,TILE);
+  }
+}
+
+// ===== FOV =====
+function isBlock(x,y){ if(x<0||y<0||x>=MAP_W||y>=MAP_H) return true; return map[y*MAP_W+x]===T_WALL || map[y*MAP_W+x]===T_EMPTY; }
+function recomputeFOV(){
+  vis.fill(0);
+  const rays=360;
+  for(let a=0;a<rays;a++){
+    const ang=a*Math.PI*2/rays; let x=player.x+0.5, y=player.y+0.5;
+    for(let r=0;r<FOV_RADIUS*2;r++){
+      const ix=x|0, iy=y|0; if(ix<0||iy<0||ix>=MAP_W||iy>=MAP_H) break;
+      const idx=iy*MAP_W+ix; vis[idx]=1; fog[idx]=Math.max(fog[idx],1);
+      if(isBlock(ix,iy) && !(ix===player.x && iy===player.y)) break;
+      x+=Math.cos(ang)*0.4; y+=Math.sin(ang)*0.4;
+    }
+  }
+  fog[player.y*MAP_W+player.x]=2;
+}
+
+// ===== Input =====
+const keys={};
+window.addEventListener('keydown',e=>{ keys[e.key]=true; if(e.key==='i'||e.key==='I') toggleInv(); });
+window.addEventListener('keyup',e=>{ keys[e.key]=false; });
+window.addEventListener('keypress',e=>{
+  if(e.key==='e'||e.key==='E'){
+    if(player.x===stairs.x && player.y===stairs.y){
+      floorNum++; seed=(seed*1664525+1013904223)|0; rng=new RNG(seed);
+      generate(); hudFloor.textContent=floorNum; hudSeed.textContent=seed>>>0; showToast("A deeper floor...");
+    }
+  }
+});
+
+// ===== Loot / Inventory =====
+const TYPES=['helmet','chest','legs','hands','feet','weapon'];
+const WEAPONS=['Sword','Axe','Mace','Dagger','Bow','Wand','Staff'];
+const RARITY=[{n:'Common',c:'#c0c8d0'},{n:'Magic',c:'#4aa3ff'},{n:'Rare',c:'#ffd24a'},{n:'Epic',c:'#b84aff'}];
+
+function affixMods(slot){
+  // small range, safe defaults
+  const R={};
+  if(slot==='weapon'){ R.dmgMin=(rng.int(0,2)); R.dmgMax=(rng.int(1,4)); if(rng.next()<0.25) R.crit=rng.int(2,6); }
+  if(slot!=='weapon'){ if(rng.next()<0.5) R.armor=rng.int(1,4); }
+  if(rng.next()<0.3) R.hpMax=rng.int(5,20);
+  if(rng.next()<0.2) R.mpMax=rng.int(5,15);
+  if(rng.next()<0.2) R.speedPct=rng.int(2,8);
+  if(rng.next()<0.15) R.ls=rng.int(1,4);
+  if(rng.next()<0.15) R.mpRegen=rng.int(1,3);
+  if(rng.next()<0.2) R.dmgAll=rng.int(1,3);
+  return R;
+}
+function makeItem(slot){
+  const r=RARITY[rng.int(0,RARITY.length-1)];
+  const name = slot==='weapon' ? WEAPONS[rng.int(0,WEAPONS.length-1)] : ({helmet:'Helm',chest:'Cuirass',legs:'Greaves',hands:'Gloves',feet:'Boots'}[slot]);
+  const mods=affixMods(slot);
+  return {id:Math.random().toString(36).slice(2), name, slot, rarity:r.n, color:r.c, mods};
+}
+function dropLoot(x,y){ const key=`${x},${y}`; if(lootMap.has(key)) return; const slot=TYPES[rng.int(0,TYPES.length-1)]; lootMap.set(key, makeItem(slot)); }
+function pickupHere(){
+  const key=`${player.x},${player.y}`; if(!lootMap.has(key)) return;
+  if(bag.length<BAG_CAP){ const it=lootMap.get(key); bag.push(it); lootMap.delete(key); showToast(`Picked up ${it.rarity} ${it.name}`); redrawInventory(); hudGold.textContent=(player.gold+=rng.int(1,7)); }
+  else showToast("Backpack full!");
+}
+function redrawInventory(){
+  bagGrid.innerHTML='';
+  for(let i=0;i<BAG_CAP;i++){
+    const cell=document.createElement('div'); cell.className='slot';
+    if(i<bag.length){
+      const it=bag[i];
+      cell.innerHTML=`<div style="text-align:center"><div style="font-size:12px;color:${it.color}">${it.name}</div><div style="font-size:10px;opacity:.7">${it.rarity}</div></div>`;
+      cell.onclick=()=>{ if(SLOTS.includes(it.slot)){ if(equip[it.slot]){showToast('Slot occupied');return;} equip[it.slot]=it; bag.splice(i,1); redrawInventory(); recalcStats(); } };
+    }else{ cell.style.opacity=.25; }
+    bagGrid.appendChild(cell);
+  }
+  redrawEquipment();
+}
+function redrawEquipment(){
+  document.querySelectorAll('.eqslot').forEach(el=>{
+    const slot=el.getAttribute('data-slot'); const it=equip[slot];
+    if(it){ el.style.border='1px solid '+it.color; el.style.color=it.color; el.textContent=it.name; el.onclick=()=>{ if(bag.length<BAG_CAP){ bag.push(it); equip[slot]=null; redrawInventory(); recalcStats(); } else showToast('Backpack full!'); }; }
+    else { el.style.border='1px dashed #3a3f52'; el.style.color='#9aa1b2'; el.textContent=slot[0].toUpperCase()+slot.slice(1); el.onclick=null; }
+  });
+}
+
+function seedRoomLoot(){ for(const r of rooms){ if(rng.next()<0.4){ const x=r.x+rng.int(1,r.w-2), y=r.y+rng.int(1,r.h-2); if(map[y*MAP_W+x]===T_FLOOR) dropLoot(x,y); } } }
+
+// ===== Monsters =====
+function monsterStep(m){
+  if(m.cd>0){ m.cd--; return; }
+  const dirs=[[1,0],[-1,0],[0,1],[0,-1],[0,0]]; const d=dirs[rng.int(0,dirs.length-1)];
+  const nx=m.x+d[0], ny=m.y+d[1];
+  if(nx>=0&&ny>=0&&nx<MAP_W&&ny<MAP_H && map[ny*MAP_W+nx]!==T_WALL && map[ny*MAP_W+nx]!==T_EMPTY){ m.x=nx; m.y=ny; if(rng.next()<LOOT_CHANCE*0.04) dropLoot(nx,ny); }
+  m.cd=rng.int(2,8);
+}
+function dist(a,b){ return Math.abs(a.x-b.x)+Math.abs(a.y-b.y); }
+
+// ===== Combat =====
+canvas.addEventListener('mousedown', (e)=>{
+  // translate to tile under cursor
+  const rect=canvas.getBoundingClientRect(); const mx=(e.clientX-rect.left); const my=(e.clientY-rect.top);
+  const tx = Math.floor((mx+camX)/TILE), ty=Math.floor((my+camY)/TILE);
+  // find a monster on that tile
+  const m = monsters.find(mm=>mm.x===tx && mm.y===ty);
+  if(!m) return;
+  // in range?
+  const range=weaponRange(); if(dist(player,m)>range){ showToast('Out of range'); return; }
+  // mana check
+  const cost=manaCost(); if(cost>0 && player.mp<cost){ showToast('Not enough mana'); return; }
+  if(cost>0) player.mp=Math.max(0,player.mp-cost);
+
+  // roll damage
+  const [dmin,dmax]=playerDamageRange();
+  let dmg = dmin + Math.floor(Math.random()*(Math.max(1,dmax-dmin+1)));
+  // crit
+  if(Math.random()*100 < playerCrit()) dmg = Math.floor(dmg*1.5);
+  // apply armor (flat)
+  const arm=0; dmg=Math.max(1,dmg-arm);
+  m.hp -= dmg; m.hitFlash=4;
+  // lifesteal
+  const ls=playerLifeSteal(); if(ls>0){ const heal=Math.max(1,Math.floor(dmg*ls/100)); player.hp=Math.min(player.hpMax, player.hp+heal); }
+});
+
+// ===== Drawing =====
+function draw(){
+  const maxX=MAP_W*TILE - VIEW_W, maxY=MAP_H*TILE - VIEW_H;
+  camX = Math.max(0, Math.min(player.x*TILE - VIEW_W/2, maxX));
+  camY = Math.max(0, Math.min(player.y*TILE - VIEW_H/2, maxY));
+
+  ctx.clearRect(0,0,VIEW_W,VIEW_H);
+  ctx.drawImage(floorLayer, -camX, -camY);
+  ctx.drawImage(wallLayer, -camX, -camY);
+
+  // stairs
+  ctx.fillStyle='#c7a34a';
+  ctx.fillRect(stairs.x*TILE - camX + (TILE*0.25), stairs.y*TILE - camY + (TILE*0.25), TILE*0.5, TILE*0.5);
+
+  // loot
+  for(const [k,it] of lootMap.entries()){
+    const [lx,ly]=k.split(',').map(Number);
+    if(vis[ly*MAP_W+lx]){
+      const lxpx = lx*TILE - camX + (TILE-LOOT_SIZE)/2;
+      const lypy = ly*TILE - camY + (TILE-LOOT_SIZE)/2;
+      ctx.fillStyle=it.color; ctx.fillRect(lxpx, lypy, LOOT_SIZE, LOOT_SIZE);
+    }
+  }
+
+  // monsters
+  for(const m of monsters){
+    if(!vis[m.y*MAP_W+m.x]) continue;
+    const mx = m.x*TILE - camX + (TILE-MONSTER_SIZE)/2;
+    const my = m.y*TILE - camY + (TILE-MONSTER_SIZE)/2;
+    ctx.fillStyle = m.hitFlash>0 ? '#ff6666' : ['#9bd','#bd9','#db9'][m.type];
+    ctx.fillRect(mx, my, MONSTER_SIZE, MONSTER_SIZE);
+    // hp
+    ctx.fillStyle='#111'; ctx.fillRect(mx, my-6, MONSTER_SIZE, 3);
+    ctx.fillStyle='#e33'; const hw=MONSTER_SIZE*(Math.max(0,m.hp)/m.hpMax); ctx.fillRect(mx, my-6, hw, 3);
+    if(m.hitFlash>0) m.hitFlash--;
+    if(m.hp<=0){
+      // death
+      if(Math.random()<0.3) dropLoot(m.x,m.y);
+      const idx=monsters.indexOf(m); if(idx>=0) monsters.splice(idx,1);
+    }
+  }
+
+  // player
+  const px = player.x*TILE - camX + (TILE-PLAYER_SIZE)/2;
+  const py = player.y*TILE - camY + (TILE-PLAYER_SIZE)/2;
+  ctx.fillStyle='#e9e9f9'; ctx.fillRect(px, py, PLAYER_SIZE, PLAYER_SIZE);
+
+  // fog
+  // unseen
+  ctx.fillStyle='#000';
+  for(let y=0;y<MAP_H;y++)for(let x=0;x<MAP_W;x++){ if(fog[y*MAP_W+x]===0) ctx.fillRect(x*TILE - camX, y*TILE - camY, TILE, TILE); }
+  // explored dim
+  ctx.fillStyle='rgba(0,0,0,0.6)';
+  for(let y=0;y<MAP_H;y++)for(let x=0;x<MAP_W;x++){ const v=fog[y*MAP_W+x], vv=vis[y*MAP_W+x]; if(v>0 && !vv) ctx.fillRect(x*TILE - camX, y*TILE - camY, TILE, TILE); }
+
+  // HUD
+  hpFill.style.width=(100*player.hp/player.hpMax).toFixed(0)+'%';
+  mpFill.style.width=(100*player.mp/player.mpMax).toFixed(0)+'%';
+  hpLbl.textContent=`HP ${player.hp}/${player.hpMax}`; mpLbl.textContent=`Mana ${player.mp}/${player.mpMax}`;
+}
+
+function update(){
+  // movement step gating
+  player.stepCD = Math.max(0, player.stepCD-16);
+  let moved=false;
+  if(player.stepCD<=0){
+    let dx=0, dy=0;
+    if(keys['ArrowUp']||keys['w']||keys['W']) dy=-1;
+    else if(keys['ArrowDown']||keys['s']||keys['S']) dy=1;
+    else if(keys['ArrowLeft']||keys['a']||keys['A']) dx=-1;
+    else if(keys['ArrowRight']||keys['d']||keys['D']) dx=1;
+    if(dx||dy){
+      const nx=player.x+dx, ny=player.y+dy;
+      if(nx>=0&&ny>=0&&nx<MAP_W&&ny<MAP_H && map[ny*MAP_W+nx]!==T_WALL && map[ny*MAP_W+nx]!==T_EMPTY){
+        player.x=nx; player.y=ny; moved=true; pickupHere(); recomputeFOV();
+        const speed=player.stepDelay * (1 - Math.min(0.5, player.speedPct/100)); player.stepCD = Math.max(60, speed);
+      }
+    }
+  }
+  // monster wander + contact damage
+  if(Math.random()<0.2){ for(const m of monsters){ monsterStep(m); if(dist(player,m)===1){ if(!m.touchCD) m.touchCD=0; m.touchCD--; if(m.touchCD<=0){ const dmg=1; player.hp=Math.max(0,player.hp-dmg); m.touchCD=30; showToast('Ouch!'); } } } }
+}
+
+function loop(){ update(); draw(); requestAnimationFrame(loop); }
+
+// ===== Inventory UI =====
+function toggleInv(){ invPanel.style.display=(invPanel.style.display==='none'||invPanel.style.display==='')?'block':'none'; }
+
+// ===== Toast =====
+let toastTimer=0;
+function showToast(msg){
+  const bar=document.querySelector('.topbar'); const span=document.createElement('span'); span.style.marginLeft='8px'; span.style.opacity=.85; span.textContent='• '+msg; bar.appendChild(span);
+  clearTimeout(toastTimer); toastTimer=setTimeout(()=>{ if(span.parentNode) span.remove(); }, 1600);
+}
+
+// ===== Start =====
+function startGame(){
+  hudFloor.textContent=floorNum; hudSeed.textContent=seed>>>0; hudGold.textContent=player.gold;
+  generate(); recalcStats(); // now safe — defined above
+  loop();
+}
+document.getElementById('playBtn').onclick=()=>{ document.getElementById('start').style.display='none'; startGame(); };
+</script>
+</body>
+</html>
