@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Dungeon — Fix Ordered (48/24) — Smooth + Diagonal + Toggle</title>
+<style>
+  html,body{margin:0;background:#0b0b0e;color:#ddd;font-family:system-ui,Segoe UI,Roboto,Ubuntu,Arial,sans-serif;overflow:hidden}
+  #ui{position:fixed;inset:0;display:grid;grid-template-rows:auto 1fr auto;pointer-events:none}
+  .topbar{display:flex;gap:16px;align-items:center;padding:8px 14px;background:linear-gradient(#191a1f,#111219);border-bottom:1px solid #2a2d39}
+  .panel{background:rgba(15,16,22,0.9);border:1px solid #2a2d39;border-radius:10px;box-shadow:0 0 0 1px rgba(255,255,255,0.03) inset}
+  .stat{height:14px;width:220px; background:#222;border:1px solid #333;border-radius:6px;position:relative}
+  .fill{position:absolute;left:0;top:0;height:100%;background:#3c7}
+  .fill.hp{background:#d44}
+  .fill.mp{background:#47c}
+  .label{position:absolute;left:0;right:0;top:-18px;font-size:12px;opacity:.85;text-align:center}
+  .hud-kv{font-size:13px;opacity:.9}
+  #gameCanvas{position:fixed;left:0;top:0}
+  .btn{display:inline-block;padding:8px 14px;border:1px solid #3a3e4d;border-radius:8px;background:#141622;color:#e6e6f0;cursor:pointer}
+  .btn:hover{background:#1a1d2a}
+  .stone{background-image:linear-gradient(180deg,rgba(255,255,255,.03),rgba(0,0,0,.08));}
+  .footer{padding:6px 12px;border-top:1px solid #2a2d39;background:linear-gradient(#0f1016,#0b0c11);opacity:.85}
+  #inv{position:fixed;right:12px;top:60px;width:420px;max-height:72vh;pointer-events:auto}
+  #inv .content{padding:10px}
+  .grid{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
+  .slot,.eqslot{height:56px;display:flex;align-items:center;justify-content:center;border:1px dashed #3a3f52;border-radius:8px;background:rgba(20,22,30,.8);cursor:pointer;user-select:none}
+  .slot:hover,.eqslot:hover{outline:1px solid #6b7280}
+  .eq{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:10px}
+  .title{padding:8px 10px;border-bottom:1px solid #2a2d39;background:linear-gradient(#15161c,#101116);border-radius:10px 10px 0 0}
+  .hint{font-size:12px;opacity:.7;margin-top:6px}
+  .hidden{display:none}
+</style>
+</head>
+<body>
+<canvas id="gameCanvas" width="1280" height="720"></canvas>
+
+<div id="ui">
+  <div class="topbar">
+    <div class="hud-kv"><b>Floor:</b> <span id="hudFloor">1</span> <span style="opacity:.5">|</span> <b>Seed:</b> <span id="hudSeed">-</span></div>
+    <div class="stat panel" style="width:260px">
+      <div id="hpFill" class="fill hp" style="width:70%"></div>
+      <div class="label" id="hpLbl">HP 70/100</div>
+    </div>
+    <div class="stat panel" style="width:220px">
+      <div id="mpFill" class="fill mp" style="width:40%"></div>
+      <div class="label" id="mpLbl">Mana 40/100</div>
+    </div>
+    <div class="hud-kv"><b>Gold:</b> <span id="hudGold">0</span></div>
+    <div class="hud-kv" id="hudDmg" style="opacity:.85;margin-left:auto">ATK 2-4 | CRIT 5% | ARM 0</div>
+    <div class="hud-kv" style="margin-left:8px; pointer-events:auto">
+      <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+        <input type="checkbox" id="smoothToggle" checked> Smooth
+      </label>
+    </div>
+    <div class="hud-kv" style="display:flex;align-items:center;gap:6px; pointer-events:auto">
+      <label for="speedRange">Speed</label>
+      <input type="range" id="speedRange" min="60" max="220" value="140" step="5" style="width:140px">
+    </div>
+  </div>
+  <div></div>
+  <div class="footer">Fix Ordered (48/24) — offline single file</div>
+</div>
+
+<div id="inv" class="panel stone hidden">
+  <div class="title">Inventory &amp; Equipment</div>
+  <div class="content">
+    <div class="hint">Drag items between bag and matching equipment slots.</div>
+    <div class="eq">
+      <div class="eqslot" data-slot="helmet">Helmet</div>
+      <div class="eqslot" data-slot="chest">Chest</div>
+      <div class="eqslot" data-slot="legs">Legs</div>
+      <div class="eqslot" data-slot="hands">Hands</div>
+      <div class="eqslot" data-slot="feet">Feet</div>
+      <div class="eqslot" data-slot="weapon">Weapon</div>
+    </div>
+    <div class="grid" id="bag"></div>
+  </div>
+</div>
+
+<div id="start" class="stone" style="position:fixed;inset:0;display:grid;place-items:center">
+  <div class="panel" style="padding:18px 22px;max-width:720px">
+    <h2 style="margin:6px 0 12px 0">Dungeon — Fix Ordered (48/24)</h2>
+    <div style="display:flex;gap:16px">
+      <p style="flex:1;opacity:.9">Procedurally generated dungeon with fog‑of‑war. Find loot, equip gear, and descend the stairs to a new floor.</p>
+      <ul>
+        <li>WASD / Arrow Keys — Move (now 8‑directional)</li>
+        <li>I — Toggle Inventory</li>
+        <li>E — Use Stairs / Portal</li>
+        <li>Click monster — Attack (range depends on weapon)</li>
+      </ul>
+    </div>
+    <p class="hint">48×48 tiles; 24×24 entities. Single file, no CDNs.</p>
+    <button id="playBtn" class="btn">Play</button>
+    <button class="btn" onclick="alert('Thanks for playing!')">Quit</button>
+  </div>
+</div>
+
+<script>
+// ===== Config / Globals =====
+const VIEW_W=1280, VIEW_H=720;
+const TILE=32, MAP_W=48, MAP_H=48; const MONSTER_COUNT=24; const FOV_RADIUS=8; const LOOT_CHANCE=0.18;
+const MONSTER_LOOT_CHANCE=0.3; // chance for a monster to drop loot on death
+let canvas=document.getElementById('gameCanvas'); let ctx=canvas.getContext('2d');
+let camX=0, camY=0; let floorLayer=null, wallLayer=null;
+let floorTex=(function(){ const c=document.createElement('canvas'); c.width=c.height=64; const g=c.getContext('2d'); g.fillStyle='#151821'; g.fillRect(0,0,64,64); g.fillStyle='rgba(255,255,255,0.03)'; for(let i=0;i<120;i++){ g.fillRect((Math.random()*64)|0,(Math.random()*64)|0,1,1);} return c; })();
+
+let seed=(Math.random()*1e9)|0, floorNum=1, rng=new RNG(seed);
+let map=[], fog=[], vis=[]; let rooms=[]; let stairs={x:0,y:0};
+let player={x:0,y:0,hp:100,hpMax:100,mp:60,mpMax:60,gold:0,stepCD:0,stepDelay:140,speedPct:0};
+let monsters=[]; // {x,y,hp,hpMax,type,hitFlash:0,cd:0}
+const SLOTS=["helmet","chest","legs","hands","feet","weapon"];
+let equip={helmet:null,chest:null,legs:null,hands:null,feet:null,weapon:null};
+const BAG_SIZE=12;
+let bag=new Array(BAG_SIZE).fill(null);
+
+// HUD refs
+const hpFill=document.getElementById('hpFill'); const mpFill=document.getElementById('mpFill');
+const hpLbl=document.getElementById('hpLbl'); const mpLbl=document.getElementById('mpLbl');
+const hudFloor=document.getElementById('hudFloor'); const hudSeed=document.getElementById('hudSeed'); const hudGold=document.getElementById('hudGold');
+const invPanel=document.getElementById('inv');
+const bagGrid=document.getElementById('bag');
+
+// --- Smooth helpers & settings ---
+function smoothstep01(t){ return t*t*(3-2*t); }
+function lerp(a,b,t){ return a + (b-a)*t; }
+function walkable(x,y){ if(x<0||y<0||x>=MAP_W||y>=MAP_H) return false; const t=map[y*MAP_W+x]; return t!==T_WALL && t!==T_EMPTY; }
+function canMoveFrom(x,y,dx,dy){
+  const nx=x+dx, ny=y+dy;
+  if(!walkable(nx,ny)) return false;
+  if(dx!==0 && dy!==0){
+    // avoid cutting through two blocking corners
+    if(!walkable(x+dx,y) && !walkable(x,y+dy)) return false;
+  }
+  return true;
+}
+let smoothEnabled = true;
+let baseStepDelay = 140; // will sync to player.stepDelay on start
+
+// ===== RNG =====
+function RNG(seed){ this.s=seed|0; }
+RNG.prototype.next=function(){ this.s=(this.s*1664525+1013904223)|0; return ((this.s>>>0)/4294967296); }
+RNG.prototype.int=function(a,b){ return Math.floor(a + (b-a+1)*this.next()); }
+
+// ===== Map / Gen =====
+const T_EMPTY=0, T_FLOOR=1, T_WALL=2;
+function generate(){
+  map=new Array(MAP_W*MAP_H).fill(T_EMPTY);
+  fog=new Array(MAP_W*MAP_H).fill(0);
+  vis=new Array(MAP_W*MAP_H).fill(0);
+  rooms=[]; monsters=[]; lootMap.clear();
+  // rooms
+  for(let i=0;i<28;i++){
+    const w=rng.int(6,11), h=rng.int(6,11);
+    const x=rng.int(1,MAP_W-w-1), y=rng.int(1,MAP_H-h-1);
+    rooms.push({x,y,w,h});
+    for(let yy=y; yy<y+h; yy++) for(let xx=x; xx<x+w; xx++) map[yy*MAP_W+xx]=T_FLOOR;
+  }
+  // corridors
+  for(let i=1;i<rooms.length;i++){
+    const a=rooms[i-1], b=rooms[i];
+    for(let x=Math.min(a.x,b.x); x<=Math.max(a.x,b.x); x++) map[(a.y+((a.h/2)|0))*MAP_W+x]=T_FLOOR;
+    for(let y=Math.min(a.y,b.y); y<=Math.max(a.y,b.y); y++) map[y*MAP_W+(b.x+((b.w/2)|0))]=T_FLOOR;
+  }
+  // walls
+  for(let y=0;y<MAP_H;y++) for(let x=0;x<MAP_W;x++) if(map[y*MAP_W+x]===T_FLOOR){ for(const d of [[1,0],[-1,0],[0,1],[0,-1]]){ const nx=x+d[0], ny=y+d[1]; if(nx>=0&&ny>=0&&nx<MAP_W&&ny<MAP_H && map[ny*MAP_W+nx]===T_EMPTY) map[ny*MAP_W+nx]=T_WALL; } }
+  // place player + stairs
+  const r=rooms[rng.int(0,rooms.length-1)]; player.x=r.x+((r.w/2)|0); player.y=r.y+((r.h/2)|0);
+  const rr=rooms[rng.int(0,rooms.length-1)]; stairs.x=rr.x+((rr.w/2)|0); stairs.y=rr.y+((rr.h/2)|0);
+
+  // monsters
+  for(let i=0;i<MONSTER_COUNT;i++){
+    const r=rooms[rng.int(0,rooms.length-1)];
+    const x=rng.int(r.x+1,r.x+r.w-2), y=rng.int(r.y+1,r.y+r.h-2);
+    if(x===player.x && y===player.y) continue;
+    monsters.push({x,y,hp:10,hpMax:10,type:rng.int(0,2),hitFlash:0,cd:0});
+  }
+
+  buildLayers();
+  recomputeFOV();
+  seedRoomLoot();
+  redrawInventory();
+}
+
+function buildLayers(){
+  floorLayer=document.createElement('canvas'); floorLayer.width=MAP_W*TILE; floorLayer.height=MAP_H*TILE;
+  wallLayer=document.createElement('canvas'); wallLayer.width=MAP_W*TILE; wallLayer.height=MAP_H*TILE;
+  const f=floorLayer.getContext('2d'), w=wallLayer.getContext('2d');
+  f.fillStyle=f.createPattern(floorTex,'repeat'); f.fillRect(0,0,floorLayer.width,floorLayer.height);
+  // mask non-floor
+  const mask=document.createElement('canvas'); mask.width=floorLayer.width; mask.height=floorLayer.height;
+  const mg=mask.getContext('2d'); mg.fillStyle='#000'; mg.fillRect(0,0,mask.width,mask.height);
+  mg.globalCompositeOperation='destination-out';
+  mg.fillStyle='#fff';
+  for(let y=0;y<MAP_H;y++) for(let x=0;x<MAP_W;x++) if(map[y*MAP_W+x]===T_FLOOR){ mg.fillRect(x*TILE,y*TILE,TILE,TILE); }
+  f.drawImage(mask,0,0);
+  // walls
+  const wctx=wallLayer.getContext('2d');
+  wctx.fillStyle='#1b1f2a';
+  for(let y=0;y<MAP_H;y++) for(let x=0;x<MAP_W;x++) if(map[y*MAP_W+x]===T_WALL) wctx.fillRect(x*TILE,y*TILE,TILE,TILE);
+}
+
+// ===== FOV =====
+function isBlock(x,y){ if(x<0||y<0||x>=MAP_W||y>=MAP_H) return true; return map[y*MAP_W+x]===T_WALL || map[y*MAP_W+x]===T_EMPTY; }
+function recomputeFOV(){
+  vis.fill(0);
+  const rays=360;
+  for(let a=0;a<rays;a++){
+    const ang=a*Math.PI*2/rays; let x=player.x+0.5, y=player.y+0.5;
+    for(let r=0;r<FOV_RADIUS*2;r++){
+      const ix=x|0, iy=y|0; if(ix<0||iy<0||ix>=MAP_W||iy>=MAP_H) break;
+      const idx=iy*MAP_W+ix; vis[idx]=1; fog[idx]=Math.max(fog[idx],1);
+      if(isBlock(ix,iy) && !(ix===player.x && iy===player.y)) break;
+      x+=Math.cos(ang)*0.5; y+=Math.sin(ang)*0.5;
+    }
+  }
+}
+
+// ===== Loot / Inventory (trimmed visuals) =====
+const TYPES=['helmet','chest','legs','hands','feet','weapon'];
+const WEAPONS=['Sword','Axe','Mace','Dagger','Bow','Wand','Staff'];
+const RARITY=[{n:'Common',c:'#c0c8d0'},{n:'Magic',c:'#4aa3ff'},{n:'Rare',c:'#ffd24a'},{n:'Epic',c:'#b84aff'}];
+let lootMap=new Map();
+
+function affixMods(slot){
+  const R={};
+  if(slot==='weapon'){ R.dmgMin=(rng.int(0,2)); R.dmgMax=(rng.int(1,4)); if(rng.next()<0.25) R.crit=rng.int(2,6); }
+  if(slot!=='weapon'){ if(rng.next()<0.5) R.armor=rng.int(1,4); }
+  if(rng.next()<0.3) R.hpMax=rng.int(5,20);
+  if(rng.next()<0.2) R.mpMax=rng.int(5,15);
+  if(rng.next()<0.2) R.speedPct=rng.int(2,8);
+  if(rng.next()<0.15) R.ls=rng.int(1,4);
+  if(rng.next()<0.15) R.mp=rng.int(1,6);
+  return R;
+}
+
+function seedRoomLoot(){
+  for(const r of rooms){ if(rng.next()<LOOT_CHANCE){ const x=rng.int(r.x+1,r.x+r.w-2), y=rng.int(r.y+1,r.y+r.h-2); lootMap.set(`${x},${y}`,{color:'#ffd24a',type:'gold',amt:rng.int(5,20)}); } }
+}
+
+function pickupHere(){
+  const key = `${player.x},${player.y}`;
+  const it = lootMap.get(key);
+  if(!it) return;
+  if(it.type === 'gold'){
+    player.gold += it.amt;
+    hudGold.textContent = player.gold;
+    showToast(`+${it.amt} gold`);
+    lootMap.delete(key);
+    return;
+  }
+  // equipment
+  const idx = bag.findIndex(b=>!b);
+  if(idx === -1){
+    showToast('Bag full');
+    return;
+  }
+  bag[idx] = it;
+  lootMap.delete(key);
+  showToast(`Picked up ${it.name}`);
+  redrawInventory();
+}
+
+function weaponKind(){ return equip.weapon ? (equip.weapon.name==='Bow'?'bow':equip.weapon.name==='Wand'?'wand':'melee') : 'melee'; }
+function weaponRange(){ return weaponKind()==='melee'?1:6; }
+function manaCost(){ return weaponKind()==='wand'?4:0; }
+
+function playerArmor(){ let a=0; for(const s of SLOTS){const it=equip[s]; if(it&&it.mods&&it.mods.armor) a+=it.mods.armor;} return a; }
+function playerCrit(){ let c=5; for(const s of SLOTS){const it=equip[s]; if(it&&it.mods&&it.mods.crit) c+=it.mods.crit;} return Math.min(50,c|0); }
+function playerLifeSteal(){ let ls=0; for(const s of SLOTS){const it=equip[s]; if(it&&it.mods&&it.mods.ls) ls+=it.mods.ls;} return Math.min(25,ls); }
+function playerSpeedPct(){ let sp=0; for(const s of SLOTS){const it=equip[s]; if(it&&it.mods&&it.mods.speedPct) sp+=it.mods.speedPct;} return Math.min(50,sp); }
+function playerDamageRange(){
+  let baseMin=2, baseMax=4;
+  const w=equip.weapon;
+  if(w && w.mods){ baseMin += w.mods.dmgMin||0; baseMax += w.mods.dmgMax||0; }
+  for(const s of SLOTS){const it=equip[s]; if(it&&it.mods&&it.mods.dmgAll){ baseMin+=it.mods.dmgAll; baseMax+=it.mods.dmgAll; }}
+  return [Math.max(1,baseMin|0), Math.max(2,baseMax|0)];
+}
+
+function recalcStats(){
+  const hpPct = player.hp/player.hpMax, mpPct=player.mp/player.mpMax;
+  let hpB=100, mpB=60;
+  for(const s of SLOTS){
+    const it=equip[s]; if(!it) continue;
+    if(it.mods && it.mods.hpMax) hpB+=it.mods.hpMax;
+    if(it.mods && it.mods.mpMax) mpB+=it.mods.mpMax;
+  }
+  player.hpMax=hpB; player.mpMax=mpB;
+  player.hp=Math.min(player.hpMax, Math.max(1, Math.round(hpPct*player.hpMax)));
+  player.mp=Math.min(player.mpMax, Math.max(0, Math.round(mpPct*player.mpMax)));
+  player.speedPct = playerSpeedPct();
+  const [dmin,dmax]=playerDamageRange();
+  if(hudDmg) hudDmg.textContent=`ATK ${dmin}-${dmax} | CRIT ${playerCrit()}% | ARM ${playerArmor()}`;
+}
+
+let dragInfo=null;
+
+function hookDnD(el){
+  el.addEventListener('dragstart',e=>{
+    dragInfo={from:el.dataset.from, idx:el.dataset.idx};
+    e.dataTransfer.effectAllowed='move';
+  });
+  el.addEventListener('dragover',e=>{ if(previewDropOk(el)) e.preventDefault(); });
+  el.addEventListener('drop',e=>{ e.preventDefault(); handleDrop(el); });
+  el.addEventListener('dragend',()=>{ dragInfo=null; });
+}
+function previewDropOk(target){
+  if(!dragInfo) return false;
+  if(target.dataset.from==='bag') return true;
+  if(target.dataset.from==='equip'){
+    if(dragInfo.from==='bag'){
+      const it=bag[dragInfo.idx];
+      return it && it.slot===target.dataset.idx && !equip[target.dataset.idx];
+    }
+  }
+  return false;
+}
+function handleDrop(target){
+  if(!dragInfo) return;
+  const srcFrom=dragInfo.from, srcIdx=dragInfo.idx;
+  if(target.dataset.from==='bag'){
+    const tgtIdx=Number(target.dataset.idx);
+    if(srcFrom==='bag'){
+      [bag[srcIdx], bag[tgtIdx]]=[bag[tgtIdx], bag[srcIdx]];
+    }else if(srcFrom==='equip'){
+      [bag[tgtIdx], equip[srcIdx]]=[equip[srcIdx], bag[tgtIdx]];
+    }
+  }else if(target.dataset.from==='equip'){
+    const slot=target.dataset.idx;
+    if(srcFrom==='bag'){
+      const it=bag[srcIdx];
+      if(it && it.slot===slot && !equip[slot]){ equip[slot]=it; bag[srcIdx]=null; }
+    }
+  }
+  redrawInventory();
+  recalcStats();
+}
+function redrawInventory(){
+  bagGrid.innerHTML='';
+  for(let i=0;i<BAG_SIZE;i++){
+    const cell=document.createElement('div');
+    cell.className='slot';
+    cell.dataset.from='bag'; cell.dataset.idx=i;
+    const it=bag[i];
+    if(it){
+      cell.innerHTML=`<div style="text-align:center"><div style="font-size:12px;color:${it.color}">${it.name}</div><div style="font-size:10px;opacity:.7">${it.rarity||''}</div></div>`;
+    }else{
+      cell.style.opacity=.25;
+    }
+    hookDnD(cell);
+    bagGrid.appendChild(cell);
+  }
+  redrawEquipment();
+}
+function redrawEquipment(){
+  document.querySelectorAll('.eqslot').forEach(el=>{
+    const slot=el.dataset.slot;
+    el.dataset.from='equip'; el.dataset.idx=slot;
+    const it=equip[slot];
+    if(it){
+      el.style.border='1px solid '+it.color;
+      el.style.color=it.color;
+      el.innerHTML=`<div style="text-align:center"><div style="font-size:12px">${it.name}</div><div style="font-size:10px;opacity:.7">${it.rarity||''}</div></div>`;
+    }else{
+      el.style.border='1px dashed #3a3f52';
+      el.style.color='#9aa1b2';
+      el.textContent=slot[0].toUpperCase()+slot.slice(1);
+    }
+    hookDnD(el);
+  });
+}
+
+// ===== Combat / Click =====
+canvas.addEventListener('mousedown', (e)=>{
+  const rect=canvas.getBoundingClientRect(); const mx=(e.clientX-rect.left); const my=(e.clientY-rect.top);
+  const tx = Math.floor((mx+camX)/TILE), ty=Math.floor((my+camY)/TILE);
+  const m = monsters.find(mm=>mm.x===tx && mm.y===ty);
+  if(!m) return;
+  let dmg=rng.int(2,4);
+  if(Math.random()*100 < (equip.weapon && equip.weapon.mods.crit || 5)) dmg = Math.floor(dmg*1.5);
+  dmg=Math.max(1,dmg);
+  m.hp-=dmg; m.hitFlash=4;
+  const ls=(equip.weapon && equip.weapon.mods.ls)||0; if(ls>0){ const heal=Math.max(1,Math.floor(dmg*ls/100)); player.hp=Math.min(player.hpMax, player.hp+heal); }
+});
+
+function dist(a,b){ return Math.abs(a.x-b.x)+Math.abs(a.y-b.y); }
+
+// ===== Monsters =====
+function monsterStep(m){
+  if(m.cd>0){ m.cd--; return; }
+  const dirs=[[1,0],[-1,0],[0,1],[0,-1],[0,0]]; const d=dirs[rng.int(0,dirs.length-1)];
+  const nx=m.x+d[0], ny=m.y+d[1];
+  if(walkable(nx,ny)){
+    m.x=nx; m.y=ny;
+    if(smoothEnabled){
+      m.fromX = (m.rx!==undefined?m.rx:m.x); m.fromY = (m.ry!==undefined?m.ry:m.y);
+      m.toX = nx; m.toY = ny; m.moveT=0; m.moving=true; m.moveDur = rng.int(100,180);
+    }else{
+      m.rx=m.x; m.ry=m.y; m.moving=false; m.moveT=1;
+    }
+    // Removed per-step gold drops to prevent excessive loot spawning.
+  }
+  m.cd=rng.int(2,8);
+}
+
+// ===== Drawing =====
+function draw(dt){
+  const maxX=MAP_W*TILE - VIEW_W, maxY=MAP_H*TILE - VIEW_H;
+  const camTileX = (smoothEnabled && player.rx!==undefined ? player.rx : player.x);
+  const camTileY = (smoothEnabled && player.ry!==undefined ? player.ry : player.y);
+  camX = Math.max(0, Math.min(camTileX*TILE - VIEW_W/2, maxX));
+  camY = Math.max(0, Math.min(camTileY*TILE - VIEW_H/2, maxY));
+
+  ctx.clearRect(0,0,VIEW_W,VIEW_H);
+  ctx.drawImage(floorLayer, -camX, -camY);
+  ctx.drawImage(wallLayer, -camX, -camY);
+
+  // stairs
+  ctx.fillStyle='#c7a34a';
+  ctx.fillRect(stairs.x*TILE - camX + (TILE*0.25), stairs.y*TILE - camY + (TILE*0.25), TILE*0.5, TILE*0.5);
+
+  // loot
+  for(const [k,it] of lootMap.entries()){
+    const [lx,ly]=k.split(',').map(Number);
+    if(vis[ly*MAP_W+lx]){
+      const lxpx = lx*TILE - camX + (TILE-14)/2;
+      const lypy = ly*TILE - camY + (TILE-14)/2;
+      ctx.fillStyle=it.color; ctx.fillRect(lxpx, lypy, 14, 14);
+    }
+  }
+
+  // monsters
+  for(const m of monsters){
+    if(!vis[m.y*MAP_W+m.x]) continue;
+    const mtx = (m.rx!==undefined ? m.rx : m.x);
+    const mty = (m.ry!==undefined ? m.ry : m.y);
+    const mx = mtx*TILE - camX + (TILE-24)/2;
+    const my = mty*TILE - camY + (TILE-24)/2;
+    ctx.fillStyle = m.hitFlash>0 ? '#ff6666' : ['#9bd','#bd9','#db9'][m.type];
+    ctx.fillRect(mx, my, 24, 24);
+    // hp
+    ctx.fillStyle='#111'; ctx.fillRect(mx, my-6, 24, 3);
+    ctx.fillStyle='#e33'; const hw=24*(Math.max(0,m.hp)/m.hpMax); ctx.fillRect(mx, my-6, hw, 3);
+    if(m.hitFlash>0) m.hitFlash--;
+    if(m.hp<=0){
+      // Drop loot only on death with a chance
+      if(Math.random()<MONSTER_LOOT_CHANCE) dropLoot(m.x,m.y);
+      const idx=monsters.indexOf(m);
+      if(idx>=0) monsters.splice(idx,1);
+    }
+  }
+
+  // player
+  const ptx = (smoothEnabled && player.rx!==undefined ? player.rx : player.x);
+  const pty = (smoothEnabled && player.ry!==undefined ? player.ry : player.y);
+  const px = ptx*TILE - camX + (TILE-24)/2;
+  const py = pty*TILE - camY + (TILE-24)/2;
+  ctx.fillStyle='#e9e9f9'; ctx.fillRect(px, py, 24, 24);
+
+  // fog
+  ctx.fillStyle='#000';
+  for(let y=0;y<MAP_H;y++)for(let x=0;x<MAP_W;x++){ if(fog[y*MAP_W+x]===0) ctx.fillRect(x*TILE - camX, y*TILE - camY, TILE, TILE); }
+  ctx.fillStyle='rgba(0,0,0,0.6)';
+  for(let y=0;y<MAP_H;y++)for(let x=0;x<MAP_W;x++){ const idx=y*MAP_W+x; const v=fog[idx]; const vv=vis[idx]; if(v && !vv) ctx.fillRect(x*TILE - camX, y*TILE - camY, TILE, TILE); }
+
+  // HUD
+  hpFill.style.width=(100*player.hp/player.hpMax).toFixed(0)+'%';
+  mpFill.style.width=(100*player.mp/player.mpMax).toFixed(0)+'%';
+  hpLbl.textContent=`HP ${player.hp}/${player.hpMax}`; mpLbl.textContent=`Mana ${player.mp}/${player.mpMax}`;
+}
+
+// ===== Update (smooth tween + 8-dir) =====
+function update(dt){
+  // init render state
+  if(player.rx===undefined){
+    player.rx=player.x; player.ry=player.y;
+    player.fromX=player.x; player.fromY=player.y;
+    player.toX=player.x;   player.toY=player.y;
+    player.moving=false; player.moveT=1; player.moveDur=player.stepDelay;
+    baseStepDelay = player.stepDelay || baseStepDelay;
+  }
+  for(const m of monsters){ if(m.rx===undefined){ m.rx=m.x; m.ry=m.y; m.moving=false; m.moveT=1; m.moveDur=140; } }
+
+  // inputs
+  player.stepCD = Math.max(0, player.stepCD - dt);
+  if(player.stepCD<=0 && !player.moving){
+    const up=!!(keys['ArrowUp']||keys['w']||keys['W']);
+    const down=!!(keys['ArrowDown']||keys['s']||keys['S']);
+    const left=!!(keys['ArrowLeft']||keys['a']||keys['A']);
+    const right=!!(keys['ArrowRight']||keys['d']||keys['D']);
+    const dx = (right && !left) ? 1 : (left && !right) ? -1 : 0;
+    const dy = (down && !up) ? 1 : (up && !down) ? -1 : 0;
+    if(dx||dy){
+      if(canMoveFrom(player.x, player.y, dx, dy)){
+        const nx=player.x+dx, ny=player.y+dy;
+        player.x=nx; player.y=ny; pickupHere(); recomputeFOV();
+        const diag = (dx!==0 && dy!==0) ? Math.SQRT2 : 1;
+        const gearFactor = (1 - Math.min(0.5, player.speedPct/100));
+        const dur = Math.max(60, baseStepDelay * gearFactor * diag);
+        player.moveDur = dur; player.stepCD = dur;
+        if(smoothEnabled){
+          player.fromX=player.rx; player.fromY=player.ry; player.toX=player.x; player.toY=player.y; player.moveT=0; player.moving=true;
+        }else{ player.rx=player.x; player.ry=player.y; player.moving=false; player.moveT=1; }
+      }
+    }
+  }
+
+  // advance player tween
+  if(smoothEnabled && player.moving){
+    player.moveT = Math.min(1, player.moveT + dt / player.moveDur);
+    const t=smoothstep01(player.moveT);
+    player.rx=lerp(player.fromX,player.toX,t); player.ry=lerp(player.fromY,player.toY,t);
+    if(player.moveT>=1){ player.moving=false; player.rx=player.toX; player.ry=player.toY; }
+  }else{ player.rx=player.x; player.ry=player.y; }
+
+  // monsters sometimes step
+  if(Math.random()<0.2){
+    for(const m of monsters){
+      monsterStep(m);
+      if(dist(player,m)===1){
+        if(!m.touchCD) m.touchCD=0; m.touchCD--; if(m.touchCD<=0){ const dmg=Math.max(1,rng.int(1,3)); player.hp=Math.max(0,player.hp-dmg); m.touchCD=30; showToast('Ouch!'); }
+      }
+    }
+  }
+  // advance monster tweens
+  for(const m of monsters){
+    if(m.moving){
+      m.moveT=Math.min(1,m.moveT + dt / m.moveDur);
+      const t=smoothstep01(m.moveT); m.rx=lerp(m.fromX,m.toX,t); m.ry=lerp(m.fromY,m.toY,t);
+      if(m.moveT>=1){ m.moving=false; m.rx=m.toX; m.ry=m.toY; }
+    }else{ m.rx=m.x; m.ry=m.y; }
+  }
+}
+
+// ===== Input =====
+const keys={};
+window.addEventListener('keydown',e=>{ keys[e.key]=true; if(e.key==='i'||e.key==='I') toggleInv(); });
+window.addEventListener('keyup',e=>{ keys[e.key]=false; });
+window.addEventListener('keypress',e=>{
+  if(e.key==='e'||e.key==='E'){
+    if(player.x===stairs.x && player.y===stairs.y){
+      floorNum++; seed=(seed*1664525+1013904223)|0; rng=new RNG(seed);
+      generate(); hudFloor.textContent=floorNum; hudSeed.textContent=seed>>>0; showToast('Down we go');
+    }
+  }
+});
+
+// ===== Inventory UI =====
+function toggleInv(){
+  if(!invPanel) return;
+  const show=invPanel.classList.toggle('hidden');
+  if(!show) redrawInventory();
+}
+
+// ===== Loot helpers =====
+function dropLoot(x,y){
+  const slot = SLOTS[rng.int(0, SLOTS.length-1)];
+  const rarityIdx = rng.int(0, RARITY.length-1);
+  const base = slot === 'weapon' ? WEAPONS[rng.int(0, WEAPONS.length-1)] : slot.charAt(0).toUpperCase()+slot.slice(1);
+  const name = `${RARITY[rarityIdx].n} ${base}`;
+  const item = {
+    color: RARITY[rarityIdx].c,
+    type: 'gear',
+    slot,
+    name,
+    rarity: rarityIdx,
+    mods: affixMods(slot)
+  };
+  lootMap.set(`${x},${y}`, item);
+}
+
+// ===== Toast =====
+let toastTimer=0;
+function showToast(msg){
+  const bar=document.querySelector('.topbar'); const span=document.createElement('span'); span.style.marginLeft='8px'; span.style.opacity=.85; span.textContent='• '+msg; bar.appendChild(span);
+  clearTimeout(toastTimer); toastTimer=setTimeout(()=>{ if(span.parentNode) span.remove(); }, 1600);
+}
+
+// ===== Main Loop =====
+let __last = performance.now();
+function loop(now){
+  const dt = Math.min(50, now - __last);
+  __last = now;
+  update(dt);
+  draw(dt);
+  requestAnimationFrame(loop);
+}
+
+// ===== Start =====
+function startGame(){
+  hudFloor.textContent=floorNum; hudSeed.textContent=seed>>>0; hudGold.textContent=player.gold;
+  generate();
+  recalcStats();
+  // UI bindings for smooth + speed
+  const smoothToggle=document.getElementById('smoothToggle');
+  const speedRange=document.getElementById('speedRange');
+  if(smoothToggle){ smoothToggle.checked = smoothEnabled; smoothToggle.addEventListener('change', e=>{ smoothEnabled = e.target.checked; if(!smoothEnabled){ player.rx=player.x; player.ry=player.y; } }); }
+  if(speedRange){ baseStepDelay = player.stepDelay; speedRange.value = String(baseStepDelay); speedRange.addEventListener('input', e=>{ const v=parseInt(e.target.value,10); if(!isNaN(v)) baseStepDelay=v; }); }
+  requestAnimationFrame(loop);
+}
+
+document.getElementById('playBtn').onclick=()=>{ document.getElementById('start').style.display='none'; startGame(); };
+</script>
+</body>
+</html>
