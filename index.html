@@ -135,7 +135,10 @@ let canvas=document.getElementById('gameCanvas'); let ctx=canvas.getContext('2d'
 function resizeCanvas(){ canvas.width = VIEW_W = window.innerWidth; canvas.height = VIEW_H = window.innerHeight; }
 window.addEventListener('resize', resizeCanvas); resizeCanvas();
 let camX=0, camY=0; let floorLayer=null, wallLayer=null;
-let floorTex=(function(){ const c=document.createElement('canvas'); c.width=c.height=64; const g=c.getContext('2d'); g.fillStyle='#151821'; g.fillRect(0,0,64,64); g.fillStyle='rgba(255,255,255,0.03)'; for(let i=0;i<120;i++){ g.fillRect((Math.random()*64)|0,(Math.random()*64)|0,1,1);} return c; })();
+const FLOOR_DATA="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAeElEQVR4nLWSMQ7AIAhFXxtnVxdXj+TpXV1YvUA71iZCjaZ/hORB4B0554uNOICU0rBZSaEghDDsiwjn7KQY47D+AnjvVUCt9RvQWptdaAxYyTbAwXNtLSLy8wbWn8H25L8jauJMAzRxpgFWemOXAL2xDuw/g+3JDbgwJL7JubgDAAAAAElFTkSuQmCC";
+const WALL_DATA="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAASUlEQVR4nGPMMjb+z4AHHH38mEGFnx+nPBM+zcSAUQMGgwGM+mJieNMBIcCiLSKCInD1zRsGa1lZnBqOPn7MgKxn4MNg1AAGBgDIxAxqYqux4wAAAABJRU5ErkJggg==";
+const floorTex = (()=>{ const img=new Image(); img.src=FLOOR_DATA; return img; })();
+const wallTex = (()=>{ const img=new Image(); img.src=WALL_DATA; return img; })();
 
 // ====== Sprites (inline base64) ======
 // why: generate pixel art once, store data URLs so everything stays single-file & offline
@@ -338,9 +341,8 @@ function buildLayers(){
   for(let y=0;y<MAP_H;y++) for(let x=0;x<MAP_W;x++) if(map[y*MAP_W+x]===T_FLOOR){ mg.fillRect(x*TILE,y*TILE,TILE,TILE); }
   f.drawImage(mask,0,0);
   // walls
-  const wctx=wallLayer.getContext('2d');
-  wctx.fillStyle='#1b1f2a';
-  for(let y=0;y<MAP_H;y++) for(let x=0;x<MAP_W;x++) if(map[y*MAP_W+x]===T_WALL) wctx.fillRect(x*TILE,y*TILE,TILE,TILE);
+  w.fillStyle=w.createPattern(wallTex,'repeat');
+  for(let y=0;y<MAP_H;y++) for(let x=0;x<MAP_W;x++) if(map[y*MAP_W+x]===T_WALL) w.fillRect(x*TILE,y*TILE,TILE,TILE);
 }
 
 // ===== FOV =====
