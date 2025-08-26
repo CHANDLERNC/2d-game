@@ -4,7 +4,9 @@ All notable changes to this project will be documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) with date-based entries.
 
 ## [Unreleased]
-- (Add planned changes here)
+### Changed
+- Increased player starting health by 50 points.
+- Reduced base health of all monster types.
 
 ## 2025-08-26
 ### Added
