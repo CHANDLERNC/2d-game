@@ -17,6 +17,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) with
 - Distinct loot icons per item class with glow effect for rare+ drops.
 
 ### Changed
+- Expanded spell and projectile aiming to support more precise directions.
 - Increased player starting health by 50 points.
 - Reduced base health of all monster types.
 - Magic abilities now require sequential unlocking with escalating point costs.
