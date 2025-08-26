@@ -19,6 +19,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) with
 - Reworked weapon and armor attributes for improved random bonuses.
 - Reduced monster density on early floors.
 - Increased XP reward per monster by 25%.
+- Reduced wizard spawn chance on lower floors.
 
 ## 2025-08-26
 ### Added
