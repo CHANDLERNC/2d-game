@@ -22,6 +22,7 @@
   .btn:hover{background:#1a1d2a}
   .stone{background-image:linear-gradient(180deg,rgba(255,255,255,.03),rgba(0,0,0,.08));}
   .footer{padding:6px 12px;border-top:1px solid #2a2d39;background:linear-gradient(#0f1016,#0b0c11);opacity:.85}
+  #bossAlert{position:fixed;top:20px;left:50%;transform:translateX(-50%);padding:8px 14px;background:#141622;border:1px solid #3a3e4d;border-radius:8px;pointer-events:none;opacity:.95;z-index:1000}
   #inventory{display:none;position:fixed;right:8px;top:64px;padding:8px 12px;pointer-events:auto;font-size:13px;width:600px;max-width:90vw}
   #shop{display:none;position:fixed;left:8px;top:64px;min-width:320px;padding:10px 12px;pointer-events:auto;font-size:13px}
   #magic{display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);padding:8px 12px;pointer-events:auto;font-size:13px;width:340px;max-width:90vw;max-height:70vh;overflow:auto}
@@ -552,6 +553,45 @@ function generate(){
       // 0=slime, 1=bat, 2=skeleton, 3=mage
       monsters.push(spawnMonster(t,x,y));
       placed=true;
+    }
+  }
+
+  // determine strongest monster to scale bosses from
+  let strongest = null;
+  for(const m of monsters){ if(!strongest || m.hpMax > strongest.hpMax) strongest = m; }
+  if(strongest){
+    // spawn mini boss with 1.8x HP of strongest mob
+    let placed=false, tries=0;
+    while(!placed && tries<50){
+      const r=rooms[rng.int(0,rooms.length-1)];
+      const x=rng.int(r.x+1,r.x+r.w-2), y=rng.int(r.y+1,r.y+r.h-2);
+      if((x===player.x && y===player.y) || (x===merchant.x && y===merchant.y)){ tries++; continue; }
+      if(monsters.some(m=>Math.abs(m.x-x)+Math.abs(m.y-y)<4)){ tries++; continue; }
+      const mb=spawnMonster(strongest.type,x,y);
+      mb.hpMax = mb.hp = Math.round(strongest.hpMax * 1.8);
+      mb.miniBoss = true;
+      monsters.push(mb);
+      placed=true;
+    }
+
+    // every 5 floors spawn an extra large boss
+    if(floorNum % 5 === 0){
+      placed=false; tries=0;
+      const hpMult = 2.5 + rng.next()*0.5; // 2.5-3x
+      while(!placed && tries<50){
+        const r=rooms[rng.int(0,rooms.length-1)];
+        const x=rng.int(r.x+1,r.x+r.w-2), y=rng.int(r.y+1,r.y+r.h-2);
+        if((x===player.x && y===player.y) || (x===merchant.x && y===merchant.y)){ tries++; continue; }
+        if(monsters.some(m=>Math.abs(m.x-x)+Math.abs(m.y-y)<4)){ tries++; continue; }
+        const bb=spawnMonster(strongest.type,x,y);
+        bb.hpMax = bb.hp = Math.round(strongest.hpMax * hpMult);
+        bb.dmgMin = Math.round(bb.dmgMin * 2);
+        bb.dmgMax = Math.round(bb.dmgMax * 2);
+        bb.bigBoss = true;
+        monsters.push(bb);
+        placed=true;
+      }
+      showBossAlert();
     }
   }
 
@@ -1873,6 +1913,13 @@ function showToast(msg){
   if(actionLog.length>50) actionLog.shift();
   const panel=document.getElementById('actionLog');
   if(panel && panel.style.display==='block') renderActionLog();
+}
+function showBossAlert(){
+  const d=document.createElement('div');
+  d.id='bossAlert';
+  d.textContent='Boss floor — good luck!';
+  document.body.appendChild(d);
+  setTimeout(()=>d.remove(),4000);
 }
 function showRespawn(){ gameOver=true; const d=document.getElementById('respawn'); if(d) d.style.display='grid'; }
 
