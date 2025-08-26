@@ -1151,8 +1151,13 @@ function performPlayerAttack(dx,dy){
   const prof = currentWeaponProfile();
   let ndx=dx, ndy=dy;
   if(prof.kind==='melee'){
-    ndx = Math.sign(dx);
-    ndy = Math.sign(dy);
+    if(Math.abs(dx) > Math.abs(dy)){
+      ndx = Math.sign(dx);
+      ndy = 0;
+    } else {
+      ndx = 0;
+      ndy = Math.sign(dy);
+    }
     if(ndx===0 && ndy===0) return;
   } else {
     const mag=Math.hypot(dx,dy);
