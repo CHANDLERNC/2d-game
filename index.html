@@ -253,7 +253,7 @@ const wallTex = (()=>{ const img=new Image(); img.src=WALL_DATA; return img; })(
 const SPRITES = {}; // key -> { url, cv }
 function makeSprite(size, draw){ const c=document.createElement('canvas'); c.width=c.height=size; const g=c.getContext('2d'); g.imageSmoothingEnabled=false; draw(g, size); return { url: c.toDataURL('image/png'), cv: c }; }
 function px(g,x,y,w,h,col){ g.fillStyle=col; g.fillRect(x,y,w,h); }
-function outline(g,size){ g.globalCompositeOperation='destination-over'; g.strokeStyle='rgba(0,0,0,0.6)'; g.lineWidth=1; g.strokeRect(0.5,0.5,size-1,size-1); g.globalCompositeOperation='source-over'; }
+function outline(g,size){ /* no outline to avoid black boxes */ }
 function genSprites(){
   // Player male 24x24
   SPRITES.player_m = makeSprite(24,(g,S)=>{
@@ -538,7 +538,8 @@ function generate(){
   // vary floor and wall colors slightly each floor
   const hue = rng.int(0,360);
   const sat = 8 + rng.int(0,8); // low saturation for subtle tint
-  const light = 35 + rng.int(-5,5);
+  const baseLight = 35 + rng.int(-5,5);
+  const light = Math.min(100, Math.round(baseLight * 1.1));
   floorTint = `hsl(${hue}, ${sat}%, ${light}%)`;
   const wallHue = (hue + rng.int(-20,20) + 360) % 360;
   const wallLight = Math.max(10, light - 5);
