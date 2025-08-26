@@ -1170,17 +1170,31 @@ function performPlayerAttack(dx,dy){
   const wStatus = equip.weapon?.mods?.status || null;
   const atkStatus = wStatus || prof.status || null;
   if(prof.kind==='melee'){
-    const steps = Math.max(1, prof.reach|0);
-    for(let s=1; s<=steps; s++){
-      const tx=player.x + ndx*s, ty=player.y + ndy*s;
-      if(isBlock(tx,ty)) break;
-      const m = firstMonsterAt(tx,ty);
-      if(m){
-        dealDamageToMonster(m, dmg, null, wasCrit);
-        if(atkStatus) tryApplyStatus(m, atkStatus, atkStatus.elem);
-        if(ls>0){ const heal=Math.max(1,Math.floor(dmg*ls/100)); player.hp=Math.min(player.hpMax, player.hp+heal); addDamageText(player.x,player.y,`+${heal}`,'#76d38b'); }
-        break;
+    const reach = Math.max(1, prof.reach|0);
+    const coneCos = Math.cos(45 * Math.PI / 180); // 45° detection cone
+    const faceMag = Math.hypot(ndx, ndy) || 1;
+    let target=null, bestDist=Infinity;
+    for(const m of monsters){
+      const mdx=m.x-player.x, mdy=m.y-player.y;
+      const dist=Math.hypot(mdx,mdy);
+      if(dist===0 || dist>reach) continue;
+      const cosAng=(ndx*mdx + ndy*mdy)/(faceMag*dist);
+      if(cosAng < coneCos) continue;
+      // line-of-sight check
+      let blocked=false;
+      const steps=Math.floor(dist);
+      for(let s=1; s<=steps; s++){
+        const tx=player.x+Math.round((mdx/dist)*s);
+        const ty=player.y+Math.round((mdy/dist)*s);
+        if(isBlock(tx,ty)){ blocked=true; break; }
       }
+      if(blocked) continue;
+      if(dist < bestDist){ target=m; bestDist=dist; }
+    }
+    if(target){
+      dealDamageToMonster(target, dmg, null, wasCrit);
+      if(atkStatus) tryApplyStatus(target, atkStatus, atkStatus.elem);
+      if(ls>0){ const heal=Math.max(1,Math.floor(dmg*ls/100)); player.hp=Math.min(player.hpMax, player.hp+heal); addDamageText(player.x,player.y,`+${heal}`,'#76d38b'); }
     }
     player.atkCD = prof.cooldown;
   } else {
