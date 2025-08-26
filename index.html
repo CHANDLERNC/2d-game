@@ -770,6 +770,8 @@ function drawStatusPips(ctx, entity, cx, cy){
 
 // ===== Combat / Click =====
 canvas.addEventListener('mousedown', (e)=>{
+  if(e.button !== 0) return; // ensure left-click
+  e.preventDefault();
   // face toward click and attack
   const rect=canvas.getBoundingClientRect(); const mx=(e.clientX-rect.left); const my=(e.clientY-rect.top);
   const px = player.rx!==undefined?player.rx:player.x, py = player.ry!==undefined?player.ry:player.y;
