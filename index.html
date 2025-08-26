@@ -126,6 +126,13 @@
   </div>
 </div>
 
+<div id="respawn" class="stone" style="position:fixed;inset:0;display:none;place-items:center">
+  <div class="panel" style="padding:18px 22px;text-align:center">
+    <h2 style="margin:6px 0 12px 0">You suck, try again</h2>
+    <button id="respawnBtn" class="btn">Respawn</button>
+  </div>
+</div>
+
 <script>
 // ===== Config / Globals =====
 let VIEW_W=window.innerWidth, VIEW_H=window.innerHeight;
@@ -135,6 +142,7 @@ let canvas=document.getElementById('gameCanvas'); let ctx=canvas.getContext('2d'
 function resizeCanvas(){ canvas.width = VIEW_W = window.innerWidth; canvas.height = VIEW_H = window.innerHeight; }
 window.addEventListener('resize', resizeCanvas); resizeCanvas();
 let camX=0, camY=0; let floorLayer=null, wallLayer=null;
+let gameOver=false;
 // floor tile from provided image (scaled to 64×64 PNG for smaller payload)
 const FLOOR_DATA =
   "data:image/png;base64," +
@@ -733,7 +741,7 @@ function applyDamageToPlayer(dmg, type='physical'){
 
   player.hp = Math.max(0, player.hp - eff);
   damageTexts.push({ tx:player.x, ty:player.y, text:`-${eff}`, color:(type==='magic'?'#b84aff':'#ff6b6b'), age:0, ttl:900 });
-  if(player.hp===0){ showToast('You died… Press E on stairs next time 😅'); }
+  if(player.hp===0){ showRespawn(); }
 }
 
 // ===== Player weapon profiles & directional attacks =====
@@ -991,6 +999,7 @@ function draw(dt){
 
 // ===== Update (smooth tween + 8-dir) =====
 function update(dt){
+  if(gameOver) return;
   // init render state
   if(player.rx===undefined){
     player.rx=player.x; player.ry=player.y; player.fromX=player.x; player.fromY=player.y; player.toX=player.x; player.toY=player.y; player.moving=false; player.moveT=1; player.moveDur=player.stepDelay; baseStepDelay = player.stepDelay || baseStepDelay;
@@ -1109,6 +1118,7 @@ function levelUp(){ player.lvl++; const hpGain=12, mpGain=6; player.hpMax+=hpGai
 
 // ===== Toast =====
 let toastTimer=0; function showToast(msg){ const bar=document.querySelector('.topbar'); const span=document.createElement('span'); span.style.marginLeft='8px'; span.style.opacity=.85; span.textContent='• '+msg; bar.appendChild(span); clearTimeout(toastTimer); toastTimer=setTimeout(()=>{ if(span.parentNode) span.remove(); }, 1600); }
+function showRespawn(){ gameOver=true; const d=document.getElementById('respawn'); if(d) d.style.display='grid'; }
 
 // ===== Stats =====
 function recalcStats(){
@@ -1150,6 +1160,7 @@ function startGame(){
 }
 
 document.getElementById('playBtn').onclick=()=>{ document.getElementById('start').style.display='none'; startGame(); };
+document.getElementById('respawnBtn').onclick=()=>{ location.reload(); };
 
 // ===== Utils =====
 function clamp(a,b,x){ return Math.max(a, Math.min(b, x)); }
