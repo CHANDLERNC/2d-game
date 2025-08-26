@@ -24,11 +24,14 @@
   .footer{padding:6px 12px;border-top:1px solid #2a2d39;background:linear-gradient(#0f1016,#0b0c11);opacity:.85}
   #bossAlert{position:fixed;top:20px;left:50%;transform:translateX(-50%);padding:8px 14px;background:#141622;border:1px solid #3a3e4d;border-radius:8px;pointer-events:none;opacity:.95;z-index:1000}
   #inventory{display:none;position:fixed;right:8px;top:64px;padding:8px 12px;pointer-events:auto;font-size:13px;width:600px;max-width:90vw}
-  #shop{display:none;position:fixed;left:8px;top:64px;min-width:320px;padding:10px 12px;pointer-events:auto;font-size:13px}
+  #shop{display:none;position:fixed;left:8px;top:64px;min-width:320px;width:620px;max-width:90vw;max-height:70vh;overflow:auto;padding:10px 12px;pointer-events:auto;font-size:13px}
   #magic{display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);padding:8px 12px;pointer-events:auto;font-size:13px;width:340px;max-width:90vw;max-height:70vh;overflow:auto}
   #skills{display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);padding:8px 12px;pointer-events:auto;font-size:13px;width:340px;max-width:90vw;max-height:70vh;overflow:auto}
   #charPage{display:none;position:fixed;top:64px;left:50%;transform:translateX(-50%);padding:8px 12px;pointer-events:auto;font-size:13px;width:320px;max-width:90vw}
   #actionLog{display:none;position:fixed;bottom:64px;left:50%;transform:translateX(-50%);padding:8px 12px;pointer-events:auto;font-size:13px;width:360px;max-width:90vw;max-height:50vh;overflow:auto}
+  .shop-items{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .shop-item{display:flex;flex-direction:column;gap:4px;padding:6px;border-radius:6px}
+  .shop-item:hover{background:#1a1d28}
   .list-row{display:flex;justify-content:space-between;gap:8px;padding:6px 6px;border-radius:6px}
   .inv-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:4px 8px}
   .inv-grid .list-row{flex-direction:column;gap:2px}
@@ -1070,15 +1073,12 @@ function renderShop(){
   h += '<div class="kv">Gold: <b id="shopGold" class="mono">'+player.gold+'</b></div>';
   h += '</div>';
   h += '<div class="muted" style="margin-bottom:6px">Stand on the merchant and press <b>E</b> to open/close. Click an item to buy.</div>';
+  h += '<div class="shop-items">';
   for(let i=0;i<shopStock.length;i++){
     const it=shopStock[i];
-    h += `<div class="list-row" data-idx="${i}">`+
-         `<div><div class="item-title" style="color:${it.color}">${escapeHtml(it.name)}</div>`+
-         `<div class="muted">${it.slot} · ${shortMods(it)}</div></div>`+
-         `<div class="kv"><div class="pill mono">${it.price}g</div><button class="btn sml" data-buy="${i}">Buy</button></div>`+
-         `</div>`+
-         `<div class="muted" style="margin:-6px 6px 6px 6px">${renderDetails(it,'shop')}</div>`;
+    h += `<div class="shop-item">${renderDetails(it,'shop')}<div class="kv" style="margin-top:4px"><div class="pill mono">${it.price}g</div><button class="btn sml" data-buy="${i}">Buy</button></div></div>`;
   }
+  h += '</div>';
   h += '<div class="hr"></div><div class="actions"><button id="shopRefresh" class="btn sml">Refresh (15g)</button><button id="shopClose" class="btn sml">Close</button></div>';
   panel.innerHTML=h;
   panel.onclick=(e)=>{
@@ -1706,7 +1706,7 @@ const keys={};
 window.addEventListener('keydown',e=>{
   const key=e.key.toLowerCase();
   keys[key]=true;
-  if(key==='escape'){ toggleEscMenu(); return; }
+  if(key==='escape'){ if(!closeMenus()) toggleEscMenu(); return; }
   if(key==='i') toggleInv();
   if(key==='k'){
     if(player.class==='mage') toggleMagic();
@@ -1809,6 +1809,26 @@ function toggleActionLog(){
   panel.style.display=show?'block':'none';
   if(show) renderActionLog();
   updatePaused();
+}
+
+function closeMenus(){
+  let closed=false;
+  const inv=document.getElementById('inventory');
+  if(inv && inv.style.display==='block'){ toggleInv(); closed=true; }
+  const shop=document.getElementById('shop');
+  if(shop && shop.style.display==='block'){ toggleShop(false); closed=true; }
+  const charP=document.getElementById('charPage');
+  if(charP && charP.style.display==='block'){ toggleCharPage(); closed=true; }
+  const magic=document.getElementById('magic');
+  if(magic && magic.style.display==='block'){ toggleMagic(); closed=true; }
+  const skills=document.getElementById('skills');
+  if(skills && skills.style.display==='block'){ toggleSkills(); closed=true; }
+  const log=document.getElementById('actionLog');
+  if(log && log.style.display==='block'){ toggleActionLog(); closed=true; }
+  const esc=document.getElementById('escMenu');
+  if(esc && esc.style.display==='grid'){ toggleEscMenu(false); closed=true; }
+  if(closed) updatePaused();
+  return closed;
 }
 
 function redrawMagic(){
