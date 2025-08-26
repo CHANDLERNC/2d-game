@@ -363,7 +363,7 @@ genSprites();
 let seed=(Math.random()*1e9)|0, floorNum=1, rng=new RNG(seed);
 let map=[], fog=[], vis=[]; let rooms=[]; let stairs={x:0,y:0};
 let merchant={x:0,y:0}; let merchantStyle = Math.random()<0.5 ? 'goblin' : 'stall';
-let player={x:0,y:0,hp:150,hpMax:150,mp:60,mpMax:60,gold:0,stepCD:0,stepDelay:140,speedPct:0,lvl:1,xp:0,xpToNext:50,baseAtkBonus:0, gender:'m', class:'warrior', atkCD:0, faceDx:1, faceDy:0, effects:[], magicPoints:0, magic:{healing:[false,false,false,false,false,false],damage:[false,false,false,false,false,false],dot:[false,false,false,false,false,false]}, boundSpell:null};
+let player={x:0,y:0,hp:150,hpMax:150,mp:60,mpMax:60,gold:0,stepCD:0,stepDelay:140,speedPct:0,lvl:1,xp:0,xpToNext:50,baseAtkBonus:0, gender:'m', class:'warrior', atkCD:0, faceDx:1, faceDy:0, effects:[], magicPoints:0, skillPoints:0, magic:{healing:[false,false,false,false,false,false],damage:[false,false,false,false,false,false],dot:[false,false,false,false,false,false]}, skills:{offense:[false,false,false,false,false,false],defense:[false,false,false,false,false,false]}, boundSpell:null};
 let playerSpriteKey = 'player_m';
 const magicTrees={
   healing:{display:'Healing',abilities:[
@@ -389,6 +389,24 @@ const magicTrees={
     {name:'Inferno',type:'dot',dmg:25,mp:25,cost:4,range:8,elem:'fire',status:{k:'burn',dur:3400,power:1.3,chance:1}},
     {name:'Conflagrate',type:'dot',dmg:30,mp:28,cost:5,range:8,elem:'fire',status:{k:'burn',dur:3800,power:1.4,chance:1}},
     {name:'Hellfire',type:'dot',dmg:40,mp:35,cost:9,range:8,elem:'fire',status:{k:'burn',dur:4200,power:1.5,chance:1}}
+  ]}
+};
+const skillTrees={
+  offense:{display:'Offense',abilities:[
+    {name:'Power Strike',bonus:{dmgMin:1,dmgMax:1},cost:1},
+    {name:'Precision',bonus:{crit:5},cost:2},
+    {name:'Berserk',bonus:{dmgMin:2,dmgMax:2},cost:3},
+    {name:'Whirlwind',bonus:{dmgMin:3,dmgMax:3},cost:4},
+    {name:'Cleave',bonus:{dmgMin:4,dmgMax:4},cost:5},
+    {name:'Earthshatter',bonus:{dmgMin:5,dmgMax:5},cost:9}
+  ]},
+  defense:{display:'Defense',abilities:[
+    {name:'Toughness',bonus:{hpMax:20},cost:1},
+    {name:'Shield Wall',bonus:{armor:2},cost:2},
+    {name:'Fortify',bonus:{hpMax:20},cost:3},
+    {name:'Stone Skin',bonus:{armor:2},cost:4},
+    {name:'Guardian',bonus:{hpMax:30},cost:5},
+    {name:'Unbreakable',bonus:{armor:3},cost:9}
   ]}
 };
 // Monsters now have richer AI with per-type patterns and scaling
@@ -1579,6 +1597,7 @@ window.addEventListener('keydown',e=>{
   if(e.key==='Escape'){ toggleEscMenu(); return; }
   if(e.key==='i'||e.key==='I') toggleInv();
   if(e.key==='k'||e.key==='K') toggleMagic();
+  if(e.key==='l'||e.key==='L') toggleSkills();
   if(e.key==='q'||e.key==='Q') castSelectedSpell();
   if(e.key==='c'||e.key==='C') toggleCharPage();
   if(e.key==='/') toggleActionLog();
@@ -1624,10 +1643,11 @@ window.addEventListener('keypress',e=>{
 function updatePaused(){
   const inv=document.getElementById('inventory');
   const magic=document.getElementById('magic');
+  const skills=document.getElementById('skills');
   const esc=document.getElementById('escMenu');
   const charP=document.getElementById('charPage');
   const log=document.getElementById('actionLog');
-  paused=(inv&&inv.style.display==='block')||(magic&&magic.style.display==='block')||(esc&&esc.style.display==='grid')||(charP&&charP.style.display==='block')||(log&&log.style.display==='block');
+  paused=(inv&&inv.style.display==='block')||(magic&&magic.style.display==='block')||(skills&&skills.style.display==='block')||(esc&&esc.style.display==='grid')||(charP&&charP.style.display==='block')||(log&&log.style.display==='block');
 }
 
 function toggleInv(){ let panel=document.getElementById('inventory'); if(!panel){ redrawInventory(); panel=document.getElementById('inventory'); } if(!panel) return; const show=panel.style.display===''||panel.style.display==='none'; panel.style.display=show?'block':'none'; if(show) redrawInventory(); updatePaused(); }
@@ -1705,6 +1725,40 @@ function redrawMagic(){
 
 function toggleMagic(){ let panel=document.getElementById('magic'); if(!panel){ redrawMagic(); panel=document.getElementById('magic'); } if(!panel) return; const show=panel.style.display===''||panel.style.display==='none'; panel.style.display=show?'block':'none'; if(show) redrawMagic(); updatePaused(); }
 
+function redrawSkills(){
+  if(player.class!=='warrior') return;
+  let panel=document.getElementById('skills');
+  if(!panel){ panel=document.createElement('div'); panel.id='skills'; panel.className='panel'; document.body.appendChild(panel); }
+  let html = `<div class="section-title">Skill Points: ${player.skillPoints}</div>`;
+  for(const treeName of ['offense','defense']){
+    const tree=skillTrees[treeName];
+    html += `<div class="section-title">${tree.display}</div><div>`;
+    tree.abilities.forEach((ab,i)=>{
+      const unlocked=player.skills[treeName][i];
+      if(unlocked){
+        html += `<div class="list-row"><div>${ab.name}</div><div><span class="green">Unlocked</span></div></div>`;
+      }else{
+        const prevUnlocked = i===0 || player.skills[treeName][i-1];
+        const dis=(player.skillPoints<ab.cost || !prevUnlocked)?'disabled':'';
+        html += `<div class="list-row"><div>${ab.name}</div><div><button class="btn sml" data-unlock="${treeName}-${i}" ${dis}>Unlock (${ab.cost})</button></div></div>`;
+      }
+    });
+    html += '</div>';
+  }
+  panel.innerHTML=html;
+  panel.onclick=(e)=>{ const b=e.target.closest('button'); if(!b) return; const [t,i]=b.dataset.unlock.split('-'); unlockSkill(t,parseInt(i,10)); redrawSkills(); };
+}
+
+function toggleSkills(){ if(player.class!=='warrior') return; let panel=document.getElementById('skills'); if(!panel){ redrawSkills(); panel=document.getElementById('skills'); } if(!panel) return; const show=panel.style.display===''||panel.style.display==='none'; panel.style.display=show?'block':'none'; if(show) redrawSkills(); updatePaused(); }
+
+function unlockSkill(treeName, idx){
+  const ab=skillTrees[treeName].abilities[idx];
+  if(player.skills[treeName][idx]) return;
+  if(idx>0 && !player.skills[treeName][idx-1]){ showToast('Unlock previous ability first'); return; }
+  if(player.skillPoints>=ab.cost){ player.skillPoints-=ab.cost; player.skills[treeName][idx]=true; showToast(`Unlocked ${ab.name}`); recalcStats(); }
+  else showToast('Not enough points');
+}
+
 function unlockSpell(treeName, idx){
   const ab=magicTrees[treeName].abilities[idx];
   if(player.magic[treeName][idx]) return;
@@ -1764,9 +1818,15 @@ function loadGame(){
   generate();
   Object.assign(player, data.player||{});
   if(!player.class) player.class = 'warrior';
+  if(player.skillPoints===undefined) player.skillPoints=0;
   for(const t of ['healing','damage','dot']){
     player.magic[t] = player.magic[t] || [];
     while(player.magic[t].length < magicTrees[t].abilities.length) player.magic[t].push(false);
+  }
+  player.skills = player.skills || {};
+  for(const t of ['offense','defense']){
+    player.skills[t] = player.skills[t] || [];
+    while(player.skills[t].length < skillTrees[t].abilities.length) player.skills[t].push(false);
   }
   bag=data.bag||new Array(BAG_SIZE).fill(null);
   potionBag=data.potionBag||new Array(POTION_BAG_SIZE).fill(null);
@@ -1794,7 +1854,8 @@ function levelUp(){
   player.lvl++;
   player.baseAtkBonus += 1;
   player.xpToNext = Math.floor(50*Math.pow(1.35, player.lvl-1));
-  player.magicPoints++;
+  if(player.class==='mage') player.magicPoints++;
+  else player.skillPoints++;
   recalcStats();
   player.hp = player.hpMax;
   player.mp = player.mpMax;
@@ -1803,7 +1864,7 @@ function levelUp(){
   hpLbl.textContent = `HP ${player.hp}/${player.hpMax}`;
   mpLbl.textContent = `Mana ${player.mp}/${player.mpMax}`;
   showToast(`Level up! Lv ${player.lvl}`);
-  showToast('Gained magic point');
+  showToast(player.class==='mage'?'Gained magic point':'Gained skill point');
 }
 
 // ===== Toast =====
@@ -1837,6 +1898,18 @@ function recalcStats(){
     const it=equip[slot]; if(!it) continue; const m=it.mods;
     if(m.dmgMin) dmgMin+=m.dmgMin; if(m.dmgMax) dmgMax+=m.dmgMax; if(m.crit) crit+=m.crit; if(m.armor) armor+=m.armor; if(m.hpMax) hpMax+=m.hpMax; if(m.mpMax) mpMax+=m.mpMax; if(m.speedPct) speedPct+=m.speedPct;
     resF += m.resFire||0; resI += m.resIce||0; resS += m.resShock||0; resM += m.resMagic||0;
+  }
+  for(const treeName in skillTrees){
+    const arr=player.skills[treeName]||[];
+    arr.forEach((u,i)=>{
+      if(!u) return;
+      const b=skillTrees[treeName].abilities[i].bonus||{};
+      if(b.dmgMin) dmgMin+=b.dmgMin;
+      if(b.dmgMax) dmgMax+=b.dmgMax;
+      if(b.crit) crit+=b.crit;
+      if(b.armor) armor+=b.armor;
+      if(b.hpMax) hpMax+=b.hpMax;
+    });
   }
   player.hpMax=hpMax; player.mpMax=mpMax; player.speedPct=speedPct; player.spellBonus=spellBonus; if(player.hp>hpMax) player.hp=hpMax; if(player.mp>mpMax) player.mp=mpMax;
   player.armor = armor;
