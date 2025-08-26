@@ -189,6 +189,7 @@ const MONSTER_BASE_COUNT=24, MONSTER_MIN_COUNT=6, MONSTER_COUNT_DECAY=2;
 const FOV_RADIUS=8; const LOOT_CHANCE=0.18;
 const MONSTER_LOOT_CHANCE=0.3; const AGGRO_RANGE=6;
 const TORCH_CHANCE=0.06;
+const TORCH_LIGHT_RADIUS=4;
 function monsterCountForFloor(floor){
   const dec=(floor-1)*MONSTER_COUNT_DECAY;
   let count = MONSTER_BASE_COUNT - dec;
@@ -722,6 +723,20 @@ function recomputeFOV(){
       const idx=iy*MAP_W+ix; vis[idx]=1; fog[idx]=Math.max(fog[idx],1);
       if(isBlock(ix,iy) && !(ix===player.x && iy===player.y)) break;
       x+=Math.cos(ang)*0.5; y+=Math.sin(ang)*0.5;
+    }
+  }
+
+  // Extend visibility around lit torches
+  for(const t of torches){
+    if(!vis[t.y*MAP_W + t.x]) continue;
+    for(let a=0;a<rays;a++){
+      const ang=a*Math.PI*2/rays; let x=t.x+0.5, y=t.y+0.5;
+      for(let r=0;r<TORCH_LIGHT_RADIUS*2;r++){
+        const ix=x|0, iy=y|0; if(ix<0||iy<0||ix>=MAP_W||iy>=MAP_H) break;
+        const idx=iy*MAP_W+ix; vis[idx]=1; fog[idx]=Math.max(fog[idx],1);
+        if(isBlock(ix,iy) && !(ix===t.x && iy===t.y)) break;
+        x+=Math.cos(ang)*0.5; y+=Math.sin(ang)*0.5;
+      }
     }
   }
 }
