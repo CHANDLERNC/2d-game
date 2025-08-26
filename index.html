@@ -495,7 +495,7 @@ function spawnMonster(type,x,y){
     { hp:18, dmg:[2,4], atkCD:28, moveCD:[6,10] },    // slime: sturdy melee, high HP
     { hp:6,  dmg:[1,3], atkCD:22, moveCD:[4,8] },     // bat: frail but fast
     { hp:14, dmg:[2,5], atkCD:38, moveCD:[6,10] },    // skeleton: durable ranged
-    { hp:11, dmg:[3,6], atkCD:30, moveCD:[6,10] },    // mage: caster with moderate HP
+    { hp:11, dmg:[3,7], atkCD:39, moveCD:[6,10] },    // mage: higher damage, slower attack
   ];
   const a = archetypes[type] || archetypes[0];
   const diff = 1 + SCALE.HARDNESS_MULT * Math.max(0, floorNum-1);
