@@ -16,6 +16,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) with
 - Legendary rarity added for gear and weapon drops.
 - Distinct loot icons per item class with glow effect for rare+ drops.
 
+- Copy of main index stored in Experimental_UI for safe experimentation.
+
 ### Changed
 - Expanded spell and projectile aiming to support more precise directions.
 - Increased player starting health by 50 points.
