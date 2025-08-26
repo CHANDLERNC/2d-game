@@ -4,9 +4,12 @@ All notable changes to this project will be documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) with date-based entries.
 
 ## [Unreleased]
+### Added
+- Random weapon name generator for unique gear titles.
 ### Changed
 - Increased player starting health by 50 points.
 - Reduced base health of all monster types.
+- Reworked weapon and armor attributes for improved random bonuses.
 
 ## 2025-08-26
 ### Added
