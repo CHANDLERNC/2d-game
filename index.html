@@ -604,7 +604,7 @@ function generate(){
 }
 
 // ===== Difficulty scaling & Monster factory =====
-const SCALE = { HP_PER_FLOOR: 6, DMG_PER_FLOOR: 1, HARDNESS_MULT: 0.15 };
+const SCALE = { HP_PER_FLOOR: 6, DMG_PER_FLOOR: 1, HARDNESS_MULT: 0.15, RES_PER_FLOOR: 0.5, RES_MAGIC_PER_FLOOR: 0.3 };
 function scaleStat(base, perFloor){ return Math.max(1, Math.floor(base + perFloor * Math.max(0, floorNum-1))); }
 function spawnMonster(type,x,y){
   // Base stats per archetype
@@ -627,6 +627,12 @@ function spawnMonster(type,x,y){
     state: {}, aggroT:0, hitFlash:0, moving:false, moveT:1, moveDur: Math.round(140 * ENEMY_SPEED_MULT), fromX:x, fromY:y, toX:x, toY:y, effects:[]
   };
   m.hp = m.hpMax;
+  const elemRes = Math.floor(SCALE.RES_PER_FLOOR * Math.max(0, floorNum-1));
+  const magicRes = Math.floor(SCALE.RES_MAGIC_PER_FLOOR * Math.max(0, floorNum-1));
+  m.resFire = elemRes;
+  m.resIce = elemRes;
+  m.resShock = elemRes;
+  m.resMagic = magicRes;
   return m;
 }
 
@@ -1060,7 +1066,13 @@ function toggleShop(show){ const el=document.getElementById('shop'); el.style.di
 
 function dealDamageToMonster(m, base, elem=null, crit=false){
   const vuln = getEffectPower(m,'shock') || 0;
-  const dmg = Math.max(1, Math.floor(base * (1 + vuln)));
+  const dmgBase = Math.max(1, Math.floor(base * (1 + vuln)));
+  const cap = 75;
+  const res = elem==='fire' ? clamp(0,cap,m.resFire||0)
+            : elem==='ice'  ? clamp(0,cap,m.resIce||0)
+            : elem==='shock'? clamp(0,cap,m.resShock||0)
+            : elem==='magic'? clamp(0,cap,m.resMagic||0) : 0;
+  const dmg = Math.max(1, Math.floor(dmgBase * (1 - res/100)));
   m.hp -= dmg; m.hitFlash = 4; playHit();
   m.aggroT = 10000; // leash to player for at least 10s after taking damage
   const col = elem==='fire' ? '#ff6b4a'

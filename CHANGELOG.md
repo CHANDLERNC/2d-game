@@ -28,6 +28,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) with
 - Reduced wizard spawn chance on lower floors.
 - Increased potion drop rate to 40% (from 25%).
 - Mage enemies now fire 30% slower but hit 10% harder.
+- Enemy elemental resistances now scale with floor level.
 
 ### Fixed
 - Melee attacks now track the mouse and register hits within a 35° cone (2-tile reach by default).
