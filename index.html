@@ -518,6 +518,7 @@ function affixMods(slot){
     if(rng.next()<0.35) R.crit=rng.int(3,8);
     if(rng.next()<0.2) R.ls=rng.int(1,5);
     if(rng.next()<0.2) R.mp=rng.int(1,4);
+    if(rng.next()<0.2) R.status={k:'burn',dur:2200,power:1.0,chance:rng.int(10,30)/100,elem:'fire'};
   }else{
     if(rng.next()<0.6) R.armor=rng.int(2,6);
     if(rng.next()<0.35) R.resFire=rng.int(5,15);
@@ -642,6 +643,7 @@ function shortMods(it){ const m=it.mods||{}; const bits=[];
   if(m.speedPct) bits.push(`SPD+${m.speedPct}%`);
   if(m.ls) bits.push(`LS ${m.ls}%`);
   if(m.mp) bits.push(`MPo+${m.mp}`);
+  if(m.status) bits.push(`${m.status.k.toUpperCase()} ${Math.round((m.status.chance||0)*100)}%`);
   const rf=m.resFire||0, ri=m.resIce||0, rs=m.resShock||0, rm=m.resMagic||0;
   if(rf||ri||rs||rm) bits.push(`RES F/I/S/M ${rf}/${ri}/${rs}/${rm}`);
   return bits.join(' · ');
@@ -661,6 +663,7 @@ function renderDetails(it, origin){
   if(m.speedPct) rows.push(`<div>Speed: <span class="mono">+${m.speedPct}%</span></div>`);
   if(m.ls) rows.push(`<div>Lifesteal: <span class="mono">${m.ls}%</span></div>`);
   if(m.mp) rows.push(`<div>Mana on hit: <span class="mono">+${m.mp}</span></div>`);
+  if(m.status) rows.push(`<div>${m.status.k.toUpperCase()} Chance: <span class="mono">${Math.round((m.status.chance||0)*100)}%</span></div>`);
   if(m.resFire||m.resIce||m.resShock||m.resMagic){
     rows.push(`<div>Resists (F/I/S/M): <span class="mono">${m.resFire||0}/${m.resIce||0}/${m.resShock||0}/${m.resMagic||0}%</span></div>`);
   }
@@ -679,6 +682,7 @@ function getItemValue(it){
   score+= (m.crit||0)*3 + (m.armor||0)*3;
   score+= (m.hpMax||0)*0.8 + (m.mpMax||0)*0.6 + (m.speedPct||0)*4;
   score+= (m.ls||0)*6 + (m.mp||0)*2;
+  if(m.status) score+= Math.round((m.status.chance||0)*100) * 4;
   score+= ((m.resFire||0)+(m.resIce||0)+(m.resShock||0))*1.2 + (m.resMagic||0)*1.8;
   const floorBonus = Math.max(0,floorNum-1)*4;
   return Math.max(5, Math.floor((rBase + score)*slotFactor + floorBonus));
@@ -885,6 +889,7 @@ function performPlayerAttack(dx,dy){
   const prof = currentWeaponProfile();
   const {min,max,crit,ls} = currentAtk();
   let dmg=rng.int(min,max); const wasCrit=(Math.random()*100<crit); if(wasCrit) dmg=Math.floor(dmg*1.5); dmg=Math.max(1,dmg);
+  const wStatus = equip.weapon?.mods?.status || null;
   if(prof.kind==='melee'){
     const steps = Math.max(1, prof.reach|0);
     for(let s=1; s<=steps; s++){
@@ -893,6 +898,7 @@ function performPlayerAttack(dx,dy){
       const m = firstMonsterAt(tx,ty);
       if(m){
         dealDamageToMonster(m, dmg, null, wasCrit);
+        if(wStatus) tryApplyStatus(m, wStatus, wStatus.elem);
         if(ls>0){ const heal=Math.max(1,Math.floor(dmg*ls/100)); player.hp=Math.min(player.hpMax, player.hp+heal); addDamageText(player.x,player.y,`+${heal}`,'#76d38b'); }
         break;
       }
@@ -902,9 +908,9 @@ function performPlayerAttack(dx,dy){
     // ranged projectile
     projectiles.push({
       x: player.x+0.5, y: player.y+0.5, dx, dy,
-      speed: prof.projSpeed, damage:dmg, type: prof.dtype||'ranged', elem: prof.elem||null,
+      speed: prof.projSpeed, damage:dmg, type: prof.dtype||'ranged', elem: wStatus?.elem || prof.elem || null,
       owner:'player', alive:true, maxDist: prof.projRange, dist:0, ls,
-      status: prof.status || null
+      status: wStatus || prof.status || null
     });
     player.atkCD = prof.cooldown;
   }

@@ -6,6 +6,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) with
 ## [Unreleased]
 ### Added
 - Random weapon name generator for unique gear titles.
+- Weapon damage-over-time affix that can ignite foes.
 ### Changed
 - Increased player starting health by 50 points.
 - Reduced base health of all monster types.
