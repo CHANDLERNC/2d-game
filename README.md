@@ -16,7 +16,7 @@ Then visit [http://localhost:8000](http://localhost:8000).
 - **WASD or Arrow Keys** – Move in eight directions
 - **I** – Toggle inventory
 - **E** – Use stairs or the merchant
-- **1/2/3** – Quick-use potion from bag slot 1–3
+- **1/2/3** – Quick-use potion from potion bag slot 1–3
 - **Click monsters** – Attack
 
 ## Development Notes
