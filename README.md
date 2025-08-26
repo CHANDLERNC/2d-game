@@ -1,6 +1,6 @@
 # 2D Dungeon Game
 
-An offline single-file HTML5 dungeon crawler with inline sprites.
+An offline single-file HTML5 dungeon crawler with inline sprites, now featuring consumable potions and legendary gear.
 
 ## Play the Game
 Open `index.html` in your browser.  
