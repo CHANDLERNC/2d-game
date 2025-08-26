@@ -346,6 +346,7 @@ let equip={helmet:null,chest:null,legs:null,hands:null,feet:null,weapon:null};
 const BAG_SIZE=12; let bag=new Array(BAG_SIZE).fill(null);
 const POTION_BAG_SIZE=3; let potionBag=new Array(POTION_BAG_SIZE).fill(null);
 let shopStock=[];
+let currentStats={dmgMin:0,dmgMax:0,crit:0,armor:0,resF:0,resI:0,resS:0,resM:0,hpMax:0,mpMax:0};
 
 // HUD refs
 const hpFill=document.getElementById('hpFill'); const mpFill=document.getElementById('mpFill');
@@ -692,8 +693,18 @@ function sellFromPotionBag(idx){ const it=potionBag[idx]; if(!it) return; const 
 function unequipAndSell(slot){ const it=equip[slot]; if(!it) return; const price=getSellPrice(it); equip[slot]=null; player.gold+=price; hudGold.textContent=player.gold; showToast(`Sold ${it.name} for ${price}`); redrawInventory(); recalcStats(); }
 
 function redrawInventory(){
+  recalcStats();
   let panel = document.getElementById('inventory'); if(!panel){ panel=document.createElement('div'); panel.id='inventory'; panel.className='panel'; document.body.appendChild(panel); }
   let html = '';
+  html += '<div class="section-title">Character Stats</div>';
+  html += '<div>';
+  html += `<div class="list-row"><div>HP</div><div class="muted">${player.hp}/${currentStats.hpMax}</div></div>`;
+  html += `<div class="list-row"><div>Mana</div><div class="muted">${player.mp}/${currentStats.mpMax}</div></div>`;
+  html += `<div class="list-row"><div>ATK</div><div class="muted">${currentStats.dmgMin}-${currentStats.dmgMax}</div></div>`;
+  html += `<div class="list-row"><div>CRIT</div><div class="muted">${currentStats.crit}%</div></div>`;
+  html += `<div class="list-row"><div>Armor</div><div class="muted">${currentStats.armor}</div></div>`;
+  html += `<div class="list-row"><div>Res F/I/S/M</div><div class="muted">${currentStats.resF}/${currentStats.resI}/${currentStats.resS}/${currentStats.resM}</div></div>`;
+  html += '</div><div class="hr"></div>';
   html += '<div class="section-title">Equipped</div>';
   html += '<div>';
   for(const slot of SLOTS){
@@ -1595,6 +1606,7 @@ function recalcStats(){
   player.hpMax=hpMax; player.mpMax=mpMax; player.speedPct=speedPct; if(player.hp>hpMax) player.hp=hpMax; if(player.mp>mpMax) player.mp=mpMax;
   player.armor = armor;
   player.resFire=resF; player.resIce=resI; player.resShock=resS; player.resMagic=resM;
+  currentStats={dmgMin,dmgMax,crit,armor,resF,resI,resS,resM,hpMax,mpMax};
   hudDmg.textContent = `ATK ${dmgMin}-${dmgMax} | CRIT ${crit}% | ARM ${armor} | RES F/I/S/M ${resF}/${resI}/${resS}/${resM}`;
   hpFill.style.width = `${(player.hp/player.hpMax)*100}%`; mpFill.style.width = `${(player.mp/player.mpMax)*100}%`;
   hpLbl.textContent = `HP ${player.hp}/${player.hpMax}`; mpLbl.textContent = `Mana ${player.mp}/${player.mpMax}`;
