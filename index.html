@@ -297,16 +297,17 @@ genSprites();
 let seed=(Math.random()*1e9)|0, floorNum=1, rng=new RNG(seed);
 let map=[], fog=[], vis=[]; let rooms=[]; let stairs={x:0,y:0};
 let merchant={x:0,y:0}; let merchantStyle = Math.random()<0.5 ? 'goblin' : 'stall';
-let player={x:0,y:0,hp:100,hpMax:100,mp:60,mpMax:60,gold:0,stepCD:0,stepDelay:140,speedPct:0,lvl:1,xp:0,xpToNext:50,baseAtkBonus:0, gender:'m'};
+let player={x:0,y:0,hp:100,hpMax:100,mp:60,mpMax:60,gold:0,stepCD:0,stepDelay:140,speedPct:0,lvl:1,xp:0,xpToNext:50,baseAtkBonus:0, gender:'m', atkCD:0, faceDx:1, faceDy:0};
 let playerSpriteKey = 'player_m';
 // Monsters now have richer AI with per-type patterns and scaling
 // {x,y,rx,ry,type,hp,hpMax,dmgMin,dmgMax,atkCD,moveCD,state:{...},hitFlash}
 let monsters=[];
 // Simple projectile pool for ranged/magic attacks
-// {x,y,dx,dy,speed,damage,type,alive}
+// {x,y,dx,dy,speed,damage,type,owner,alive,maxDist,dist,ls}
 let projectiles=[];
 // floating combat text
 let damageTexts=[];
+function addDamageText(tx,ty,text,color){ damageTexts.push({ tx, ty, text, color, age:0, ttl:900 }); }
 const SLOTS=["helmet","chest","legs","hands","feet","weapon"];
 let equip={helmet:null,chest:null,legs:null,hands:null,feet:null,weapon:null};
 const BAG_SIZE=12; let bag=new Array(BAG_SIZE).fill(null);
@@ -652,6 +653,7 @@ function makeRandomItem(){
   const base = slot === 'weapon' ? WEAPONS[rng.int(0, WEAPONS.length-1)] : slot.charAt(0).toUpperCase()+slot.slice(1);
   const name = `${RARITY[rarityIdx].n} ${base}`;
   const item = { color: RARITY[rarityIdx].c, type:'gear', slot, name, rarity: rarityIdx, mods: affixMods(slot) };
+  if(slot==='weapon'){ item.wclass = base.toLowerCase(); }
   item.price = clamp(8, 9999, Math.floor(getItemValue(item) * (1.0 + (floorNum-1)*0.05)));
   return item;
 }
@@ -695,16 +697,14 @@ function toggleShop(show){ const el=document.getElementById('shop'); el.style.di
 
 // ===== Combat / Click =====
 canvas.addEventListener('mousedown', (e)=>{
+  // face toward click and attack
   const rect=canvas.getBoundingClientRect(); const mx=(e.clientX-rect.left); const my=(e.clientY-rect.top);
-  const tx = Math.floor((mx+camX)/TILE), ty=Math.floor((my+camY)/TILE);
-  const m = monsters.find(mm=>mm.x===tx && mm.y===ty);
-  if(!m) return;
-  const {min,max,crit,ls} = currentAtk();
-  let dmg=rng.int(min, max);
-  if(Math.random()*100 < crit) dmg = Math.floor(dmg*1.5);
-  dmg=Math.max(1,dmg);
-  m.hp-=dmg; m.hitFlash=4;
-  if(ls>0){ const heal=Math.max(1,Math.floor(dmg*ls/100)); player.hp=Math.min(player.hpMax, player.hp+heal); }
+  const px = player.rx!==undefined?player.rx:player.x, py = player.ry!==undefined?player.ry:player.y;
+  const cx = px*TILE - camX + TILE/2, cy = py*TILE - camY + TILE/2;
+  const dx = Math.sign(mx - cx), dy = Math.sign(my - cy);
+  if(dx===0 && dy===0) return;
+  player.faceDx = dx; player.faceDy = dy;
+  performPlayerAttack(dx, dy);
 });
 
 function currentAtk(){
@@ -734,6 +734,62 @@ function applyDamageToPlayer(dmg, type='physical'){
   player.hp = Math.max(0, player.hp - eff);
   damageTexts.push({ tx:player.x, ty:player.y, text:`-${eff}`, color:(type==='magic'?'#b84aff':'#ff6b6b'), age:0, ttl:900 });
   if(player.hp===0){ showToast('You died… Press E on stairs next time 😅'); }
+}
+
+// ===== Player weapon profiles & directional attacks =====
+const WEAPON_RULES = {
+  sword: {kind:'melee', reach:2, cooldown:240},
+  axe:   {kind:'melee', reach:1, cooldown:300},
+  mace:  {kind:'melee', reach:1, cooldown:300},
+  dagger:{kind:'melee', reach:1, cooldown:160},
+  bow:   {kind:'ranged', projSpeed:10/1000, projRange:14, cooldown:320, dtype:'ranged'},
+  wand:  {kind:'ranged', projSpeed:8/1000,  projRange:12, cooldown:260, dtype:'magic'},
+  staff: {kind:'ranged', projSpeed:7/1000,  projRange:12, cooldown:300, dtype:'magic'},
+  _default:{kind:'melee', reach:1, cooldown:260}
+};
+function wclassFromName(n){
+  if(!n) return null; const s=n.toLowerCase();
+  for(const k of ['sword','axe','mace','dagger','bow','wand','staff']) if(s.includes(k)) return k;
+  return null;
+}
+function currentWeaponProfile(){
+  const it = equip.weapon;
+  const wc = it?.wclass || wclassFromName(it?.name) || null;
+  const base = WEAPON_RULES[wc || '_default'];
+  return {...base};
+}
+function firstMonsterAt(tx,ty){ return monsters.find(mm=>mm.x===tx && mm.y===ty); }
+function performPlayerAttack(dx,dy){
+  if(player.atkCD>0) return;
+  dx = Math.max(-1, Math.min(1, dx|0)); dy = Math.max(-1, Math.min(1, dy|0));
+  if(dx===0 && dy===0) return;
+  player.faceDx = dx; player.faceDy = dy;
+  const prof = currentWeaponProfile();
+  const {min,max,crit,ls} = currentAtk();
+  let dmg=rng.int(min,max); const wasCrit=(Math.random()*100<crit); if(wasCrit) dmg=Math.floor(dmg*1.5); dmg=Math.max(1,dmg);
+  if(prof.kind==='melee'){
+    const steps = Math.max(1, prof.reach|0);
+    for(let s=1; s<=steps; s++){
+      const tx=player.x + dx*s, ty=player.y + dy*s;
+      if(isBlock(tx,ty)) break;
+      const m = firstMonsterAt(tx,ty);
+      if(m){
+        m.hp -= dmg; m.hitFlash = 4;
+        addDamageText(m.x,m.y,`-${dmg}`, wasCrit?'#ffe066':'#ffd24a');
+        if(ls>0){ const heal=Math.max(1,Math.floor(dmg*ls/100)); player.hp=Math.min(player.hpMax, player.hp+heal); addDamageText(player.x,player.y,`+${heal}`,'#76d38b'); }
+        break;
+      }
+    }
+    player.atkCD = prof.cooldown;
+  } else {
+    // ranged projectile
+    projectiles.push({
+      x: player.x+0.5, y: player.y+0.5, dx, dy,
+      speed: prof.projSpeed, damage:dmg, type: prof.dtype||'ranged',
+      owner:'player', alive:true, maxDist: prof.projRange, dist:0, ls
+    });
+    player.atkCD = prof.cooldown;
+  }
 }
 
 // ===== Monster AI & Movement =====
@@ -811,7 +867,7 @@ function monsterAI(m, dt){
     if(manhattan<=7 && clearPathCardinal(m.x,m.y,player.x,player.y) && m.atkCD===0){
       // fire arrow
       const adx = sign(player.x - m.x), ady = sign(player.y - m.y);
-      projectiles.push({ x:m.x+0.5, y:m.y+0.5, dx:adx, dy:ady, speed:10/1000, damage:rng.int(m.dmgMin,m.dmgMax), type:'ranged', alive:true });
+      projectiles.push({ x:m.x+0.5, y:m.y+0.5, dx:adx, dy:ady, speed:10/1000, damage:rng.int(m.dmgMin,m.dmgMax), type:'ranged', owner:'enemy', alive:true, maxDist:12, dist:0 });
       m.atkCD = rng.int(26, 40);
       return;
     }
@@ -824,7 +880,7 @@ function monsterAI(m, dt){
     const preferRange = 5; // keep around 4-6 tiles away
     if(manhattan<=8 && clearPath8(m.x,m.y,player.x,player.y) && m.atkCD===0){
       const adx = sign(player.x - m.x), ady = sign(player.y - m.y);
-      projectiles.push({ x:m.x+0.5, y:m.y+0.5, dx:adx, dy:ady, speed:8/1000, damage:rng.int(m.dmgMin,m.dmgMax+2), type:'magic', alive:true });
+      projectiles.push({ x:m.x+0.5, y:m.y+0.5, dx:adx, dy:ady, speed:8/1000, damage:rng.int(m.dmgMin,m.dmgMax+2), type:'magic', owner:'enemy', alive:true, maxDist:10, dist:0 });
       m.atkCD = rng.int(24, 34);
       return;
     }
@@ -951,6 +1007,8 @@ function update(dt){
     const dx = (right && !left) ? 1 : (left && !right) ? -1 : 0;
     const dy = (down && !up) ? 1 : (up && !down) ? -1 : 0;
     if(dx||dy){
+      // update facing when moving
+      player.faceDx = dx; player.faceDy = dy;
       if(canMoveFrom(player.x, player.y, dx, dy)){
         const nx=player.x+dx, ny=player.y+dy;
         player.x=nx; player.y=ny; pickupHere(); recomputeFOV();
@@ -972,6 +1030,9 @@ function update(dt){
     if(player.moveT>=1){ player.moving=false; player.rx=player.toX; player.ry=player.toY; }
   }else{ player.rx=player.x; player.ry=player.y; }
 
+  // attack cooldown
+  player.atkCD = Math.max(0, player.atkCD - dt);
+
   // monster AI ticks every frame
   for(const m of monsters){ monsterAI(m, dt); }
   // advance monster tweens
@@ -980,19 +1041,33 @@ function update(dt){
     else{ m.rx=m.x; m.ry=m.y; }
   }
 
-  // projectiles update
   for(const p of projectiles){
     if(!p.alive) continue;
-    // move in tile units per ms
-    p.x += p.dx * p.speed * dt * TILE;
-    p.y += p.dy * p.speed * dt * TILE;
+    // move (tile coords)
+    const step = p.speed * dt * TILE;
+    const nx = p.x + p.dx * step, ny = p.y + p.dy * step;
+    const moveLen = Math.hypot(nx - p.x, ny - p.y);
+    p.x = nx; p.y = ny; p.dist = (p.dist||0) + moveLen;
     const tx = Math.floor(p.x), ty = Math.floor(p.y);
-    // stop on walls
+    // walls
     if(isBlock(tx,ty)){ p.alive=false; continue; }
-    // hit player if sharing tile
-    if(tx===player.x && ty===player.y){
-      applyDamageToPlayer(p.damage, p.type||'ranged');
-      p.alive=false;
+    // range cap (dist measured in "tile units")
+    if(p.maxDist && (p.dist >= p.maxDist)){ p.alive=false; continue; }
+    // collisions
+    const isPlayerOwned = p.owner==='player';
+    if(isPlayerOwned){
+      const m = monsters.find(mm=>mm.x===tx && mm.y===ty);
+      if(m){
+        m.hp -= p.damage; m.hitFlash = 4;
+        addDamageText(m.x,m.y,`-${p.damage}`, p.type==='magic'?'#b84aff':'#ffd24a');
+        if(p.ls>0){ const heal=Math.max(1,Math.floor(p.damage*p.ls/100)); player.hp=Math.min(player.hpMax, player.hp+heal); addDamageText(player.x,player.y,`+${heal}`,'#76d38b'); }
+        p.alive=false;
+      }
+    }else{
+      if(tx===player.x && ty===player.y){
+        applyDamageToPlayer(p.damage, p.type||'ranged');
+        p.alive=false;
+      }
     }
   }
   // cleanup dead projectiles
@@ -1002,6 +1077,8 @@ function update(dt){
 // ===== Input =====
 const keys={};
 window.addEventListener('keydown',e=>{ keys[e.key]=true; if(e.key==='i'||e.key==='I') toggleInv(); });
+// Space to attack in facing direction
+window.addEventListener('keydown',e=>{ if(e.code==='Space'){ performPlayerAttack(player.faceDx, player.faceDy); } });
 window.addEventListener('keyup',e=>{ keys[e.key]=false; });
 window.addEventListener('keypress',e=>{
   if(e.key==='e'||e.key==='E'){
@@ -1022,6 +1099,7 @@ function dropLoot(x,y){
   const base = slot === 'weapon' ? WEAPONS[rng.int(0, WEAPONS.length-1)] : slot.charAt(0).toUpperCase()+slot.slice(1);
   const name = `${RARITY[rarityIdx].n} ${base}`;
   const item = { color: RARITY[rarityIdx].c, type: 'gear', slot, name, rarity: rarityIdx, mods: affixMods(slot) };
+  if(slot==='weapon'){ item.wclass = base.toLowerCase(); }
   lootMap.set(`${x},${y}`, item);
 }
 
