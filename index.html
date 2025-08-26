@@ -305,17 +305,17 @@ genSprites();
 let seed=(Math.random()*1e9)|0, floorNum=1, rng=new RNG(seed);
 let map=[], fog=[], vis=[]; let rooms=[]; let stairs={x:0,y:0};
 let merchant={x:0,y:0}; let merchantStyle = Math.random()<0.5 ? 'goblin' : 'stall';
-let player={x:0,y:0,hp:100,hpMax:100,mp:60,mpMax:60,gold:0,stepCD:0,stepDelay:140,speedPct:0,lvl:1,xp:0,xpToNext:50,baseAtkBonus:0, gender:'m', atkCD:0, faceDx:1, faceDy:0};
+let player={x:0,y:0,hp:100,hpMax:100,mp:60,mpMax:60,gold:0,stepCD:0,stepDelay:140,speedPct:0,lvl:1,xp:0,xpToNext:50,baseAtkBonus:0, gender:'m', atkCD:0, faceDx:1, faceDy:0, effects:[]};
 let playerSpriteKey = 'player_m';
 // Monsters now have richer AI with per-type patterns and scaling
-// {x,y,rx,ry,type,hp,hpMax,dmgMin,dmgMax,atkCD,moveCD,state:{...},hitFlash}
+// {x,y,rx,ry,type,hp,hpMax,dmgMin,dmgMax,atkCD,moveCD,state:{...},hitFlash,effects:[]}
 let monsters=[];
 // Simple projectile pool for ranged/magic attacks
-// {x,y,dx,dy,speed,damage,type,owner,alive,maxDist,dist,ls}
+// {x,y,dx,dy,speed,damage,type,elem,owner,alive,maxDist,dist,ls,status}
 let projectiles=[];
 // floating combat text
 let damageTexts=[];
-function addDamageText(tx,ty,text,color){ damageTexts.push({ tx, ty, text, color, age:0, ttl:900 }); }
+function addDamageText(tx,ty,text,color){ damageTexts.push({ tx, ty, text, color, age:0, ttl:800 }); }
 const SLOTS=["helmet","chest","legs","hands","feet","weapon"];
 let equip={helmet:null,chest:null,legs:null,hands:null,feet:null,weapon:null};
 const BAG_SIZE=12; let bag=new Array(BAG_SIZE).fill(null);
@@ -350,7 +350,7 @@ function generate(){
   map=new Array(MAP_W*MAP_H).fill(T_EMPTY);
   fog=new Array(MAP_W*MAP_H).fill(0);
   vis=new Array(MAP_W*MAP_H).fill(0);
-  rooms=[]; monsters=[]; projectiles=[]; lootMap.clear();
+  rooms=[]; monsters=[]; projectiles=[]; lootMap.clear(); player.effects = [];
   // rooms
   for(let i=0;i<28;i++){
     const w=rng.int(6,11), h=rng.int(6,11);
@@ -411,7 +411,7 @@ function spawnMonster(type,x,y){
     dmgMax: scaleStat(a.dmg[1], SCALE.DMG_PER_FLOOR),
     atkCD: rng.int(10, a.atkCD), // frames
     moveCD: rng.int(a.moveCD[0], a.moveCD[1]),
-    state: {}, hitFlash:0, moving:false, moveT:1, moveDur:140, fromX:x, fromY:y, toX:x, toY:y
+    state: {}, hitFlash:0, moving:false, moveT:1, moveDur:140, fromX:x, fromY:y, toX:x, toY:y, effects:[]
   };
   m.hp = m.hpMax;
   return m;
@@ -703,6 +703,71 @@ function stripShopFields(it){ const {price,...rest}=it; return rest; }
 
 function toggleShop(show){ const el=document.getElementById('shop'); el.style.display=show?'block':'none'; if(show){ renderShop(); document.getElementById('shopGold').textContent=player.gold; } }
 
+function dealDamageToMonster(m, base, elem=null, crit=false){
+  const vuln = getEffectPower(m,'shock') || 0;
+  const dmg = Math.max(1, Math.floor(base * (1 + vuln)));
+  m.hp -= dmg; m.hitFlash = 4;
+  const col = elem==='fire' ? '#ff6b4a' : elem==='ice' ? '#7dd3fc' : elem==='shock' ? '#facc15' : (crit?'#ffe066':'#ffd24a');
+  addDamageText(m.x,m.y,`-${dmg}`, col);
+}
+
+// ======== Status Effects (burn / freeze / shock) ========
+function getEffect(entity, k){ return (entity.effects||[]).find(e=>e.k===k); }
+function getEffectPower(entity, k){
+  const e=getEffect(entity,k); if(!e) return 0;
+  if(k==='shock') return e.power||0;
+  if(k==='freeze') return e.power||0;
+  if(k==='burn') return e.power||0;
+  return 0;
+}
+function speedMultFromEffects(entity){
+  const f = getEffectPower(entity,'freeze');
+  return 1 + (f||0);
+}
+function resistAdjusted(target, elem, obj){
+  if(target!==player || !elem) return obj;
+  const cap=75;
+  const res = elem==='fire' ? clamp(0,cap,player.resFire||0)
+            : elem==='ice' ? clamp(0,cap,player.resIce||0)
+            : elem==='shock'? clamp(0,cap,player.resShock||0)
+            : elem==='magic'? clamp(0,cap,player.resMagic||0) : 0;
+  const dur = Math.max(200, Math.floor(obj.dur * (1 - res/150)));
+  const power = Math.max(0, obj.power * (1 - res/100));
+  return { ...obj, dur, power };
+}
+function applyStatus(target, k, dur, power){
+  if(!target.effects) target.effects=[];
+  const cur = getEffect(target,k);
+  if(cur){ cur.t = Math.max(cur.t, dur); cur.power = Math.max(cur.power||0, power||0); return; }
+  target.effects.push({ k, t:dur, power:power||0, acc:0 });
+}
+function tryApplyStatus(target, status, elem){
+  if(!status) return;
+  if(Math.random() > (status.chance ?? 1)) return;
+  const tuned = resistAdjusted(target, elem, status);
+  applyStatus(target, status.k, tuned.dur, tuned.power);
+  const col = elem==='fire'?'#ff6b4a':elem==='ice'?'#7dd3fc':elem==='shock'?'#facc15':'#b84aff';
+  addDamageText(target.x, target.y, status.k.toUpperCase(), col);
+}
+function tickEffects(entity, dt){
+  if(!entity.effects || entity.effects.length===0) return;
+  for(const e of entity.effects){ e.t -= dt; if(e.k==='burn'){ e.acc=(e.acc||0)+dt; if(e.acc>=450){ e.acc=0;
+        const base = 2 + Math.floor(floorNum*0.6);
+        if(entity===player){ applyDamageToPlayer(Math.max(1, Math.floor(base * (e.power||1))), 'fire'); }
+        else{ dealDamageToMonster(entity, Math.max(1, Math.floor(base * (e.power||1))), 'fire', false); }
+  }}}
+  entity.effects = entity.effects.filter(e=>e.t>0);
+}
+function drawStatusPips(ctx, entity, cx, cy){
+  if(!entity.effects||entity.effects.length===0) return;
+  const mapColor = (k)=> k==='burn'?'#ff6b4a':k==='freeze'?'#7dd3fc':k==='shock'?'#facc15':'#b84aff';
+  let i=0; for(const e of entity.effects){
+    const x = cx - 8 + i*8, y = cy;
+    ctx.fillStyle = mapColor(e.k); ctx.beginPath(); ctx.arc(x, y, 2.5, 0, Math.PI*2); ctx.fill(); i++;
+    if(i>=4) break;
+  }
+}
+
 // ===== Combat / Click =====
 canvas.addEventListener('mousedown', (e)=>{
   // face toward click and attack
@@ -740,7 +805,8 @@ function applyDamageToPlayer(dmg, type='physical'){
   const rS = clamp(0, cap, player.resShock||0);
   const rM = clamp(0, cap, player.resMagic||0);
   const resPct = (type==='fire')?rF : (type==='ice')?rI : (type==='shock')?rS : (type==='magic')?rM : 0;
-  const eff = Math.max(1, Math.floor(afterArmor * (1 - resPct/100)));
+  const sv = getEffectPower(player,'shock') || 0; // percent
+  const eff = Math.max(1, Math.floor(afterArmor * (1 - resPct/100) * (1 + sv)));
 
   player.hp = Math.max(0, player.hp - eff);
   damageTexts.push({ tx:player.x, ty:player.y, text:`-${eff}`, color:(type==='magic'?'#b84aff':'#ff6b6b'), age:0, ttl:900 });
@@ -753,9 +819,10 @@ const WEAPON_RULES = {
   axe:   {kind:'melee', reach:1, cooldown:300},
   mace:  {kind:'melee', reach:1, cooldown:300},
   dagger:{kind:'melee', reach:1, cooldown:160},
-  bow:   {kind:'ranged', projSpeed:10/1000, projRange:14, cooldown:320, dtype:'ranged'},
-  wand:  {kind:'ranged', projSpeed:8/1000,  projRange:12, cooldown:260, dtype:'magic'},
-  staff: {kind:'ranged', projSpeed:7/1000,  projRange:12, cooldown:300, dtype:'magic'},
+  // speeds now in tiles/sec
+  bow:   {kind:'ranged', projSpeed:14, projRange:14, cooldown:320, dtype:'ranged'},
+  wand:  {kind:'ranged', projSpeed:12, projRange:12, cooldown:260, dtype:'magic', elem:'fire',  status:{k:'burn',  dur:2200, power:1.0, chance:0.55}},
+  staff: {kind:'ranged', projSpeed:10, projRange:12, cooldown:300, dtype:'magic', elem:'shock', status:{k:'shock', dur:2000, power:0.25, chance:0.60}},
   _default:{kind:'melee', reach:1, cooldown:260}
 };
 function wclassFromName(n){
@@ -785,8 +852,7 @@ function performPlayerAttack(dx,dy){
       if(isBlock(tx,ty)) break;
       const m = firstMonsterAt(tx,ty);
       if(m){
-        m.hp -= dmg; m.hitFlash = 4;
-        addDamageText(m.x,m.y,`-${dmg}`, wasCrit?'#ffe066':'#ffd24a');
+        dealDamageToMonster(m, dmg, null, wasCrit);
         if(ls>0){ const heal=Math.max(1,Math.floor(dmg*ls/100)); player.hp=Math.min(player.hpMax, player.hp+heal); addDamageText(player.x,player.y,`+${heal}`,'#76d38b'); }
         break;
       }
@@ -796,8 +862,9 @@ function performPlayerAttack(dx,dy){
     // ranged projectile
     projectiles.push({
       x: player.x+0.5, y: player.y+0.5, dx, dy,
-      speed: prof.projSpeed, damage:dmg, type: prof.dtype||'ranged',
-      owner:'player', alive:true, maxDist: prof.projRange, dist:0, ls
+      speed: prof.projSpeed, damage:dmg, type: prof.dtype||'ranged', elem: prof.elem||null,
+      owner:'player', alive:true, maxDist: prof.projRange, dist:0, ls,
+      status: prof.status || null
     });
     player.atkCD = prof.cooldown;
   }
@@ -880,7 +947,7 @@ function monsterAI(m, dt){
     if(manhattan<=7 && clearPathCardinal(m.x,m.y,player.x,player.y) && m.atkCD===0){
       // fire arrow
       const adx = sign(player.x - m.x), ady = sign(player.y - m.y);
-      projectiles.push({ x:m.x+0.5, y:m.y+0.5, dx:adx, dy:ady, speed:10/1000, damage:rng.int(m.dmgMin,m.dmgMax), type:'ranged', owner:'enemy', alive:true, maxDist:12, dist:0 });
+      projectiles.push({ x:m.x+0.5, y:m.y+0.5, dx:adx, dy:ady, speed:12, damage:rng.int(m.dmgMin,m.dmgMax), type:'ranged', elem:'ranged', owner:'enemy', alive:true, maxDist:12, dist:0, status:null });
       m.atkCD = rng.int(26, 40);
       return;
     }
@@ -893,7 +960,12 @@ function monsterAI(m, dt){
     const preferRange = 5; // keep around 4-6 tiles away
     if(manhattan<=8 && clearPath8(m.x,m.y,player.x,player.y) && m.atkCD===0){
       const adx = sign(player.x - m.x), ady = sign(player.y - m.y);
-      projectiles.push({ x:m.x+0.5, y:m.y+0.5, dx:adx, dy:ady, speed:8/1000, damage:rng.int(m.dmgMin,m.dmgMax+2), type:'magic', owner:'enemy', alive:true, maxDist:10, dist:0 });
+      // roll elemental flavor
+      const roll = rng.next(); let elem='magic', status=null, speed=10, maxDist=10;
+      if(roll<0.34){ elem='fire';  status={k:'burn',  dur:2200, power:1.0, chance:0.9}; }
+      else if(roll<0.67){ elem='ice';   status={k:'freeze',dur:1800, power:0.40, chance:0.9}; }
+      else { elem='shock'; status={k:'shock', dur:2000, power:0.25, chance:0.9}; }
+      projectiles.push({ x:m.x+0.5, y:m.y+0.5, dx:adx, dy:ady, speed, damage:rng.int(m.dmgMin,m.dmgMax+2), type:'magic', elem, owner:'enemy', alive:true, maxDist, dist:0, status });
       m.atkCD = rng.int(24, 34);
       return;
     }
@@ -954,6 +1026,8 @@ function draw(dt){
     // hp bar
     ctx.fillStyle='#111'; ctx.fillRect(mx, my-6, 24, 3);
     ctx.fillStyle='#e33'; const hw=24*(Math.max(0,m.hp)/m.hpMax); ctx.fillRect(mx, my-6, hw, 3);
+    // status pips over bar
+    drawStatusPips(ctx, m, mx+12, my-9);
     if(m.hitFlash>0) m.hitFlash--;
     if(m.hp<=0){
       if(Math.random()<MONSTER_LOOT_CHANCE) dropLoot(m.x,m.y);
@@ -967,7 +1041,11 @@ function draw(dt){
   for(const p of projectiles){
     if(!p.alive) continue;
     const px = p.x*TILE - camX - 3, py = p.y*TILE - camY - 3;
-    ctx.fillStyle = (p.type==='magic') ? '#b84aff' : '#ffd24a';
+    // color by element
+    ctx.fillStyle = p.elem==='fire' ? '#ff6b4a' :
+                    p.elem==='ice'  ? '#7dd3fc' :
+                    p.elem==='shock'? '#facc15' :
+                    (p.type==='magic' ? '#b84aff' : '#ffd24a');
     ctx.fillRect(px, py, 6, 6);
   }
 
@@ -976,6 +1054,8 @@ function draw(dt){
   const pty = (smoothEnabled && player.ry!==undefined ? player.ry : player.y);
   const px = ptx*TILE - camX + (TILE-24)/2; const py = pty*TILE - camY + (TILE-24)/2;
   ctx.drawImage(SPRITES[playerSpriteKey].cv, px, py);
+  // player status pips
+  drawStatusPips(ctx, player, px+12, py-9);
 
   // floating damage texts
   for(const t of damageTexts){
@@ -1028,7 +1108,8 @@ function update(dt){
         player.x=nx; player.y=ny; pickupHere(); recomputeFOV();
         const diag = (dx!==0 && dy!==0) ? Math.SQRT2 : 1;
         const gearFactor = (1 - Math.min(0.5, player.speedPct/100));
-        const dur = Math.max(60, baseStepDelay * gearFactor * diag);
+        const freezeMul = speedMultFromEffects(player);
+        const dur = Math.max(60, baseStepDelay * gearFactor * diag * freezeMul);
         player.moveDur = dur; player.stepCD = dur;
         if(smoothEnabled){ player.fromX=player.rx; player.fromY=player.ry; player.toX=player.x; player.toY=player.y; player.moveT=0; player.moving=true; }
         else{ player.rx=player.x; player.ry=player.y; player.moving=false; player.moveT=1; }
@@ -1046,43 +1127,46 @@ function update(dt){
 
   // attack cooldown
   player.atkCD = Math.max(0, player.atkCD - dt);
+  // status tick
+  tickEffects(player, dt);
 
   // monster AI ticks every frame
   for(const m of monsters){ monsterAI(m, dt); }
   // advance monster tweens
   for(const m of monsters){
+    tickEffects(m, dt);
     if(m.moving){ m.moveT=Math.min(1,m.moveT + dt / m.moveDur); const t=smoothstep01(m.moveT); m.rx=lerp(m.fromX,m.toX,t); m.ry=lerp(m.fromY,m.toY,t); if(m.moveT>=1){ m.moving=false; m.rx=m.toX; m.ry=m.toY; } }
     else{ m.rx=m.x; m.ry=m.y; }
   }
 
   for(const p of projectiles){
     if(!p.alive) continue;
-    // move (tile coords)
-    const step = p.speed * dt * TILE;
-    const nx = p.x + p.dx * step, ny = p.y + p.dy * step;
-    const moveLen = Math.hypot(nx - p.x, ny - p.y);
-    p.x = nx; p.y = ny; p.dist = (p.dist||0) + moveLen;
+    // move: speed is tiles/sec -> tiles per frame
+    const nx = p.x + p.dx * (p.speed * dt/1000);
+    const ny = p.y + p.dy * (p.speed * dt/1000);
+    const stepLen = Math.hypot(nx - p.x, ny - p.y);
+    p.x = nx; p.y = ny; p.dist = (p.dist||0) + stepLen;
     const tx = Math.floor(p.x), ty = Math.floor(p.y);
-    // walls
+    // stop on walls
     if(isBlock(tx,ty)){ p.alive=false; continue; }
-    // range cap (dist measured in "tile units")
-    if(p.maxDist && (p.dist >= p.maxDist)){ p.alive=false; continue; }
-    // collisions
-    const isPlayerOwned = p.owner==='player';
-    if(isPlayerOwned){
+    // hit player if sharing tile
+    if(p.owner!=='player' && tx===player.x && ty===player.y){
+      applyDamageToPlayer(p.damage, p.elem || p.type || 'ranged');
+      if(p.status) tryApplyStatus(player, p.status, p.elem);
+      p.alive=false;
+    }
+    // hit monster if player-owned
+    if(p.owner==='player'){
       const m = monsters.find(mm=>mm.x===tx && mm.y===ty);
       if(m){
-        m.hp -= p.damage; m.hitFlash = 4;
-        addDamageText(m.x,m.y,`-${p.damage}`, p.type==='magic'?'#b84aff':'#ffd24a');
+        dealDamageToMonster(m, p.damage, p.elem||null, false);
+        if(p.status) tryApplyStatus(m, p.status, p.elem);
         if(p.ls>0){ const heal=Math.max(1,Math.floor(p.damage*p.ls/100)); player.hp=Math.min(player.hpMax, player.hp+heal); addDamageText(player.x,player.y,`+${heal}`,'#76d38b'); }
         p.alive=false;
       }
-    }else{
-      if(tx===player.x && ty===player.y){
-        applyDamageToPlayer(p.damage, p.type||'ranged');
-        p.alive=false;
-      }
     }
+    // range limit
+    if(p.maxDist && p.dist>=p.maxDist){ p.alive=false; }
   }
   // cleanup dead projectiles
   if(projectiles.length>64){ projectiles = projectiles.filter(p=>p.alive); }
