@@ -877,6 +877,7 @@ function tryMoveMonster(m, dx, dy, dur=140){
   if(dx===0 && dy===0) return false;
   const nx=m.x+dx, ny=m.y+dy;
   if(!walkable(nx,ny)) return false;
+  if(firstMonsterAt(nx,ny) || (nx===player.x && ny===player.y)) return false;
   m.x=nx; m.y=ny;
   if(smoothEnabled){ m.fromX=m.rx; m.fromY=m.ry; m.toX=nx; m.toY=ny; m.moveT=0; m.moving=true; m.moveDur=dur; }
   else{ m.rx=m.x; m.ry=m.y; m.moving=false; m.moveT=1; }
@@ -1107,14 +1108,16 @@ function update(dt){
       player.faceDx = dx; player.faceDy = dy;
       if(canMoveFrom(player.x, player.y, dx, dy)){
         const nx=player.x+dx, ny=player.y+dy;
-        player.x=nx; player.y=ny; pickupHere(); recomputeFOV();
-        const diag = (dx!==0 && dy!==0) ? Math.SQRT2 : 1;
-        const gearFactor = (1 - Math.min(0.5, player.speedPct/100));
-        const freezeMul = speedMultFromEffects(player);
-        const dur = Math.max(60, baseStepDelay * gearFactor * diag * freezeMul);
-        player.moveDur = dur; player.stepCD = dur;
-        if(smoothEnabled){ player.fromX=player.rx; player.fromY=player.ry; player.toX=player.x; player.toY=player.y; player.moveT=0; player.moving=true; }
-        else{ player.rx=player.x; player.ry=player.y; player.moving=false; player.moveT=1; }
+        if(!firstMonsterAt(nx,ny)){
+          player.x=nx; player.y=ny; pickupHere(); recomputeFOV();
+          const diag = (dx!==0 && dy!==0) ? Math.SQRT2 : 1;
+          const gearFactor = (1 - Math.min(0.5, player.speedPct/100));
+          const freezeMul = speedMultFromEffects(player);
+          const dur = Math.max(60, baseStepDelay * gearFactor * diag * freezeMul);
+          player.moveDur = dur; player.stepCD = dur;
+          if(smoothEnabled){ player.fromX=player.rx; player.fromY=player.ry; player.toX=player.x; player.toY=player.y; player.moveT=0; player.moving=true; }
+          else{ player.rx=player.x; player.ry=player.y; player.moving=false; player.moveT=1; }
+        }
       }
     }
   }
