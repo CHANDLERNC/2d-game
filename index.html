@@ -1295,7 +1295,21 @@ function update(dt){
 
 // ===== Input =====
 const keys={};
-window.addEventListener('keydown',e=>{ keys[e.key]=true; if(e.key==='i'||e.key==='I') toggleInv(); });
+window.addEventListener('keydown',e=>{
+  keys[e.key]=true;
+  if(e.key==='i'||e.key==='I') toggleInv();
+  // quick-use potions from bag slots with number keys 1-3
+  if(e.key==='1'||e.key==='2'||e.key==='3'){
+    const idx = parseInt(e.key,10)-1;
+    const it = bag[idx];
+    if(it && it.type==='potion'){
+      usePotion(it);
+      bag[idx]=null;
+      const panel=document.getElementById('inventory');
+      if(panel && panel.style.display==='block') redrawInventory();
+    }
+  }
+});
 // Space to attack in facing direction
 window.addEventListener('keydown',e=>{ if(e.code==='Space'){ performPlayerAttack(player.faceDx, player.faceDy); } });
 window.addEventListener('keyup',e=>{ keys[e.key]=false; });
