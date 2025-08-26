@@ -327,6 +327,7 @@ function addDamageText(tx,ty,text,color){ damageTexts.push({ tx, ty, text, color
 const SLOTS=["helmet","chest","legs","hands","feet","weapon"];
 let equip={helmet:null,chest:null,legs:null,hands:null,feet:null,weapon:null};
 const BAG_SIZE=12; let bag=new Array(BAG_SIZE).fill(null);
+const POTION_BAG_SIZE=6; let potionBag=new Array(POTION_BAG_SIZE).fill(null);
 let shopStock=[];
 
 // HUD refs
@@ -534,7 +535,13 @@ function affixMods(slot){
 }
 
 function seedRoomLoot(){
-  for(const r of rooms){ if(rng.next()<LOOT_CHANCE){ const x=rng.int(r.x+1,r.x+r.w-2), y=rng.int(r.y+1,r.y+r.h-2); lootMap.set(`${x},${y}`,{color:'#ffd24a',type:'gold',amt:rng.int(5,20)}); } }
+  for(const r of rooms){
+    if(rng.next()<LOOT_CHANCE){
+      const x=rng.int(r.x+1,r.x+r.w-2), y=rng.int(r.y+1,r.y+r.h-2);
+      if(rng.next()<0.3){ lootMap.set(`${x},${y}`, makeRandomPotion()); }
+      else { lootMap.set(`${x},${y}`,{color:'#ffd24a',type:'gold',amt:rng.int(5,20)}); }
+    }
+  }
 }
 
 function pickupHere(){
@@ -543,6 +550,11 @@ function pickupHere(){
   if(!it) return;
   if(it.type === 'gold'){
     player.gold += it.amt; hudGold.textContent = player.gold; showToast(`+${it.amt} gold`); lootMap.delete(key); return;
+  }
+  if(it.type === 'potion'){
+    const pidx = potionBag.findIndex(p=>!p);
+    if(pidx === -1){ showToast('Potion bag full'); return; }
+    potionBag[pidx] = it; lootMap.delete(key); showToast(`Picked up ${it.name}`); redrawInventory(); return;
   }
   const idx = bag.findIndex(b=>!b);
   if(idx === -1){ showToast('Bag full'); return; }
@@ -568,6 +580,20 @@ function dropFromBag(idx){ const it=bag[idx]; if(!it) return; lootMap.set(`${pla
 
 function sellFromBag(idx){ const it=bag[idx]; if(!it) return; const price=getSellPrice(it); player.gold+=price; hudGold.textContent=player.gold; showToast(`Sold ${it.name} for ${price}`); bag[idx]=null; redrawInventory(); }
 
+function usePotion(idx){
+  const it=potionBag[idx]; if(!it) return;
+  if(it.effect==='hp'){ player.hp=Math.min(player.hpMax, player.hp+it.amt); }
+  if(it.effect==='mp'){ player.mp=Math.min(player.mpMax, player.mp+it.amt); }
+  hpFill.style.width = `${(player.hp/player.hpMax)*100}%`; mpFill.style.width = `${(player.mp/player.mpMax)*100}%`;
+  hpLbl.textContent = `HP ${player.hp}/${player.hpMax}`; mpLbl.textContent = `Mana ${player.mp}/${player.mpMax}`;
+  showToast(`Used ${it.name}`);
+  potionBag[idx]=null; redrawInventory();
+}
+
+function dropPotionFromBag(idx){ const it=potionBag[idx]; if(!it) return; lootMap.set(`${player.x},${player.y}`,it); potionBag[idx]=null; showToast(`Dropped ${it.name}`); redrawInventory(); }
+
+function sellPotionFromBag(idx){ const it=potionBag[idx]; if(!it) return; const price=getSellPrice(it); player.gold+=price; hudGold.textContent=player.gold; showToast(`Sold ${it.name} for ${price}`); potionBag[idx]=null; redrawInventory(); }
+
 function unequipAndSell(slot){ const it=equip[slot]; if(!it) return; const price=getSellPrice(it); equip[slot]=null; player.gold+=price; hudGold.textContent=player.gold; showToast(`Sold ${it.name} for ${price}`); redrawInventory(); recalcStats(); }
 
 function redrawInventory(){
@@ -586,6 +612,11 @@ function redrawInventory(){
     const it = bag[i];
     html += `<div class="list-row" data-type="bag" data-idx="${i}"><div>${i+1}. ${it?`<span style="color:${it.color}">${escapeHtml(it.name)}</span>`:'(empty)'}</div><div class="muted">${it?shortMods(it):''}</div></div>`;
   }
+  html += '<div class="section-title">Potions</div>';
+  for(let i=0;i<POTION_BAG_SIZE;i++){
+    const it = potionBag[i];
+    html += `<div class="list-row" data-type="pot" data-idx="${i}"><div>${i+1}. ${it?`<span style="color:${it.color}">${escapeHtml(it.name)}</span>`:'(empty)'}</div><div class="muted">${it?shortMods(it):''}</div></div>`;
+  }
   html += '<div class="hr"></div>';
   html += '<div id="invDetails" class="muted">Hover an item to see details. Click bag item to Equip. Click equipped item to Unequip. Use buttons below for Sell/Drop.</div>';
   html += '<div class="actions" style="margin-top:8px"><button id="btnSell" class="btn sml" disabled>Sell</button><button id="btnDrop" class="btn sml" disabled>Drop</button></div>';
@@ -597,7 +628,10 @@ function redrawInventory(){
   };
   panel.onclick = (e)=>{
     const row = e.target.closest('.list-row'); if(row){
-      const t=row.dataset.type; if(t==='bag'){ equipFromBag(parseInt(row.dataset.idx,10)); } else if(t==='eq'){ unequip(row.dataset.slot); }
+      const t=row.dataset.type;
+      if(t==='bag'){ equipFromBag(parseInt(row.dataset.idx,10)); }
+      else if(t==='eq'){ unequip(row.dataset.slot); }
+      else if(t==='pot'){ usePotion(parseInt(row.dataset.idx,10)); }
     }
   };
   document.getElementById('btnSell').onclick = ()=>{
@@ -605,11 +639,13 @@ function redrawInventory(){
     const kind = document.getElementById('invDetails').dataset.kind;
     if(kind==='bag'){ sellFromBag(parseInt(sel,10)); }
     if(kind==='eq'){ unequipAndSell(sel); }
+    if(kind==='pot'){ sellPotionFromBag(parseInt(sel,10)); }
   };
   document.getElementById('btnDrop').onclick = ()=>{
     const sel = document.getElementById('invDetails').dataset.sel;
     const kind = document.getElementById('invDetails').dataset.kind;
     if(kind==='bag'){ dropFromBag(parseInt(sel,10)); }
+    if(kind==='pot'){ dropPotionFromBag(parseInt(sel,10)); }
   };
 }
 
@@ -627,13 +663,19 @@ function showItemDetailsFromRow(row){
     det.dataset.sel=slot; det.dataset.kind='eq';
     setDetailsText(renderDetails(it, 'eq'));
     document.getElementById('btnSell').disabled=false; document.getElementById('btnDrop').disabled=true; // avoid dropping equipped directly
+  }else if(t==='pot'){
+    const i=parseInt(row.dataset.idx,10); const it=potionBag[i]; if(!it){ setDetailsText('(empty slot)'); disableInvActions(); return; }
+    det.dataset.sel=String(i); det.dataset.kind='pot';
+    setDetailsText(renderDetails(it, 'bag'));
+    document.getElementById('btnSell').disabled=false; document.getElementById('btnDrop').disabled=false;
   }
 }
 
 function disableInvActions(){ document.getElementById('btnSell').disabled=true; document.getElementById('btnDrop').disabled=true; }
 function setDetailsText(html){ const det=document.getElementById('invDetails'); det.innerHTML=html; }
 
-function shortMods(it){ const m=it.mods||{}; const bits=[];
+function shortMods(it){ if(it.type==='potion'){ return it.effect==='hp'?`Heals ${it.amt}`:it.effect==='mp'?`Restores ${it.amt} MP`:''; }
+  const m=it.mods||{}; const bits=[];
   if(m.dmgMin||m.dmgMax) bits.push(`ATK ${m.dmgMin||0}-${m.dmgMax||0}`);
   if(m.crit) bits.push(`CR ${m.crit}%`);
   if(m.armor) bits.push(`ARM ${m.armor}`);
@@ -648,6 +690,16 @@ function shortMods(it){ const m=it.mods||{}; const bits=[];
 }
 
 function renderDetails(it, origin){
+  if(it.type==='potion'){
+    const val = getItemValue(it); const sell = getSellPrice(it);
+    const lines=[];
+    lines.push(`<div class="item-title" style="color:${it.color}">${escapeHtml(it.name)}</div>`);
+    lines.push('<div class="muted">potion</div>');
+    const eff = it.effect==='hp'?`Restores ${it.amt} HP`:`Restores ${it.amt} MP`;
+    lines.push(`<div style="margin:6px 0"><div>${eff}</div></div>`);
+    lines.push(`<div class="kv"><span class="pill">Value ${val}</span><span class="pill">Sell ${sell}</span>${origin==='shop'?'<span class="pill">Buy</span>':''}</div>`);
+    return lines.join('');
+  }
   const val = getItemValue(it); const sell = getSellPrice(it);
   const lines = [];
   lines.push(`<div class="item-title" style="color:${it.color}">${escapeHtml(it.name)}</div>`);
@@ -672,6 +724,7 @@ function renderDetails(it, origin){
 
 // ===== Values / Shop =====
 function getItemValue(it){
+  if(it.type==='potion') return it.value||10;
   const rBase=[10,25,60,120][it.rarity||0];
   const slotFactor = it.slot==='weapon'?1.25:1.0;
   const m=it.mods||{}; let score=0;
@@ -702,6 +755,18 @@ function makeRandomItem(){
   if(slot==='weapon'){ item.wclass = base.toLowerCase(); }
   item.price = clamp(8, 9999, Math.floor(getItemValue(item) * (1.0 + (floorNum-1)*0.05)));
   return item;
+}
+
+function makeRandomPotion(){
+  const isHp = rng.next()<0.5;
+  return {
+    type:'potion',
+    name: isHp ? 'Health Potion' : 'Mana Potion',
+    color: isHp ? '#ff4a4a' : '#4aa3ff',
+    effect: isHp ? 'hp' : 'mp',
+    amt: isHp ? 40 : 25,
+    value: 20
+  };
 }
 
 function renderShop(){
@@ -1236,6 +1301,10 @@ function toggleInv(){ let panel=document.getElementById('inventory'); if(!panel)
 
 // ===== Loot helpers =====
 function dropLoot(x,y){
+  if(rng.next()<0.3){
+    lootMap.set(`${x},${y}`, makeRandomPotion());
+    return;
+  }
   const slot = SLOTS[rng.int(0, SLOTS.length-1)];
   const rarityIdx = rng.int(0, RARITY.length-1);
   const bases = ITEM_BASES[slot];
