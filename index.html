@@ -394,25 +394,25 @@ const magicTrees={
 };
 const skillTrees={
   offense:{display:'Offense',abilities:[
-    {name:'Precision',bonus:{crit:5},cost:1},
-    {name:'Berserk',bonus:{dmgMin:2,dmgMax:2},cost:2},
-    {name:'Cleave',bonus:{dmgMin:3,dmgMax:3},cost:3},
-    {name:'Earthshatter',bonus:{dmgMin:4,dmgMax:4},cost:4},
-    {name:'Bloodlust',bonus:{dmgMin:5,dmgMax:5},cost:5},
-    {name:'Dominance',bonus:{dmgMin:6,dmgMax:6},cost:9}
+    {name:'Precision',desc:'Increase critical chance by 5%.',bonus:{crit:5},cost:1},
+    {name:'Berserk',desc:'Increase attack damage by 2.',bonus:{dmgMin:2,dmgMax:2},cost:2},
+    {name:'Cleave',desc:'Increase attack damage by 3.',bonus:{dmgMin:3,dmgMax:3},cost:3},
+    {name:'Earthshatter',desc:'Increase attack damage by 4.',bonus:{dmgMin:4,dmgMax:4},cost:4},
+    {name:'Bloodlust',desc:'Increase attack damage by 5.',bonus:{dmgMin:5,dmgMax:5},cost:5},
+    {name:'Dominance',desc:'Increase attack damage by 6.',bonus:{dmgMin:6,dmgMax:6},cost:9}
   ]},
   defense:{display:'Defense',abilities:[
-    {name:'Toughness',bonus:{hpMax:20},cost:1},
-    {name:'Shield Wall',bonus:{armor:2},cost:2},
-    {name:'Fortify',bonus:{hpMax:20},cost:3},
-    {name:'Stone Skin',bonus:{armor:2},cost:4},
-    {name:'Guardian',bonus:{hpMax:30},cost:5},
-    {name:'Unbreakable',bonus:{armor:3},cost:9}
+    {name:'Toughness',desc:'Increase max HP by 20.',bonus:{hpMax:20},cost:1},
+    {name:'Shield Wall',desc:'Increase armor by 2.',bonus:{armor:2},cost:2},
+    {name:'Fortify',desc:'Increase max HP by 20.',bonus:{hpMax:20},cost:3},
+    {name:'Stone Skin',desc:'Increase armor by 2.',bonus:{armor:2},cost:4},
+    {name:'Guardian',desc:'Increase max HP by 30.',bonus:{hpMax:30},cost:5},
+    {name:'Unbreakable',desc:'Increase armor by 3.',bonus:{armor:3},cost:9}
   ]},
   techniques:{display:'Techniques',abilities:[
-    {name:'Power Strike',cost:1,cast:'powerStrike'},
-    {name:'Whirlwind',cost:2,cast:'whirlwind'},
-    {name:'Shield Bash',cost:3,cast:'shieldBash'}
+    {name:'Power Strike',desc:'Spend 20 stamina to strike for 40% more damage.',cost:1,cast:'powerStrike'},
+    {name:'Whirlwind',desc:'Spin and hit nearby foes for 60% more damage (30 stamina).',cost:2,cast:'whirlwind'},
+    {name:'Shield Bash',desc:'Bash an enemy for 80% more damage and shock them (15 stamina).',cost:3,cast:'shieldBash'}
   ]}
 };
 // Monsters now have richer AI with per-type patterns and scaling
@@ -1857,14 +1857,14 @@ function redrawSkills(){
       const bind = player.boundSkill && player.boundSkill.tree===treeName && player.boundSkill.idx===i;
       if(unlocked){
         if(ab.cast){
-          html += `<div class="list-row"><div>${ab.name}</div><div>${bind?'<span class="green">Bound</span>':`<button class="btn sml" data-bind="${treeName}-${i}">Bind</button>`}</div></div>`;
+          html += `<div class="list-row"><div>${ab.name}<div class="muted">${ab.desc}</div></div><div>${bind?'<span class="green">Bound</span>':`<button class="btn sml" data-bind="${treeName}-${i}">Bind</button>`}</div></div>`;
         }else{
-          html += `<div class="list-row"><div>${ab.name}</div><div><span class="green">Unlocked</span></div></div>`;
+          html += `<div class="list-row"><div>${ab.name}<div class="muted">${ab.desc}</div></div><div><span class="green">Unlocked</span></div></div>`;
         }
       }else{
         const prevUnlocked = i===0 || player.skills[treeName][i-1];
         const dis=(player.skillPoints<ab.cost || !prevUnlocked)?'disabled':'';
-        html += `<div class="list-row"><div>${ab.name}</div><div><button class="btn sml" data-unlock="${treeName}-${i}" ${dis}>Unlock (${ab.cost})</button></div></div>`;
+        html += `<div class="list-row"><div>${ab.name}<div class="muted">${ab.desc}</div></div><div><button class="btn sml" data-unlock="${treeName}-${i}" ${dis}>Unlock (${ab.cost})</button></div></div>`;
       }
     });
     html += '</div>';
