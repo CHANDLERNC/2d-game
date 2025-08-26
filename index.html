@@ -214,7 +214,7 @@ function px(g,x,y,w,h,col){ g.fillStyle=col; g.fillRect(x,y,w,h); }
 function outline(g,size){ g.globalCompositeOperation='destination-over'; g.strokeStyle='rgba(0,0,0,0.6)'; g.lineWidth=1; g.strokeRect(0.5,0.5,size-1,size-1); g.globalCompositeOperation='source-over'; }
 function genSprites(){
   // Warrior 24x24
-  SPRITES.player_m = makeSprite(24,(g,S)=>{
+  SPRITES.player_warrior = makeSprite(24,(g,S)=>{
     // boots & pants
     px(g,5,18,14,3,'#2b2f3a'); px(g,6,16,12,3,'#3a4060');
     // tunic
@@ -229,7 +229,7 @@ function genSprites(){
   });
 
   // Mage 24x24
-  SPRITES.player_f = makeSprite(24,(g,S)=>{
+  SPRITES.player_mage = makeSprite(24,(g,S)=>{
     // boots & leggings
     px(g,5,18,14,3,'#303446'); px(g,6,16,12,3,'#c65f92');
     // dress/armor
@@ -321,7 +321,7 @@ function genSprites(){
 
   // previews on start screen
   const prevWar=document.getElementById('prevWarrior'); const prevMage=document.getElementById('prevMage');
-  if(prevWar) prevWar.src = SPRITES.player_m.url; if(prevMage) prevMage.src = SPRITES.player_f.url;
+  if(prevWar) prevWar.src = SPRITES.player_warrior.url; if(prevMage) prevMage.src = SPRITES.player_mage.url;
 }
 
 // generate immediately so previews show on start
@@ -331,7 +331,7 @@ let seed=(Math.random()*1e9)|0, floorNum=1, rng=new RNG(seed);
 let map=[], fog=[], vis=[]; let rooms=[]; let stairs={x:0,y:0};
 let merchant={x:0,y:0}; let merchantStyle = Math.random()<0.5 ? 'goblin' : 'stall';
 let player={x:0,y:0,hp:150,hpMax:150,mp:60,mpMax:60,gold:0,stepCD:0,stepDelay:140,speedPct:0,lvl:1,xp:0,xpToNext:50,baseAtkBonus:0, baseSpellBonus:0, class:'warrior', atkCD:0, faceDx:1, faceDy:0, effects:[], hpBase:150, mpBase:60};
-let playerSpriteKey = 'player_m';
+let playerSpriteKey = 'player_warrior';
 // Monsters now have richer AI with per-type patterns and scaling
 // {x,y,rx,ry,type,hp,hpMax,dmgMin,dmgMax,atkCD,moveCD,state:{...},hitFlash,effects:[]}
 let monsters=[];
@@ -1574,7 +1574,7 @@ function loadGame(){
   seed=data.seed; rng=new RNG(seed); floorNum=data.floorNum;
   generate();
   Object.assign(player, data.player||{});
-  playerSpriteKey = player.class==='mage' ? 'player_f' : 'player_m';
+  playerSpriteKey = player.class==='mage' ? 'player_mage' : 'player_warrior';
   bag=data.bag||new Array(BAG_SIZE).fill(null);
   potionBag=data.potionBag||new Array(POTION_BAG_SIZE).fill(null);
   equip=data.equip||{helmet:null,chest:null,legs:null,hands:null,feet:null,weapon:null};
@@ -1655,7 +1655,7 @@ function startGame(){
     player.hpBase=150; player.mpBase=100; player.baseAtkBonus=0; player.baseSpellBonus=3;
   }
   player.hp=player.hpMax=player.hpBase; player.mp=player.mpMax=player.mpBase;
-  playerSpriteKey = player.class==='mage' ? 'player_f' : 'player_m';
+  playerSpriteKey = player.class==='mage' ? 'player_mage' : 'player_warrior';
 
   hudFloor.textContent=floorNum; hudSeed.textContent=seed>>>0; hudGold.textContent=player.gold; hudLvl.textContent=player.lvl;
   generate(); recalcStats(); recomputeFOV();
