@@ -136,8 +136,14 @@
 <script>
 // ===== Config / Globals =====
 let VIEW_W=window.innerWidth, VIEW_H=window.innerHeight;
-const TILE=32, MAP_W=48, MAP_H=48; const MONSTER_COUNT=24; const FOV_RADIUS=8; const LOOT_CHANCE=0.18;
+const TILE=32, MAP_W=48, MAP_H=48;
+const MONSTER_BASE_COUNT=24, MONSTER_MIN_COUNT=6, MONSTER_COUNT_DECAY=2;
+const FOV_RADIUS=8; const LOOT_CHANCE=0.18;
 const MONSTER_LOOT_CHANCE=0.3; const AGGRO_RANGE=6;
+function monsterCountForFloor(floor){
+  const dec=(floor-1)*MONSTER_COUNT_DECAY;
+  return Math.max(MONSTER_MIN_COUNT, MONSTER_BASE_COUNT - dec);
+}
 // Higher values slow all enemy actions (movement frequency and speed)
 const ENEMY_SPEED_MULT = 1.5;
 let canvas=document.getElementById('gameCanvas'); let ctx=canvas.getContext('2d');
@@ -377,12 +383,18 @@ function generate(){
   if(merchant.x===stairs.x && merchant.y===stairs.y){ merchant.x=rng.int(rm.x+1,rm.x+rm.w-2); merchant.y=rng.int(rm.y+1,rm.y+rm.h-2); }
 
   // monsters
-  for(let i=0;i<MONSTER_COUNT;i++){
-    const r=rooms[rng.int(0,rooms.length-1)];
-    const x=rng.int(r.x+1,r.x+r.w-2), y=rng.int(r.y+1,r.y+r.h-2);
-    if((x===player.x && y===player.y) || (x===merchant.x && y===merchant.y)) continue;
-    const t=rng.int(0,3); // 0=slime, 1=bat, 2=skeleton, 3=mage
-    monsters.push(spawnMonster(t,x,y));
+  const spawnCount = monsterCountForFloor(floorNum);
+  for(let i=0;i<spawnCount;i++){
+    let placed=false, tries=0;
+    while(!placed && tries<25){
+      const r=rooms[rng.int(0,rooms.length-1)];
+      const x=rng.int(r.x+1,r.x+r.w-2), y=rng.int(r.y+1,r.y+r.h-2);
+      if((x===player.x && y===player.y) || (x===merchant.x && y===merchant.y)){ tries++; continue; }
+      if(monsters.some(m=>Math.abs(m.x-x)+Math.abs(m.y-y)<4)){ tries++; continue; }
+      const t=rng.int(0,3); // 0=slime, 1=bat, 2=skeleton, 3=mage
+      monsters.push(spawnMonster(t,x,y));
+      placed=true;
+    }
   }
 
   buildLayers();
@@ -394,7 +406,7 @@ function generate(){
 }
 
 // ===== Difficulty scaling & Monster factory =====
-const SCALE = { HP_PER_FLOOR: 6, DMG_PER_FLOOR: 1 };
+const SCALE = { HP_PER_FLOOR: 6, DMG_PER_FLOOR: 1, HARDNESS_MULT: 0.15 };
 function scaleStat(base, perFloor){ return Math.max(1, Math.floor(base + perFloor * Math.max(0, floorNum-1))); }
 function spawnMonster(type,x,y){
   // Base stats per archetype
@@ -405,12 +417,13 @@ function spawnMonster(type,x,y){
     { hp:14, dmg:[3,6], atkCD:30, moveCD:[6,10] },    // mage: caster with moderate HP
   ];
   const a = archetypes[type] || archetypes[0];
+  const diff = 1 + SCALE.HARDNESS_MULT * Math.max(0, floorNum-1);
   const m = {
     x, y, rx:x, ry:y, type,
-    hpMax: scaleStat(a.hp, SCALE.HP_PER_FLOOR),
+    hpMax: Math.round(scaleStat(a.hp, SCALE.HP_PER_FLOOR) * diff),
     hp: 0,
-    dmgMin: scaleStat(a.dmg[0], SCALE.DMG_PER_FLOOR),
-    dmgMax: scaleStat(a.dmg[1], SCALE.DMG_PER_FLOOR),
+    dmgMin: Math.round(scaleStat(a.dmg[0], SCALE.DMG_PER_FLOOR) * diff),
+    dmgMax: Math.round(scaleStat(a.dmg[1], SCALE.DMG_PER_FLOOR) * diff),
     atkCD: rng.int(10, a.atkCD), // frames
     moveCD: Math.round(rng.int(a.moveCD[0], a.moveCD[1]) * ENEMY_SPEED_MULT),
     state: {}, hitFlash:0, moving:false, moveT:1, moveDur: Math.round(140 * ENEMY_SPEED_MULT), fromX:x, fromY:y, toX:x, toY:y, effects:[]
