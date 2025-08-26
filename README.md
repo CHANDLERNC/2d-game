@@ -1,6 +1,6 @@
 # 2D Dungeon Game
 
-An offline single-file HTML5 dungeon crawler with inline sprites, now featuring consumable potions and legendary gear.
+An offline single-file HTML5 dungeon crawler with inline sprites. Choose between Warrior or Mage classes, each with unique stat bonuses, and discover consumable potions and legendary gear.
 
 ## Play the Game
 Open `index.html` in your browser.  
