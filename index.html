@@ -130,7 +130,7 @@
 // ===== Config / Globals =====
 let VIEW_W=window.innerWidth, VIEW_H=window.innerHeight;
 const TILE=32, MAP_W=48, MAP_H=48; const MONSTER_COUNT=24; const FOV_RADIUS=8; const LOOT_CHANCE=0.18;
-const MONSTER_LOOT_CHANCE=0.3;
+const MONSTER_LOOT_CHANCE=0.3; const AGGRO_RANGE=6;
 let canvas=document.getElementById('gameCanvas'); let ctx=canvas.getContext('2d');
 function resizeCanvas(){ canvas.width = VIEW_W = window.innerWidth; canvas.height = VIEW_H = window.innerHeight; }
 window.addEventListener('resize', resizeCanvas); resizeCanvas();
@@ -701,10 +701,13 @@ canvas.addEventListener('mousedown', (e)=>{
   const rect=canvas.getBoundingClientRect(); const mx=(e.clientX-rect.left); const my=(e.clientY-rect.top);
   const px = player.rx!==undefined?player.rx:player.x, py = player.ry!==undefined?player.ry:player.y;
   const cx = px*TILE - camX + TILE/2, cy = py*TILE - camY + TILE/2;
-  const dx = Math.sign(mx - cx), dy = Math.sign(my - cy);
-  if(dx===0 && dy===0) return;
-  player.faceDx = dx; player.faceDy = dy;
-  performPlayerAttack(dx, dy);
+  if(mx===cx && my===cy) return;
+  const ang=Math.atan2(my-cy,mx-cx);
+  const dir=Math.round(ang/(Math.PI/4));
+  const dirs=[[1,0],[1,1],[0,1],[-1,1],[-1,0],[-1,-1],[0,-1],[1,-1]];
+  const [dx,dy]=dirs[(dir+8)%8];
+  player.faceDx=dx; player.faceDy=dy;
+  performPlayerAttack(dx,dy);
 });
 
 function currentAtk(){
@@ -794,6 +797,7 @@ function performPlayerAttack(dx,dy){
 
 // ===== Monster AI & Movement =====
 function tryMoveMonster(m, dx, dy, dur=140){
+  if(dx===0 && dy===0) return false;
   const nx=m.x+dx, ny=m.y+dy;
   if(!walkable(nx,ny)) return false;
   m.x=nx; m.y=ny;
@@ -821,6 +825,7 @@ function monsterAI(m, dt){
 
   const dx = sign(player.x - m.x), dy = sign(player.y - m.y);
   const manhattan = Math.abs(player.x-m.x)+Math.abs(player.y-m.y);
+  if(manhattan>AGGRO_RANGE) return;
 
   if(m.type===0){ // Slime — slow chase, occasional 2-tile charge
     if(m.state.chargeSteps>0){
