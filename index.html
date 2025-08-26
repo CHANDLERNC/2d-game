@@ -702,7 +702,7 @@ function redrawInventory(){
     html += `<div class="list-row" data-type="pbag" data-idx="${i}"><div>${i+1}. ${it?`<span style="color:${it.color}">${escapeHtml(it.name)}</span>`:'(empty)'}</div><div class="muted">${it?shortMods(it):''}</div></div>`;
   }
   html += '</div><div class="hr"></div>';
-  html += '<div id="invDetails" class="muted">Hover an item to see details. Click bag item to Equip or Use. Click potion to Use. Click equipped item to Unequip. Use buttons below for Sell/Drop.</div>';
+  html += '<div id="invDetails" class="muted">Hover an item to see details. Click bag item to Equip or Use. Click potion to Use. Click equipped item to Unequip. Press F or use the Sell button to sell. Use Drop button to drop.</div>';
   html += '<div class="actions" style="margin-top:8px"><button id="btnSell" class="btn sml" disabled>Sell</button><button id="btnDrop" class="btn sml" disabled>Drop</button></div>';
   panel.innerHTML = html;
 
@@ -1473,6 +1473,20 @@ window.addEventListener('keydown',e=>{
       potionBag[idx]=null;
       const panel=document.getElementById('inventory');
       if(panel && panel.style.display==='block') redrawInventory();
+    }
+  }
+  // sell hovered inventory item with F key
+  if(e.key==='f' || e.key==='F'){
+    const panel=document.getElementById('inventory');
+    if(panel && panel.style.display==='block'){
+      const det=document.getElementById('invDetails');
+      const sel=det?.dataset.sel;
+      const kind=det?.dataset.kind;
+      if(sel && kind){
+        if(kind==='bag') sellFromBag(parseInt(sel,10));
+        else if(kind==='pbag') sellFromPotionBag(parseInt(sel,10));
+        else if(kind==='eq') unequipAndSell(sel);
+      }
     }
   }
 });
