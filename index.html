@@ -332,7 +332,7 @@ let map=[], fog=[], vis=[]; let rooms=[]; let stairs={x:0,y:0};
 let merchant={x:0,y:0}; let merchantStyle = Math.random()<0.5 ? 'goblin' : 'stall';
 // Player state and default class
 const player={x:0,y:0,hp:150,hpMax:150,mp:60,mpMax:60,gold:0,stepCD:0,stepDelay:140,speedPct:0,lvl:1,xp:0,xpToNext:50,baseAtkBonus:0, baseSpellBonus:0, class:'warrior', atkCD:0, faceDx:1, faceDy:0, effects:[], hpBase:150, mpBase:60, magicPoints:0, magic:{healing:[false,false,false,false],damage:[false,false,false,false],dot:[false,false,false,false]}, boundSpell:null};
-let playerSpriteKey = 'player_warrior';
+let playerSpriteKey = player.class === 'mage' ? 'player_mage' : 'player_warrior';
 // Spell trees for the magic system
 const magicTrees={
   healing:{display:'Healing',abilities:[
