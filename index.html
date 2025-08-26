@@ -185,6 +185,8 @@ function monsterCountForFloor(floor){
 // Higher values slow all enemy actions (movement frequency and speed)
 const ENEMY_SPEED_MULT = 1.5;
 let canvas=document.getElementById('gameCanvas'); let ctx=canvas.getContext('2d');
+let mouseX=0, mouseY=0;
+canvas.addEventListener('mousemove', e=>{ const r=canvas.getBoundingClientRect(); mouseX=e.clientX-r.left; mouseY=e.clientY-r.top; });
 function resizeCanvas(){ canvas.width = VIEW_W = window.innerWidth; canvas.height = VIEW_H = window.innerHeight; }
 window.addEventListener('resize', resizeCanvas); resizeCanvas();
 let camX=0, camY=0; let floorLayer=null, wallLayer=null;
@@ -1079,15 +1081,12 @@ function drawStatusPips(ctx, entity, cx, cy){
 canvas.addEventListener('mousedown', (e)=>{
   if(e.button !== 0) return; // ensure left-click
   e.preventDefault();
-  // face toward click and attack
   const rect=canvas.getBoundingClientRect(); const mx=(e.clientX-rect.left); const my=(e.clientY-rect.top);
   const px = player.rx!==undefined?player.rx:player.x, py = player.ry!==undefined?player.ry:player.y;
   const cx = px*TILE - camX + TILE/2, cy = py*TILE - camY + TILE/2;
   if(mx===cx && my===cy) return;
   const ang=Math.atan2(my-cy,mx-cx);
-  const dir=Math.round(ang/(Math.PI/4));
-  const dirs=[[1,0],[1,1],[0,1],[-1,1],[-1,0],[-1,-1],[0,-1],[1,-1]];
-  const [dx,dy]=dirs[(dir+8)%8];
+  const dx=Math.cos(ang), dy=Math.sin(ang);
   player.faceDx=dx; player.faceDy=dy;
   performPlayerAttack(dx,dy);
 });
@@ -1149,10 +1148,18 @@ function currentWeaponProfile(){
 function firstMonsterAt(tx,ty){ return monsters.find(mm=>mm.x===tx && mm.y===ty); }
 function performPlayerAttack(dx,dy){
   if(player.atkCD>0) return;
-  dx = Math.max(-1, Math.min(1, dx|0)); dy = Math.max(-1, Math.min(1, dy|0));
-  if(dx===0 && dy===0) return;
-  player.faceDx = dx; player.faceDy = dy; playAttack();
   const prof = currentWeaponProfile();
+  let ndx=dx, ndy=dy;
+  if(prof.kind==='melee'){
+    ndx = Math.sign(dx);
+    ndy = Math.sign(dy);
+    if(ndx===0 && ndy===0) return;
+  } else {
+    const mag=Math.hypot(dx,dy);
+    if(mag===0) return;
+    ndx = dx/mag; ndy = dy/mag;
+  }
+  player.faceDx = ndx; player.faceDy = ndy; playAttack();
   const {min,max,crit,ls} = currentAtk();
   let dmg=rng.int(min,max); const wasCrit=(Math.random()*100<crit); if(wasCrit) dmg=Math.floor(dmg*1.5); dmg=Math.max(1,dmg);
   const wStatus = equip.weapon?.mods?.status || null;
@@ -1160,7 +1167,7 @@ function performPlayerAttack(dx,dy){
   if(prof.kind==='melee'){
     const steps = Math.max(1, prof.reach|0);
     for(let s=1; s<=steps; s++){
-      const tx=player.x + dx*s, ty=player.y + dy*s;
+      const tx=player.x + ndx*s, ty=player.y + ndy*s;
       if(isBlock(tx,ty)) break;
       const m = firstMonsterAt(tx,ty);
       if(m){
@@ -1174,7 +1181,7 @@ function performPlayerAttack(dx,dy){
   } else {
     // ranged projectile
     projectiles.push({
-      x: player.x+0.5, y: player.y+0.5, dx, dy,
+      x: player.x+0.5, y: player.y+0.5, dx: ndx, dy: ndy,
       speed: prof.projSpeed, damage:dmg, type: prof.dtype||'ranged', elem: atkStatus?.elem || prof.elem || null,
       owner:'player', alive:true, maxDist: prof.projRange, dist:0, ls,
       status: atkStatus
@@ -1669,8 +1676,13 @@ function castSelectedSpell(){
     player.hp+=heal; hpFill.style.width=`${(player.hp/player.hpMax)*100}%`; hpLbl.textContent=`HP ${player.hp}/${player.hpMax}`; addDamageText(player.x,player.y,'+'+heal,'#76d38b');
     return;
   }
-  const dx=player.faceDx, dy=player.faceDy;
-  if(dx===0 && dy===0){ showToast('Face a direction'); return; }
+  const px = player.rx!==undefined?player.rx:player.x, py = player.ry!==undefined?player.ry:player.y;
+  const cx = px*TILE - camX + TILE/2, cy = py*TILE - camY + TILE/2;
+  let dx = mouseX - cx, dy = mouseY - cy;
+  if(dx===0 && dy===0){ dx = player.faceDx; dy = player.faceDy; }
+  const mag = Math.hypot(dx, dy);
+  if(mag===0){ showToast('Face a direction'); return; }
+  dx/=mag; dy/=mag; player.faceDx=dx; player.faceDy=dy;
   const dmg = (ab.dmg||0)*(1+(player.spellBonus||0));
   projectiles.push({x:player.x+0.5,y:player.y+0.5,dx,dy,speed:12,damage:dmg,type:'magic',elem:ab.elem||null,owner:'player',alive:true,maxDist:ab.range||8,dist:0,status:ab.status||null});
 }
