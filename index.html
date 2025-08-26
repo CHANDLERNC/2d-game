@@ -1706,7 +1706,10 @@ window.addEventListener('keydown',e=>{
   keys[e.key]=true;
   if(e.key==='Escape'){ toggleEscMenu(); return; }
   if(e.key==='i'||e.key==='I') toggleInv();
-  if(e.key==='k'||e.key==='K') toggleMagic();
+  if(e.key==='k'||e.key==='K'){
+    if(player.class==='mage') toggleMagic();
+    else toggleSkills();
+  }
   if(e.key==='l'||e.key==='L') toggleSkills();
   if(e.key==='q'||e.key==='Q'){
     if(player.class==='mage') castSelectedSpell();
