@@ -1204,13 +1204,13 @@ const WEAPON_RULES = {
 };
 function wclassFromName(n){
   if(!n) return null; const s=n.toLowerCase();
-  for(const k of ['sword','axe','mace','dagger','bow','wand','staff']) if(s.includes(k)) return k;
+  for(const k of ['sword','axe','mace','dagger','bow','wand','staff','spear','halberd','crossbow','flail','katana']) if(s.includes(k)) return k;
   return null;
 }
 function currentWeaponProfile(){
   const it = equip.weapon;
   const wc = it?.wclass || wclassFromName(it?.name) || null;
-  const base = WEAPON_RULES[wc || '_default'];
+  const base = WEAPON_RULES[wc] || WEAPON_RULES._default;
   return {...base};
 }
 function firstMonsterAt(tx,ty){ return monsters.find(mm=>mm.x===tx && mm.y===ty); }
