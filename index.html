@@ -610,7 +610,10 @@ function affixMods(slot){
     if(rng.next()<0.35) R.crit=rng.int(3,8);
     if(rng.next()<0.2) R.ls=rng.int(1,5);
     if(rng.next()<0.2) R.mp=rng.int(1,4);
-    if(rng.next()<0.2) R.status={k:'burn',dur:2200,power:1.0,chance:rng.int(10,30)/100,elem:'fire'};
+    if(rng.next()<0.2){
+      if(rng.next()<0.5) R.status={k:'burn',dur:2200,power:1.0,chance:rng.int(10,30)/100,elem:'fire'};
+      else R.status={k:'bleed',dur:2000,power:1.0,chance:rng.int(10,30)/100,elem:'bleed'};
+    }
   }else{
     if(rng.next()<0.6) R.armor=rng.int(2,6);
     if(rng.next()<0.35) R.resFire=rng.int(5,15);
@@ -942,17 +945,22 @@ function dealDamageToMonster(m, base, elem=null, crit=false){
   const vuln = getEffectPower(m,'shock') || 0;
   const dmg = Math.max(1, Math.floor(base * (1 + vuln)));
   m.hp -= dmg; m.hitFlash = 4; playHit();
-  const col = elem==='fire' ? '#ff6b4a' : elem==='ice' ? '#7dd3fc' : elem==='shock' ? '#facc15' : (crit?'#ffe066':'#ffd24a');
+  const col = elem==='fire' ? '#ff6b4a'
+            : elem==='ice'  ? '#7dd3fc'
+            : elem==='shock'? '#facc15'
+            : elem==='bleed'? '#dc2626'
+            : (crit?'#ffe066':'#ffd24a');
   addDamageText(m.x,m.y,`-${dmg}`, col);
 }
 
-// ======== Status Effects (burn / freeze / shock) ========
+// ======== Status Effects (burn / freeze / shock / bleed) ========
 function getEffect(entity, k){ return (entity.effects||[]).find(e=>e.k===k); }
 function getEffectPower(entity, k){
   const e=getEffect(entity,k); if(!e) return 0;
   if(k==='shock') return e.power||0;
   if(k==='freeze') return e.power||0;
   if(k==='burn') return e.power||0;
+  if(k==='bleed') return e.power||0;
   return 0;
 }
 function speedMultFromEffects(entity){
@@ -981,21 +989,37 @@ function tryApplyStatus(target, status, elem){
   if(Math.random() > (status.chance ?? 1)) return;
   const tuned = resistAdjusted(target, elem, status);
   applyStatus(target, status.k, tuned.dur, tuned.power);
-  const col = elem==='fire'?'#ff6b4a':elem==='ice'?'#7dd3fc':elem==='shock'?'#facc15':'#b84aff';
+  const col = elem==='fire'?'#ff6b4a'
+             : elem==='ice'?'#7dd3fc'
+             : elem==='shock'?'#facc15'
+             : elem==='bleed'?'#dc2626'
+             : '#b84aff';
   addDamageText(target.x, target.y, status.k.toUpperCase(), col);
 }
 function tickEffects(entity, dt){
   if(!entity.effects || entity.effects.length===0) return;
-  for(const e of entity.effects){ e.t -= dt; if(e.k==='burn'){ e.acc=(e.acc||0)+dt; if(e.acc>=450){ e.acc=0;
+  for(const e of entity.effects){
+    e.t -= dt;
+    if(e.k==='burn'){
+      e.acc=(e.acc||0)+dt; if(e.acc>=450){ e.acc=0;
         const base = 2 + Math.floor(floorNum*0.6);
         if(entity===player){ applyDamageToPlayer(Math.max(1, Math.floor(base * (e.power||1))), 'fire'); }
         else{ dealDamageToMonster(entity, Math.max(1, Math.floor(base * (e.power||1))), 'fire', false); }
-  }}}
+      }
+    }
+    if(e.k==='bleed'){
+      e.acc=(e.acc||0)+dt; if(e.acc>=450){ e.acc=0;
+        const base = 2 + Math.floor(floorNum*0.5);
+        if(entity===player){ applyDamageToPlayer(Math.max(1, Math.floor(base * (e.power||1))), 'physical'); }
+        else{ dealDamageToMonster(entity, Math.max(1, Math.floor(base * (e.power||1))), 'bleed', false); }
+      }
+    }
+  }
   entity.effects = entity.effects.filter(e=>e.t>0);
 }
 function drawStatusPips(ctx, entity, cx, cy){
   if(!entity.effects||entity.effects.length===0) return;
-  const mapColor = (k)=> k==='burn'?'#ff6b4a':k==='freeze'?'#7dd3fc':k==='shock'?'#facc15':'#b84aff';
+  const mapColor = (k)=> k==='burn'?'#ff6b4a':k==='freeze'?'#7dd3fc':k==='shock'?'#facc15':k==='bleed'?'#dc2626':'#b84aff';
   let i=0; for(const e of entity.effects){
     const x = cx - 8 + i*8, y = cy;
     ctx.fillStyle = mapColor(e.k); ctx.beginPath(); ctx.arc(x, y, 2.5, 0, Math.PI*2); ctx.fill(); i++;
@@ -1053,15 +1077,15 @@ function applyDamageToPlayer(dmg, type='physical'){
 
 // ===== Player weapon profiles & directional attacks =====
 const WEAPON_RULES = {
-  sword: {kind:'melee', reach:2, cooldown:240},
-  axe:   {kind:'melee', reach:1, cooldown:300},
-  mace:  {kind:'melee', reach:1, cooldown:300},
-  dagger:{kind:'melee', reach:1, cooldown:160},
+  sword: {kind:'melee', reach:2, cooldown:240, status:{k:'bleed', elem:'bleed', dur:2000, power:1.0, chance:0.3}},
+  axe:   {kind:'melee', reach:1, cooldown:300, status:{k:'bleed', elem:'bleed', dur:2200, power:1.2, chance:0.35}},
+  mace:  {kind:'melee', reach:1, cooldown:300, status:{k:'bleed', elem:'bleed', dur:2200, power:1.1, chance:0.3}},
+  dagger:{kind:'melee', reach:1, cooldown:160, status:{k:'bleed', elem:'bleed', dur:1600, power:0.8, chance:0.4}},
   // speeds now in tiles/sec
   bow:   {kind:'ranged', projSpeed:14, projRange:14, cooldown:320, dtype:'ranged'},
   wand:  {kind:'ranged', projSpeed:12, projRange:12, cooldown:260, dtype:'magic', elem:'fire',  status:{k:'burn',  dur:2200, power:1.0, chance:0.55}},
   staff: {kind:'ranged', projSpeed:10, projRange:12, cooldown:300, dtype:'magic', elem:'shock', status:{k:'shock', dur:2000, power:0.25, chance:0.60}},
-  _default:{kind:'melee', reach:1, cooldown:260}
+  _default:{kind:'melee', reach:1, cooldown:260, status:{k:'bleed', elem:'bleed', dur:2000, power:1.0, chance:0.25}}
 };
 function wclassFromName(n){
   if(!n) return null; const s=n.toLowerCase();
@@ -1084,6 +1108,7 @@ function performPlayerAttack(dx,dy){
   const {min,max,crit,ls} = currentAtk();
   let dmg=rng.int(min,max); const wasCrit=(Math.random()*100<crit); if(wasCrit) dmg=Math.floor(dmg*1.5); dmg=Math.max(1,dmg);
   const wStatus = equip.weapon?.mods?.status || null;
+  const atkStatus = wStatus || prof.status || null;
   if(prof.kind==='melee'){
     const steps = Math.max(1, prof.reach|0);
     for(let s=1; s<=steps; s++){
@@ -1092,7 +1117,7 @@ function performPlayerAttack(dx,dy){
       const m = firstMonsterAt(tx,ty);
       if(m){
         dealDamageToMonster(m, dmg, null, wasCrit);
-        if(wStatus) tryApplyStatus(m, wStatus, wStatus.elem);
+        if(atkStatus) tryApplyStatus(m, atkStatus, atkStatus.elem);
         if(ls>0){ const heal=Math.max(1,Math.floor(dmg*ls/100)); player.hp=Math.min(player.hpMax, player.hp+heal); addDamageText(player.x,player.y,`+${heal}`,'#76d38b'); }
         break;
       }
@@ -1102,9 +1127,9 @@ function performPlayerAttack(dx,dy){
     // ranged projectile
     projectiles.push({
       x: player.x+0.5, y: player.y+0.5, dx, dy,
-      speed: prof.projSpeed, damage:dmg, type: prof.dtype||'ranged', elem: wStatus?.elem || prof.elem || null,
+      speed: prof.projSpeed, damage:dmg, type: prof.dtype||'ranged', elem: atkStatus?.elem || prof.elem || null,
       owner:'player', alive:true, maxDist: prof.projRange, dist:0, ls,
-      status: wStatus || prof.status || null
+      status: atkStatus
     });
     player.atkCD = prof.cooldown;
   }
