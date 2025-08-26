@@ -961,6 +961,7 @@ function shortMods(it){
     return bits.join(' · ');
   }
   const m=it.mods||{}; const bits=[];
+  if(it.lvl) bits.push(`LVL ${it.lvl}`);
   if(m.dmgMin||m.dmgMax) bits.push(`ATK ${m.dmgMin||0}-${m.dmgMax||0}`);
   if(m.crit) bits.push(`CR ${m.crit}%`);
   if(m.armor) bits.push(`ARM ${m.armor}`);
@@ -991,7 +992,7 @@ function renderDetails(it, origin){
     lines.push(`<div class="kv"><span class="pill">Value ${val}</span><span class="pill">Sell ${sell}</span>${origin==='shop'?'<span class="pill">Buy</span>':''}</div>`);
     return lines.join('');
   }
-  lines.push(`<div class="muted">${it.slot} · ${RARITY[it.rarity]?.n||'?'}</div>`);
+  lines.push(`<div class="muted">${it.slot} · Lv ${it.lvl||1} · ${RARITY[it.rarity]?.n||'?'}</div>`);
   const m = it.mods||{}; const rows = [];
   if(m.dmgMin||m.dmgMax) rows.push(`<div>Attack: <span class="mono">${m.dmgMin||0}-${m.dmgMax||0}</span></div>`);
   if(m.crit) rows.push(`<div>Crit: <span class="mono">+${m.crit}%</span></div>`);
@@ -1053,7 +1054,7 @@ function makeRandomGear(){
   let baseName = base;
   if(slot==='weapon') baseName = generateWeaponName(base);
   const name = `${RARITY[rarityIdx].n} ${baseName}`;
-  const item = { color: RARITY[rarityIdx].c, type:'gear', slot, name, rarity: rarityIdx, mods: affixMods(slot, rarityIdx) };
+  const item = { color: RARITY[rarityIdx].c, type:'gear', slot, name, rarity: rarityIdx, lvl: floorNum, mods: affixMods(slot, rarityIdx) };
   if(slot==='weapon'){ item.wclass = base.toLowerCase(); }
   return item;
 }
@@ -1813,6 +1814,8 @@ function renderCharPage(){
   html+=`<div class="kv">Class: <b>${player.class}</b></div>`;
   html+=`<div class="kv">HP: <b>${player.hp}/${player.hpMax}</b></div>`;
   html+=`<div class="kv">${player.class==='mage'?'Mana':'Stamina'}: <b>${player.class==='mage'?player.mp+'/'+player.mpMax:player.sp+'/'+player.spMax}</b></div>`;
+  html+=`<div class="kv">Attack: <b>${currentStats.dmgMin}-${currentStats.dmgMax}</b></div>`;
+  html+=`<div class="kv">Armor: <b>${currentStats.armor}</b></div>`;
   html+=`<div class="kv">Fire Res: <b>${player.resFire||0}%</b></div>`;
   html+=`<div class="kv">Ice Res: <b>${player.resIce||0}%</b></div>`;
   html+=`<div class="kv">Shock Res: <b>${player.resShock||0}%</b></div>`;
