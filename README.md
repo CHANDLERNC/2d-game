@@ -17,10 +17,12 @@ Then visit [http://localhost:8000](http://localhost:8000).
 - **I** – Toggle inventory
 - **K** – Toggle magic menu
 - **L** – Toggle warrior skills
- - **Q** – Use bound ability (spell or warrior skill)
+- **Q** – Use bound ability (spell or warrior skill)
 - **E** – Use stairs or the merchant
 - **1/2/3** – Quick-use potion from potion bag slot 1–3
 - **Click monsters** – Attack
+
+See [`controls.html`](controls.html) for a standalone controls page.
 
 ## Development Notes
 - All game logic, styling, and assets live inline within `index.html` to keep the project self-contained.

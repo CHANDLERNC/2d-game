@@ -1615,10 +1615,10 @@ function update(dt){
   // inputs
   player.stepCD = Math.max(0, player.stepCD - dt);
   if(player.stepCD<=0 && !player.moving){
-    const up=!!(keys['ArrowUp']||keys['w']||keys['W']);
-    const down=!!(keys['ArrowDown']||keys['s']||keys['S']);
-    const left=!!(keys['ArrowLeft']||keys['a']||keys['A']);
-    const right=!!(keys['ArrowRight']||keys['d']||keys['D']);
+    const up=!!(keys['arrowup']||keys['w']);
+    const down=!!(keys['arrowdown']||keys['s']);
+    const left=!!(keys['arrowleft']||keys['a']);
+    const right=!!(keys['arrowright']||keys['d']);
     const dx = (right && !left) ? 1 : (left && !right) ? -1 : 0;
     const dy = (down && !up) ? 1 : (up && !down) ? -1 : 0;
     if(dx||dy){
@@ -1703,23 +1703,32 @@ function update(dt){
 // ===== Input =====
 const keys={};
 window.addEventListener('keydown',e=>{
-  keys[e.key]=true;
-  if(e.key==='Escape'){ toggleEscMenu(); return; }
-  if(e.key==='i'||e.key==='I') toggleInv();
-  if(e.key==='k'||e.key==='K'){
+  const key=e.key.toLowerCase();
+  keys[key]=true;
+  if(key==='escape'){ toggleEscMenu(); return; }
+  if(key==='i') toggleInv();
+  if(key==='k'){
     if(player.class==='mage') toggleMagic();
     else toggleSkills();
   }
-  if(e.key==='l'||e.key==='L') toggleSkills();
-  if(e.key==='q'||e.key==='Q'){
+  if(key==='l') toggleSkills();
+  if(key==='q'){
     if(player.class==='mage') castSelectedSpell();
     else if(player.class==='warrior') castBoundSkill();
   }
-  if(e.key==='c'||e.key==='C') toggleCharPage();
-  if(e.key==='/') toggleActionLog();
+  if(key==='c') toggleCharPage();
+  if(key==='/') toggleActionLog();
+  if(key==='e' && !e.repeat){
+    if(player.x===stairs.x && player.y===stairs.y){
+      floorNum++; seed=(seed*1664525+1013904223)|0; rng=new RNG(seed);
+      generate(); hudFloor.textContent=floorNum; hudSeed.textContent=seed>>>0; showToast('Down we go'); toggleShop(false);
+    } else if(player.x===merchant.x && player.y===merchant.y){
+      toggleShop(document.getElementById('shop').style.display!=='block'); renderShop();
+    }
+  }
   // quick-use potions from potion bag slots with number keys 1-3
-  if(e.key==='1'||e.key==='2'||e.key==='3'){
-    const idx = parseInt(e.key,10)-1;
+  if(key==='1'||key==='2'||key==='3'){
+    const idx = parseInt(key,10)-1;
     const it = potionBag[idx];
     if(it){
       usePotion(it);
@@ -1729,7 +1738,7 @@ window.addEventListener('keydown',e=>{
     }
   }
   // sell hovered inventory item with F key
-  if(e.key==='f' || e.key==='F'){
+  if(key==='f'){
     const panel=document.getElementById('inventory');
     if(panel && panel.style.display==='block'){
       const det=document.getElementById('invDetails');
@@ -1742,18 +1751,11 @@ window.addEventListener('keydown',e=>{
       }
     }
   }
-});
-// Space to attack in facing direction
-window.addEventListener('keydown',e=>{ if(e.code==='Space'){ performPlayerAttack(player.faceDx, player.faceDy); } });
-window.addEventListener('keyup',e=>{ keys[e.key]=false; });
-window.addEventListener('keypress',e=>{
-  if(e.key==='e'||e.key==='E'){
-    if(player.x===stairs.x && player.y===stairs.y){
-      floorNum++; seed=(seed*1664525+1013904223)|0; rng=new RNG(seed);
-      generate(); hudFloor.textContent=floorNum; hudSeed.textContent=seed>>>0; showToast('Down we go'); toggleShop(false);
-    } else if(player.x===merchant.x && player.y===merchant.y){ toggleShop(document.getElementById('shop').style.display!=='block'); renderShop(); }
+  if(e.code==='Space'){
+    performPlayerAttack(player.faceDx, player.faceDy);
   }
 });
+window.addEventListener('keyup',e=>{ keys[e.key.toLowerCase()]=false; });
 
 // ===== Inventory UI (toggle only) =====
 function updatePaused(){
