@@ -450,7 +450,14 @@ function generate(){
       const x=rng.int(r.x+1,r.x+r.w-2), y=rng.int(r.y+1,r.y+r.h-2);
       if((x===player.x && y===player.y) || (x===merchant.x && y===merchant.y)){ tries++; continue; }
       if(monsters.some(m=>Math.abs(m.x-x)+Math.abs(m.y-y)<4)){ tries++; continue; }
-      const t=rng.int(0,3); // 0=slime, 1=bat, 2=skeleton, 3=mage
+      let t;
+      if(floorNum <= 3){
+        // reduce mage frequency on early floors
+        t = rng.next() < 0.1 ? 3 : rng.int(0,2);
+      } else {
+        t = rng.int(0,3);
+      }
+      // 0=slime, 1=bat, 2=skeleton, 3=mage
       monsters.push(spawnMonster(t,x,y));
       placed=true;
     }
