@@ -41,6 +41,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) with
 ### Fixed
 - Melee attacks now track the mouse and register hits within a 35° cone (2-tile reach by default).
 - Warrior class no longer registers as a mage.
+- Warrior skill menu now displays ability descriptions.
 
 ## 2025-08-26
 ### Added
