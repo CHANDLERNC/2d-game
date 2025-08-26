@@ -1151,8 +1151,13 @@ function performPlayerAttack(dx,dy){
   const prof = currentWeaponProfile();
   let ndx=dx, ndy=dy;
   if(prof.kind==='melee'){
-    ndx = Math.sign(dx);
-    ndy = Math.sign(dy);
+    // when clicking exactly above/below the player, floating point precision
+    // can yield tiny non-zero values (e.g. cos(90°) ~= 6e-17) which `Math.sign`
+    // treats as 1 or -1. This caused melee swings to miss enemies directly
+    // adjacent on the vertical axis. Using `Math.round` normalizes very small
+    // values to 0 while still producing ±1 for intended directions.
+    ndx = Math.round(dx);
+    ndy = Math.round(dy);
     if(ndx===0 && ndy===0) return;
   } else {
     const mag=Math.hypot(dx,dy);
