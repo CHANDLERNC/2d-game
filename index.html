@@ -330,8 +330,28 @@ genSprites();
 let seed=(Math.random()*1e9)|0, floorNum=1, rng=new RNG(seed);
 let map=[], fog=[], vis=[]; let rooms=[]; let stairs={x:0,y:0};
 let merchant={x:0,y:0}; let merchantStyle = Math.random()<0.5 ? 'goblin' : 'stall';
-let player={x:0,y:0,hp:150,hpMax:150,mp:60,mpMax:60,gold:0,stepCD:0,stepDelay:140,speedPct:0,lvl:1,xp:0,xpToNext:50,baseAtkBonus:0, baseSpellBonus:0, class:'warrior', atkCD:0, faceDx:1, faceDy:0, effects:[], hpBase:150, mpBase:60};
+let player={x:0,y:0,hp:150,hpMax:150,mp:60,mpMax:60,gold:0,stepCD:0,stepDelay:140,speedPct:0,lvl:1,xp:0,xpToNext:50,baseAtkBonus:0, baseSpellBonus:0, class:'warrior', atkCD:0, faceDx:1, faceDy:0, effects:[], hpBase:150, mpBase:60, magicPoints:0, magic:{healing:[false,false,false,false],damage:[false,false,false,false],dot:[false,false,false,false]}, boundSpell:null};
 let playerSpriteKey = 'player_warrior';
+const magicTrees={
+  healing:{display:'Healing',abilities:[
+    {name:'Heal I',type:'heal',value:30,mp:10,cost:1},
+    {name:'Heal II',type:'heal',value:60,mp:20,cost:1},
+    {name:'Heal III',type:'heal',value:120,mp:30,cost:1},
+    {name:'Heal IV',type:'heal',value:null,mp:40,cost:1}
+  ]},
+  damage:{display:'Damage',abilities:[
+    {name:'Fire Bolt',type:'damage',dmg:25,mp:10,cost:1,range:8,elem:'fire',status:{k:'burn',dur:2000,power:1.0,chance:1}},
+    {name:'Ice Spike',type:'damage',dmg:35,mp:15,cost:1,range:8,elem:'ice',status:{k:'freeze',dur:1800,power:0.4,chance:1}},
+    {name:'Lightning Bolt',type:'damage',dmg:50,mp:20,cost:1,range:9,elem:'shock',status:{k:'shock',dur:2000,power:0.25,chance:1}},
+    {name:'Arcane Blast',type:'damage',dmg:70,mp:30,cost:1,range:9,elem:'magic'}
+  ]},
+  dot:{display:'Damage Over Time',abilities:[
+    {name:'Ignite',type:'dot',dmg:10,mp:12,cost:1,range:8,elem:'fire',status:{k:'burn',dur:2200,power:1.0,chance:1}},
+    {name:'Scorch',type:'dot',dmg:15,mp:16,cost:1,range:8,elem:'fire',status:{k:'burn',dur:2600,power:1.1,chance:1}},
+    {name:'Sear',type:'dot',dmg:20,mp:20,cost:1,range:8,elem:'fire',status:{k:'burn',dur:3000,power:1.2,chance:1}},
+    {name:'Inferno',type:'dot',dmg:25,mp:25,cost:1,range:8,elem:'fire',status:{k:'burn',dur:3400,power:1.3,chance:1}}
+  ]}
+};
 // Monsters now have richer AI with per-type patterns and scaling
 // {x,y,rx,ry,type,hp,hpMax,dmgMin,dmgMax,atkCD,moveCD,state:{...},hitFlash,effects:[]}
 let monsters=[];
