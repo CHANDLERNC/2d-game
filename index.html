@@ -501,22 +501,35 @@ const ITEM_BASES = {
 };
 // Total base items: 37
 const RARITY=[{n:'Common',c:'#c0c8d0'},{n:'Magic',c:'#4aa3ff'},{n:'Rare',c:'#ffd24a'},{n:'Epic',c:'#b84aff'}];
+const WEAPON_PREFIXES=['Ancient','Flaming','Shadow','Swift','Vicious','Mystic'];
+const WEAPON_SUFFIXES=['of Power','of Doom','of the Fox','of Frost','of Flames','of Shadows'];
+function generateWeaponName(base){
+  const pre=rng.next()<0.5?WEAPON_PREFIXES[rng.int(0,WEAPON_PREFIXES.length-1)]+' ':'';
+  const suf=rng.next()<0.5?' '+WEAPON_SUFFIXES[rng.int(0,WEAPON_SUFFIXES.length-1)]:'';
+  return pre+base+suf;
+}
 let lootMap=new Map();
 
 function affixMods(slot){
   const R={};
-  if(slot==='weapon'){ R.dmgMin=(rng.int(0,2)); R.dmgMax=(rng.int(1,4)); if(rng.next()<0.25) R.crit=rng.int(2,6); }
-  if(slot!=='weapon'){ if(rng.next()<0.5) R.armor=rng.int(1,4); }
-  // elemental/magic resists are more common on armor
-  if(slot!=='weapon'){ if(rng.next()<0.30) R.resFire=rng.int(2,10); }
-  if(slot!=='weapon'){ if(rng.next()<0.30) R.resIce=rng.int(2,10); }
-  if(slot!=='weapon'){ if(rng.next()<0.30) R.resShock=rng.int(2,10); }
-  if(rng.next()<0.18) R.resMagic=rng.int(2,12);
-  if(rng.next()<0.3) R.hpMax=rng.int(5,20);
-  if(rng.next()<0.2) R.mpMax=rng.int(5,15);
-  if(rng.next()<0.2) R.speedPct=rng.int(2,8);
-  if(rng.next()<0.15) R.ls=rng.int(1,4);
-  if(rng.next()<0.15) R.mp=rng.int(1,6);
+  if(slot==='weapon'){
+    R.dmgMin=rng.int(1,3);
+    R.dmgMax=rng.int(2,6);
+    if(rng.next()<0.35) R.crit=rng.int(3,8);
+    if(rng.next()<0.2) R.ls=rng.int(1,5);
+    if(rng.next()<0.2) R.mp=rng.int(1,4);
+  }else{
+    if(rng.next()<0.6) R.armor=rng.int(2,6);
+    if(rng.next()<0.35) R.resFire=rng.int(5,15);
+    if(rng.next()<0.35) R.resIce=rng.int(5,15);
+    if(rng.next()<0.35) R.resShock=rng.int(5,15);
+  }
+  if(rng.next()<0.25) R.resMagic=rng.int(5,15);
+  if(rng.next()<0.35) R.hpMax=rng.int(10,25);
+  if(rng.next()<0.25) R.mpMax=rng.int(10,20);
+  if(rng.next()<0.25) R.speedPct=rng.int(3,10);
+  if(!R.ls && rng.next()<0.2) R.ls=rng.int(1,5);
+  if(!R.mp && rng.next()<0.2) R.mp=rng.int(2,8);
   return R;
 }
 
@@ -682,7 +695,9 @@ function makeRandomItem(){
   const rarityIdx = rng.int(0, RARITY.length-1);
   const bases = ITEM_BASES[slot];
   const base = bases[rng.int(0, bases.length-1)];
-  const name = `${RARITY[rarityIdx].n} ${base}`;
+  let baseName = base;
+  if(slot==='weapon') baseName = generateWeaponName(base);
+  const name = `${RARITY[rarityIdx].n} ${baseName}`;
   const item = { color: RARITY[rarityIdx].c, type:'gear', slot, name, rarity: rarityIdx, mods: affixMods(slot) };
   if(slot==='weapon'){ item.wclass = base.toLowerCase(); }
   item.price = clamp(8, 9999, Math.floor(getItemValue(item) * (1.0 + (floorNum-1)*0.05)));
