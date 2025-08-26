@@ -777,12 +777,23 @@ const RARITY=[
   {n:'Common',c:'#bfbfbf',m:1.0},
   {n:'Uncommon',c:'#38c172',m:1.05},
   {n:'Magic',c:'#3490dc',m:1.1},
-  {n:'Rare',c:'#eab308',m:1.25},
+  {n:'Rare',c:'#eab308',m:1.35},
   {n:'Epic',c:'#a855f7',m:1.4},
   {n:'Legendary',c:'#f97316',m:1.6}
 ];
+const RARITY_WEIGHTS=[40,30,15,8,5,2];
 const WEAPON_PREFIXES=['Ancient','Flaming','Shadow','Swift','Vicious','Mystic'];
 const WEAPON_SUFFIXES=['of Power','of Doom','of the Fox','of Frost','of Flames','of Shadows'];
+
+function rollRarity(){
+  const total=RARITY_WEIGHTS.reduce((a,b)=>a+b,0);
+  let r=rng.int(0,total-1);
+  for(let i=0;i<RARITY_WEIGHTS.length;i++){
+    if(r<RARITY_WEIGHTS[i]) return i;
+    r-=RARITY_WEIGHTS[i];
+  }
+  return 0;
+}
 
 const POTION_TYPES=[
   {k:'hp', base:'Health Potion', vals:[40,60,100,160,240,400]},
@@ -1085,7 +1096,7 @@ function genShopStock(){
 function makeRandomGear(){
   const nonWeaponSlots = SLOTS.filter(s=>s!=='weapon');
   const slot = rng.next()<0.4 ? 'weapon' : nonWeaponSlots[rng.int(0, nonWeaponSlots.length-1)];
-  const rarityIdx = rng.int(0, RARITY.length-1);
+  const rarityIdx = rollRarity();
   const bases = ITEM_BASES[slot];
   const base = bases[rng.int(0, bases.length-1)];
   let baseName = base;

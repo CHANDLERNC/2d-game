@@ -39,6 +39,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) with
 - Enemy elemental resistances now scale with floor level.
 - Warrior abilities now unlock sequentially on the skill tree and bind to Q instead of using modifier keys.
 - Adjusted special ability damage scaling for Mage and Warrior classes, weakening early skills and strengthening later unlocks.
+- Rebalanced loot rarity distribution to favor common and uncommon gear and increased bonuses on rare items.
 
 ### Fixed
 - Melee attacks now track the mouse and register hits within a 35° cone (2-tile reach by default).
