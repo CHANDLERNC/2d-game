@@ -852,7 +852,8 @@ function genShopStock(){
 }
 
 function makeRandomGear(){
-  const slot = SLOTS[rng.int(0, SLOTS.length-1)];
+  const nonWeaponSlots = SLOTS.filter(s=>s!=='weapon');
+  const slot = rng.next()<0.4 ? 'weapon' : nonWeaponSlots[rng.int(0, nonWeaponSlots.length-1)];
   const rarityIdx = rng.int(0, RARITY.length-1);
   const bases = ITEM_BASES[slot];
   const base = bases[rng.int(0, bases.length-1)];
@@ -1573,7 +1574,7 @@ function levelUp(){
 }
 
 // ===== Toast =====
-let toastTimer=0; function showToast(msg){ const bar=document.querySelector('.topbar'); const span=document.createElement('span'); span.style.marginLeft='8px'; span.style.opacity=.85; span.textContent='• '+msg; bar.appendChild(span); clearTimeout(toastTimer); toastTimer=setTimeout(()=>{ if(span.parentNode) span.remove(); }, 5000); }
+let toastTimer=0; function showToast(msg){ const bar=document.querySelector('.topbar'); const span=document.createElement('span'); span.style.marginLeft='8px'; span.style.opacity=.85; span.textContent='• '+msg; bar.appendChild(span); clearTimeout(toastTimer); toastTimer=setTimeout(()=>{ if(span.parentNode) span.remove(); }, 3000); }
 function showRespawn(){ gameOver=true; const d=document.getElementById('respawn'); if(d) d.style.display='grid'; }
 
 // ===== Stats =====
