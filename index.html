@@ -798,7 +798,7 @@ function makeRandomPotion(){
 }
 
 function makeRandomItem(){
-  if(rng.next()<0.3){
+  if(rng.next()<0.25){
     const p = makeRandomPotion();
     p.price = clamp(5, 9999, Math.floor(getItemValue(p) * (1.0 + (floorNum-1)*0.05)));
     return p;
@@ -1428,7 +1428,7 @@ function toggleInv(){ let panel=document.getElementById('inventory'); if(!panel)
 
 // ===== Loot helpers =====
 function dropLoot(x,y){
-  if(rng.next()<0.3){
+  if(rng.next()<0.25){
     lootMap.set(`${x},${y}`, makeRandomPotion());
     return;
   }
