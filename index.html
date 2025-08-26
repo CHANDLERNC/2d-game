@@ -188,6 +188,7 @@ const TILE=32, MAP_W=48, MAP_H=48;
 const MONSTER_BASE_COUNT=24, MONSTER_MIN_COUNT=6, MONSTER_COUNT_DECAY=2;
 const FOV_RADIUS=8; const LOOT_CHANCE=0.18;
 const MONSTER_LOOT_CHANCE=0.3; const AGGRO_RANGE=6;
+const TORCH_CHANCE=0.06;
 function monsterCountForFloor(floor){
   const dec=(floor-1)*MONSTER_COUNT_DECAY;
   let count = MONSTER_BASE_COUNT - dec;
@@ -203,6 +204,7 @@ canvas.addEventListener('mousemove', e=>{ const r=canvas.getBoundingClientRect()
 function resizeCanvas(){ canvas.width = VIEW_W = window.innerWidth; canvas.height = VIEW_H = window.innerHeight; }
 window.addEventListener('resize', resizeCanvas); resizeCanvas();
 let camX=0, camY=0; let floorLayer=null, wallLayer=null;
+let torches=[];
 let gameOver=false;
 let paused=false;
 let actionLog=[];
@@ -530,6 +532,7 @@ function generate(){
   fog=new Array(MAP_W*MAP_H).fill(0);
   vis=new Array(MAP_W*MAP_H).fill(0);
   rooms=[]; monsters=[]; projectiles=[]; lootMap.clear(); player.effects = [];
+  torches=[];
   // rooms
   for(let i=0;i<28;i++){
     const w=rng.int(6,11), h=rng.int(6,11);
@@ -545,6 +548,16 @@ function generate(){
   }
   // walls
   for(let y=0;y<MAP_H;y++) for(let x=0;x<MAP_W;x++) if(map[y*MAP_W+x]===T_FLOOR){ for(const d of [[1,0],[-1,0],[0,1],[0,-1]]){ const nx=x+d[0], ny=y+d[1]; if(nx>=0&&ny>=0&&nx<MAP_W&&ny<MAP_H && map[ny*MAP_W+nx]===T_EMPTY) map[ny*MAP_W+nx]=T_WALL; } }
+  // torches along walls facing floors
+  for(let y=1;y<MAP_H-1;y++) for(let x=1;x<MAP_W-1;x++){
+    if(map[y*MAP_W+x]!==T_WALL) continue;
+    let adj=false;
+    for(const d of [[1,0],[-1,0],[0,1],[0,-1]]){
+      const nx=x+d[0], ny=y+d[1];
+      if(map[ny*MAP_W+nx]===T_FLOOR){ adj=true; break; }
+    }
+    if(adj && rng.next()<TORCH_CHANCE){ torches.push({x,y,phase:rng.next()*Math.PI*2}); }
+  }
   // place player + stairs + merchant
   const r=rooms[rng.int(0,rooms.length-1)]; player.x=r.x+((r.w/2)|0); player.y=r.y+((r.h/2)|0);
   let rr=rooms[rng.int(0,rooms.length-1)]; stairs.x=rr.x+((rr.w/2)|0); stairs.y=rr.y+((rr.h/2)|0);
@@ -1514,6 +1527,28 @@ function draw(dt){
   ctx.clearRect(0,0,VIEW_W,VIEW_H);
   ctx.drawImage(floorLayer, -camX, -camY);
   ctx.drawImage(wallLayer, -camX, -camY);
+
+  // torches
+  const now = performance.now();
+  for(const t of torches){
+    const idx = t.y*MAP_W + t.x;
+    if(!vis[idx]) continue;
+    const tx = t.x*TILE - camX + TILE/2;
+    const ty = t.y*TILE - camY + TILE/2;
+    const flick = 0.7 + 0.3*Math.sin(now*0.005 + t.phase);
+    const rad = 6 + flick*2;
+    ctx.globalCompositeOperation='lighter';
+    const g = ctx.createRadialGradient(tx, ty, 0, tx, ty, rad*2);
+    g.addColorStop(0, `rgba(255,200,80,${0.6*flick})`);
+    g.addColorStop(1, 'rgba(255,200,80,0)');
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(tx, ty, rad*2, 0, Math.PI*2); ctx.fill();
+    ctx.globalCompositeOperation='source-over';
+    ctx.fillStyle = `rgba(255,180,50,${0.8*flick})`;
+    ctx.beginPath(); ctx.arc(tx, ty, rad, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#663300';
+    ctx.fillRect(tx-1, ty+rad-2, 2, 6);
+  }
 
   // stairs (sprite)
   const stairsX = stairs.x*TILE - camX + (TILE-24)/2; const stairsY = stairs.y*TILE - camY + (TILE-24)/2;
