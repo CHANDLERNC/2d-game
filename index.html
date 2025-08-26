@@ -1368,7 +1368,19 @@ function dropLoot(x,y){
 
 // ===== XP / Leveling =====
 function grantXP(x){ player.xp+=x; while(player.xp>=player.xpToNext){ player.xp-=player.xpToNext; levelUp(); } }
-function levelUp(){ player.lvl++; const hpGain=12, mpGain=6; player.hpMax+=hpGain; player.mpMax+=mpGain; player.baseAtkBonus+=1; player.hp=player.hpMax; player.mp=player.mpMax; player.xpToNext = Math.floor(50*Math.pow(1.35, player.lvl-1)); recalcStats(); showToast(`Level up! Lv ${player.lvl}`); }
+function levelUp(){
+  player.lvl++;
+  player.baseAtkBonus += 1;
+  player.xpToNext = Math.floor(50*Math.pow(1.35, player.lvl-1));
+  recalcStats();
+  player.hp = player.hpMax;
+  player.mp = player.mpMax;
+  hpFill.style.width = `${(player.hp/player.hpMax)*100}%`;
+  mpFill.style.width = `${(player.mp/player.mpMax)*100}%`;
+  hpLbl.textContent = `HP ${player.hp}/${player.hpMax}`;
+  mpLbl.textContent = `Mana ${player.mp}/${player.mpMax}`;
+  showToast(`Level up! Lv ${player.lvl}`);
+}
 
 // ===== Toast =====
 let toastTimer=0; function showToast(msg){ const bar=document.querySelector('.topbar'); const span=document.createElement('span'); span.style.marginLeft='8px'; span.style.opacity=.85; span.textContent='• '+msg; bar.appendChild(span); clearTimeout(toastTimer); toastTimer=setTimeout(()=>{ if(span.parentNode) span.remove(); }, 5000); }
@@ -1376,7 +1388,11 @@ function showRespawn(){ gameOver=true; const d=document.getElementById('respawn'
 
 // ===== Stats =====
 function recalcStats(){
-  let dmgMin=2,dmgMax=4,crit=5,armor=0; let hpMax=150, mpMax=60, speedPct=0;
+  let dmgMin=2,dmgMax=4,crit=5,armor=0;
+  const hpGainPerLevel = 12, mpGainPerLevel = 6;
+  let hpMax = 150 + (player.lvl-1)*hpGainPerLevel;
+  let mpMax = 60 + (player.lvl-1)*mpGainPerLevel;
+  let speedPct=0;
   let resF=0,resI=0,resS=0,resM=0;
   // level bonus
   const lvlBonus = Math.floor((player.lvl-1)*0.6) + (player.baseAtkBonus||0);
