@@ -29,6 +29,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) with
 - Reduced wizard spawn chance on lower floors.
 - Increased potion drop rate to 40% (from 25%).
 - Mage enemies now fire 30% slower but hit 10% harder.
+- Refined Experimental_UI with a new themed stylesheet and panel design.
 
 ## 2025-08-26
 ### Added
