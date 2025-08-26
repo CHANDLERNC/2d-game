@@ -135,6 +135,17 @@
   </div>
 </div>
 
+<div id="escMenu" class="stone" style="position:fixed;inset:0;display:none;place-items:center">
+  <div class="panel" style="padding:18px 22px;text-align:center">
+    <h2 style="margin:6px 0 12px 0">Paused</h2>
+    <div style="display:flex;gap:8px;flex-direction:column">
+      <button id="resumeBtn" class="btn">Resume</button>
+      <button id="saveBtn" class="btn">Save Game</button>
+      <button id="loadBtn" class="btn">Load Game</button>
+    </div>
+  </div>
+</div>
+
 <script>
 // ===== Config / Globals =====
 let VIEW_W=window.innerWidth, VIEW_H=window.innerHeight;
@@ -156,6 +167,7 @@ function resizeCanvas(){ canvas.width = VIEW_W = window.innerWidth; canvas.heigh
 window.addEventListener('resize', resizeCanvas); resizeCanvas();
 let camX=0, camY=0; let floorLayer=null, wallLayer=null;
 let gameOver=false;
+let paused=false;
 // floor tile from provided image (scaled to 64×64 PNG for smaller payload)
 const FLOOR_DATA =
   "data:image/png;base64," +
@@ -1369,7 +1381,7 @@ function draw(dt){
 
 // ===== Update (smooth tween + 8-dir) =====
 function update(dt){
-  if(gameOver) return;
+  if(gameOver || paused) return;
   // init render state
   if(player.rx===undefined){
     player.rx=player.x; player.ry=player.y; player.fromX=player.x; player.fromY=player.y; player.toX=player.x; player.toY=player.y; player.moving=false; player.moveT=1; player.moveDur=player.stepDelay; baseStepDelay = player.stepDelay || baseStepDelay;
@@ -1463,6 +1475,7 @@ function update(dt){
 const keys={};
 window.addEventListener('keydown',e=>{
   keys[e.key]=true;
+  if(e.key==='Escape'){ toggleEscMenu(); return; }
   if(e.key==='i'||e.key==='I') toggleInv();
   // quick-use potions from potion bag slots with number keys 1-3
   if(e.key==='1'||e.key==='2'||e.key==='3'){
@@ -1504,6 +1517,34 @@ window.addEventListener('keypress',e=>{
 
 // ===== Inventory UI (toggle only) =====
 function toggleInv(){ let panel=document.getElementById('inventory'); if(!panel){ redrawInventory(); panel=document.getElementById('inventory'); } if(!panel) return; const show=panel.style.display===''||panel.style.display==='none'; panel.style.display=show?'block':'none'; if(show) redrawInventory(); }
+
+function toggleEscMenu(force){
+  const menu=document.getElementById('escMenu'); if(!menu) return;
+  const show=typeof force==='boolean'?force:(menu.style.display===''||menu.style.display==='none');
+  menu.style.display=show?'grid':'none';
+  paused=show;
+}
+
+function saveGame(){
+  const data={ seed, floorNum, player, bag, potionBag, equip };
+  try{ localStorage.setItem('dungeonSave', JSON.stringify(data)); showToast('Game saved'); }
+  catch(e){ console.warn('Save failed', e); }
+}
+
+function loadGame(){
+  const raw=localStorage.getItem('dungeonSave'); if(!raw){ showToast('No saved game'); return; }
+  const data=JSON.parse(raw);
+  seed=data.seed; rng=new RNG(seed); floorNum=data.floorNum;
+  generate();
+  Object.assign(player, data.player||{});
+  bag=data.bag||new Array(BAG_SIZE).fill(null);
+  potionBag=data.potionBag||new Array(POTION_BAG_SIZE).fill(null);
+  equip=data.equip||{helmet:null,chest:null,legs:null,hands:null,feet:null,weapon:null};
+  hudFloor.textContent=floorNum; hudSeed.textContent=seed>>>0; hudGold.textContent=player.gold; hudLvl.textContent=player.lvl;
+  player.rx=player.x; player.ry=player.y; player.fromX=player.x; player.fromY=player.y; player.toX=player.x; player.toY=player.y; player.moving=false; player.moveT=1;
+  recalcStats(); recomputeFOV(); redrawInventory();
+  toggleEscMenu(false); showToast('Game loaded');
+}
 
 // ===== Loot helpers =====
 function dropLoot(x,y){
@@ -1581,6 +1622,9 @@ function startGame(){
 
 document.getElementById('playBtn').onclick=()=>{ document.getElementById('start').style.display='none'; startGame(); };
 document.getElementById('respawnBtn').onclick=()=>{ location.reload(); };
+document.getElementById('resumeBtn').onclick=()=>{ toggleEscMenu(false); };
+document.getElementById('saveBtn').onclick=()=>{ saveGame(); };
+document.getElementById('loadBtn').onclick=()=>{ loadGame(); };
 
 // ===== Utils =====
 function clamp(a,b,x){ return Math.max(a, Math.min(b, x)); }
