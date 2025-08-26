@@ -478,8 +478,15 @@ function recomputeFOV(){
 }
 
 // ===== Loot / Inventory =====
-const TYPES=['helmet','chest','legs','hands','feet','weapon'];
-const WEAPONS=['Sword','Axe','Mace','Dagger','Bow','Wand','Staff'];
+const ITEM_BASES = {
+  helmet:['Helmet','Cap','Hood','Cowl','Circlet'],
+  chest:['Armor','Robe','Vest','Tunic','Mail'],
+  legs:['Greaves','Leggings','Pants','Skirt','Kilt'],
+  hands:['Gloves','Gauntlets','Wraps','Mitts','Bracers'],
+  feet:['Boots','Sandals','Shoes','Sabatons','Slippers'],
+  weapon:['Sword','Axe','Mace','Dagger','Bow','Wand','Staff','Spear','Halberd','Crossbow','Flail','Katana']
+};
+// Total base items: 37
 const RARITY=[{n:'Common',c:'#c0c8d0'},{n:'Magic',c:'#4aa3ff'},{n:'Rare',c:'#ffd24a'},{n:'Epic',c:'#b84aff'}];
 let lootMap=new Map();
 
@@ -660,7 +667,8 @@ function genShopStock(){
 function makeRandomItem(){
   const slot = SLOTS[rng.int(0, SLOTS.length-1)];
   const rarityIdx = rng.int(0, RARITY.length-1);
-  const base = slot === 'weapon' ? WEAPONS[rng.int(0, WEAPONS.length-1)] : slot.charAt(0).toUpperCase()+slot.slice(1);
+  const bases = ITEM_BASES[slot];
+  const base = bases[rng.int(0, bases.length-1)];
   const name = `${RARITY[rarityIdx].n} ${base}`;
   const item = { color: RARITY[rarityIdx].c, type:'gear', slot, name, rarity: rarityIdx, mods: affixMods(slot) };
   if(slot==='weapon'){ item.wclass = base.toLowerCase(); }
@@ -1202,7 +1210,8 @@ function toggleInv(){ let panel=document.getElementById('inventory'); if(!panel)
 function dropLoot(x,y){
   const slot = SLOTS[rng.int(0, SLOTS.length-1)];
   const rarityIdx = rng.int(0, RARITY.length-1);
-  const base = slot === 'weapon' ? WEAPONS[rng.int(0, WEAPONS.length-1)] : slot.charAt(0).toUpperCase()+slot.slice(1);
+  const bases = ITEM_BASES[slot];
+  const base = bases[rng.int(0, bases.length-1)];
   const name = `${RARITY[rarityIdx].n} ${base}`;
   const item = { color: RARITY[rarityIdx].c, type: 'gear', slot, name, rarity: rarityIdx, mods: affixMods(slot) };
   if(slot==='weapon'){ item.wclass = base.toLowerCase(); }
