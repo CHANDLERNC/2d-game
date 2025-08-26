@@ -566,7 +566,7 @@ function spawnMonster(type,x,y){
     dmgMax: Math.round(scaleStat(a.dmg[1], SCALE.DMG_PER_FLOOR) * diff),
     atkCD: rng.int(10, a.atkCD), // frames
     moveCD: Math.round(rng.int(a.moveCD[0], a.moveCD[1]) * ENEMY_SPEED_MULT),
-    state: {}, hitFlash:0, moving:false, moveT:1, moveDur: Math.round(140 * ENEMY_SPEED_MULT), fromX:x, fromY:y, toX:x, toY:y, effects:[]
+    state: {}, aggroT:0, hitFlash:0, moving:false, moveT:1, moveDur: Math.round(140 * ENEMY_SPEED_MULT), fromX:x, fromY:y, toX:x, toY:y, effects:[]
   };
   m.hp = m.hpMax;
   return m;
@@ -1004,6 +1004,7 @@ function dealDamageToMonster(m, base, elem=null, crit=false){
   const vuln = getEffectPower(m,'shock') || 0;
   const dmg = Math.max(1, Math.floor(base * (1 + vuln)));
   m.hp -= dmg; m.hitFlash = 4; playHit();
+  m.aggroT = 10000; // leash to player for at least 10s after taking damage
   const col = elem==='fire' ? '#ff6b4a'
             : elem==='ice'  ? '#7dd3fc'
             : elem==='shock'? '#facc15'
@@ -1223,13 +1224,14 @@ function monsterAI(m, dt){
   // Cooldowns tick in frames scaled by dt
   m.atkCD = Math.max(0, m.atkCD - 1);
   m.moveCD = Math.max(0, m.moveCD - 1);
+  m.aggroT = Math.max(0, (m.aggroT || 0) - dt);
 
   // Shared: if adjacent, attempt melee
   if(meleeIfAdjacent(m)) return;
 
   const dx = sign(player.x - m.x), dy = sign(player.y - m.y);
   const manhattan = Math.abs(player.x-m.x)+Math.abs(player.y-m.y);
-  if(manhattan>AGGRO_RANGE) return;
+  if(manhattan>AGGRO_RANGE && (m.aggroT||0)<=0) return;
 
   if(m.type===0){ // Slime — slow chase, occasional 2-tile charge
     if(m.state.chargeSteps>0){
