@@ -286,7 +286,12 @@ let map=[], fog=[], vis=[]; let rooms=[]; let stairs={x:0,y:0};
 let merchant={x:0,y:0}; let merchantStyle = Math.random()<0.5 ? 'goblin' : 'stall';
 let player={x:0,y:0,hp:100,hpMax:100,mp:60,mpMax:60,gold:0,stepCD:0,stepDelay:140,speedPct:0,lvl:1,xp:0,xpToNext:50,baseAtkBonus:0, gender:'m'};
 let playerSpriteKey = 'player_m';
-let monsters=[]; // {x,y,hp,hpMax,type,hitFlash:0,cd:0}
+// Monsters now have richer AI with per-type patterns and scaling
+// {x,y,rx,ry,type,hp,hpMax,dmgMin,dmgMax,atkCD,moveCD,state:{...},hitFlash}
+let monsters=[];
+// Simple projectile pool for ranged attacks (e.g., skeleton arrows)
+// {x,y,dx,dy,speed,damage,alive}
+let projectiles=[];
 const SLOTS=["helmet","chest","legs","hands","feet","weapon"];
 let equip={helmet:null,chest:null,legs:null,hands:null,feet:null,weapon:null};
 const BAG_SIZE=12; let bag=new Array(BAG_SIZE).fill(null);
@@ -321,7 +326,7 @@ function generate(){
   map=new Array(MAP_W*MAP_H).fill(T_EMPTY);
   fog=new Array(MAP_W*MAP_H).fill(0);
   vis=new Array(MAP_W*MAP_H).fill(0);
-  rooms=[]; monsters=[]; lootMap.clear();
+  rooms=[]; monsters=[]; projectiles=[]; lootMap.clear();
   // rooms
   for(let i=0;i<28;i++){
     const w=rng.int(6,11), h=rng.int(6,11);
@@ -350,7 +355,8 @@ function generate(){
     const r=rooms[rng.int(0,rooms.length-1)];
     const x=rng.int(r.x+1,r.x+r.w-2), y=rng.int(r.y+1,r.y+r.h-2);
     if((x===player.x && y===player.y) || (x===merchant.x && y===merchant.y)) continue;
-    monsters.push({x,y,hp:10,hpMax:10,type:rng.int(0,2),hitFlash:0,cd:0});
+    const t=rng.int(0,2); // 0=slime(melee), 1=bat(swoop), 2=skeleton(ranged)
+    monsters.push(spawnMonster(t,x,y));
   }
 
   buildLayers();
@@ -359,6 +365,44 @@ function generate(){
   genShopStock();
   redrawInventory();
   renderShop();
+}
+
+// ===== Difficulty scaling & Monster factory =====
+const SCALE = { HP_PER_FLOOR: 6, DMG_PER_FLOOR: 1 };
+function scaleStat(base, perFloor){ return Math.max(1, Math.floor(base + perFloor * Math.max(0, floorNum-1))); }
+function spawnMonster(type,x,y){
+  // Base stats per archetype
+  const archetypes = [
+    { hp:16, dmg:[2,4], atkCD:28, moveCD:[6,10] },    // slime: sturdy melee
+    { hp:12, dmg:[1,3], atkCD:22, moveCD:[4,8] },     // bat: fast swoop
+    { hp:14, dmg:[2,5], atkCD:38, moveCD:[6,10] },    // skeleton: ranged
+  ];
+  const a = archetypes[type] || archetypes[0];
+  const m = {
+    x, y, rx:x, ry:y, type,
+    hpMax: scaleStat(a.hp, SCALE.HP_PER_FLOOR),
+    hp: 0,
+    dmgMin: scaleStat(a.dmg[0], SCALE.DMG_PER_FLOOR),
+    dmgMax: scaleStat(a.dmg[1], SCALE.DMG_PER_FLOOR),
+    atkCD: rng.int(10, a.atkCD), // frames
+    moveCD: rng.int(a.moveCD[0], a.moveCD[1]),
+    state: {}, hitFlash:0, moving:false, moveT:1, moveDur:140, fromX:x, fromY:y, toX:x, toY:y
+  };
+  m.hp = m.hpMax;
+  return m;
+}
+
+// Helpers
+function sign(n){ return n===0?0:(n>0?1:-1); }
+function clearPathCardinal(x1,y1,x2,y2){
+  if(x1!==x2 && y1!==y2) return false;
+  const dx=sign(x2-x1), dy=sign(y2-y1);
+  let x=x1+dx, y=y1+dy;
+  while(!(x===x2 && y===y2)){
+    if(isBlock(x,y)) return false;
+    x+=dx; y+=dy;
+  }
+  return true;
 }
 
 function buildLayers(){
@@ -631,19 +675,97 @@ function currentAtk(){
   const w=equip.weapon?.mods||{}; min+=w.dmgMin||0; max+=w.dmgMax||0; crit += w.crit||0; ls=w.ls||0; return {min,max,crit,ls};
 }
 
-function dist(a,b){ return Math.abs(a.x-b.x)+Math.abs(a.y-b.y); }
+function applyDamageToPlayer(dmg){
+  // future: include armor/resists here if you add them
+  player.hp = Math.max(0, player.hp - Math.max(1, dmg));
+  if(player.hp===0){ showToast('You died… Press E on stairs next time 😅'); }
+}
 
-// ===== Monsters =====
-function monsterStep(m){
-  if(m.cd>0){ m.cd--; return; }
-  const dirs=[[1,0],[-1,0],[0,1],[0,-1],[0,0]]; const d=dirs[rng.int(0,dirs.length-1)];
-  const nx=m.x+d[0], ny=m.y+d[1];
-  if(walkable(nx,ny)){
-    m.x=nx; m.y=ny;
-    if(smoothEnabled){ m.fromX = (m.rx!==undefined?m.rx:m.x); m.fromY = (m.ry!==undefined?m.ry:m.y); m.toX = nx; m.toY = ny; m.moveT=0; m.moving=true; m.moveDur = rng.int(100,180); }
-    else{ m.rx=m.x; m.ry=m.y; m.moving=false; m.moveT=1; }
+// ===== Monster AI & Movement =====
+function tryMoveMonster(m, dx, dy, dur=140){
+  const nx=m.x+dx, ny=m.y+dy;
+  if(!walkable(nx,ny)) return false;
+  m.x=nx; m.y=ny;
+  if(smoothEnabled){ m.fromX=m.rx; m.fromY=m.ry; m.toX=nx; m.toY=ny; m.moveT=0; m.moving=true; m.moveDur=dur; }
+  else{ m.rx=m.x; m.ry=m.y; m.moving=false; m.moveT=1; }
+  return true;
+}
+
+function meleeIfAdjacent(m){
+  if(Math.abs(m.x-player.x)+Math.abs(m.y-player.y)!==1) return false;
+  if(m.atkCD>0) return false;
+  const dmg = rng.int(m.dmgMin, m.dmgMax);
+  applyDamageToPlayer(dmg);
+  m.atkCD = rng.int(20, 35);
+  return true;
+}
+
+function monsterAI(m, dt){
+  // Cooldowns tick in frames scaled by dt
+  m.atkCD = Math.max(0, m.atkCD - 1);
+  m.moveCD = Math.max(0, m.moveCD - 1);
+
+  // Shared: if adjacent, attempt melee
+  if(meleeIfAdjacent(m)) return;
+
+  const dx = sign(player.x - m.x), dy = sign(player.y - m.y);
+  const manhattan = Math.abs(player.x-m.x)+Math.abs(player.y-m.y);
+
+  if(m.type===0){ // Slime — slow chase, occasional 2-tile charge
+    if(m.state.chargeSteps>0){
+      if(tryMoveMonster(m, m.state.cdx, m.state.cdy, 110)) m.state.chargeSteps--;
+      else m.state.chargeSteps=0;
+      return;
+    }
+    if(m.moveCD===0){
+      // 30% chance to start a short charge when near
+      if(manhattan<=3 && m.atkCD===0 && rng.next()<0.3){
+        m.state.cdx = dx; m.state.cdy = dy; m.state.chargeSteps = 2;
+        m.atkCD = 12; // short windup
+      }else{
+        // Greedy step toward player, prefer axis with larger distance
+        const stepX = tryMoveMonster(m, dx, 0, 150);
+        if(!stepX) tryMoveMonster(m, 0, dy, 150);
+      }
+      m.moveCD = rng.int(6, 10);
+    }
+  } else if(m.type===1){ // Bat — fast diagonal swoop
+    if(m.state.swoop>0){
+      // continue swoop; if hits wall, cancel
+      const ok = tryMoveMonster(m, m.state.sdx, m.state.sdy, 90);
+      m.state.swoop = ok ? m.state.swoop-1 : 0;
+      return;
+    }
+    if(manhattan<=6 && m.atkCD===0 && m.moveCD===0){
+      // start a 2-step swoop (diagonal favored)
+      m.state.sdx = dx!==0?dx:0; m.state.sdy = dy!==0?dy:0;
+      if(m.state.sdx===0 && m.state.sdy===0){ m.state.sdx = (rng.next()<0.5?1:-1); }
+      m.state.swoop = 2;
+      m.atkCD = 18;
+      m.moveCD = 2;
+      return;
+    }
+    if(m.moveCD===0){
+      // wander toward player quickly
+      if(!tryMoveMonster(m, dx, dy, 110)){
+        if(!tryMoveMonster(m, dx, 0, 110)) tryMoveMonster(m, 0, dy, 110);
+      }
+      m.moveCD = rng.int(4, 8);
+    }
+  } else { // Skeleton — ranged: shoot if LoS, otherwise shuffle toward
+    if(manhattan<=7 && clearPathCardinal(m.x,m.y,player.x,player.y) && m.atkCD===0){
+      // fire arrow
+      const adx = sign(player.x - m.x), ady = sign(player.y - m.y);
+      projectiles.push({ x:m.x+0.5, y:m.y+0.5, dx:adx, dy:ady, speed:10/1000, damage:rng.int(m.dmgMin,m.dmgMax), alive:true });
+      m.atkCD = rng.int(26, 40);
+      return;
+    }
+    if(m.moveCD===0){
+      // slow shuffle
+      if(!tryMoveMonster(m, dx, 0, 160)) tryMoveMonster(m, 0, dy, 160);
+      m.moveCD = rng.int(6, 10);
+    }
   }
-  m.cd=rng.int(2,8);
 }
 
 // ===== Drawing =====
@@ -698,6 +820,14 @@ function draw(dt){
       grantXP(10 + rng.int(0,6));
       const idx=monsters.indexOf(m); if(idx>=0) monsters.splice(idx,1);
     }
+  }
+
+  // projectiles
+  for(const p of projectiles){
+    if(!p.alive) continue;
+    const px = p.x*TILE - camX - 3, py = p.y*TILE - camY - 3;
+    ctx.fillStyle = '#ffd24a';
+    ctx.fillRect(px, py, 6, 6);
   }
 
   // player (sprite)
@@ -759,18 +889,31 @@ function update(dt){
     if(player.moveT>=1){ player.moving=false; player.rx=player.toX; player.ry=player.toY; }
   }else{ player.rx=player.x; player.ry=player.y; }
 
-  // monsters sometimes step
-  if(Math.random()<0.2){
-    for(const m of monsters){
-      monsterStep(m);
-      if(dist(player,m)===1){ if(!m.touchCD) m.touchCD=0; m.touchCD--; if(m.touchCD<=0){ const dmg=Math.max(1,rng.int(1,3)); player.hp=Math.max(0,player.hp-dmg); m.touchCD=30; showToast('Ouch!'); } }
-    }
-  }
+  // monster AI ticks every frame
+  for(const m of monsters){ monsterAI(m, dt); }
   // advance monster tweens
   for(const m of monsters){
     if(m.moving){ m.moveT=Math.min(1,m.moveT + dt / m.moveDur); const t=smoothstep01(m.moveT); m.rx=lerp(m.fromX,m.toX,t); m.ry=lerp(m.fromY,m.toY,t); if(m.moveT>=1){ m.moving=false; m.rx=m.toX; m.ry=m.toY; } }
     else{ m.rx=m.x; m.ry=m.y; }
   }
+
+  // projectiles update
+  for(const p of projectiles){
+    if(!p.alive) continue;
+    // move in tile units per ms
+    p.x += p.dx * p.speed * dt * TILE;
+    p.y += p.dy * p.speed * dt * TILE;
+    const tx = Math.floor(p.x), ty = Math.floor(p.y);
+    // stop on walls
+    if(isBlock(tx,ty)){ p.alive=false; continue; }
+    // hit player if sharing tile
+    if(tx===player.x && ty===player.y){
+      applyDamageToPlayer(p.damage);
+      p.alive=false;
+    }
+  }
+  // cleanup dead projectiles
+  if(projectiles.length>64){ projectiles = projectiles.filter(p=>p.alive); }
 }
 
 // ===== Input =====
