@@ -22,9 +22,11 @@
   .btn:hover{background:#1a1d2a}
   .stone{background-image:linear-gradient(180deg,rgba(255,255,255,.03),rgba(0,0,0,.08));}
   .footer{padding:6px 12px;border-top:1px solid #2a2d39;background:linear-gradient(#0f1016,#0b0c11);opacity:.85}
-  #inventory{display:none;position:fixed;right:8px;top:64px;padding:8px 12px;pointer-events:auto;font-size:13px;max-width:340px}
+  #inventory{display:none;position:fixed;right:8px;top:64px;padding:8px 12px;pointer-events:auto;font-size:13px;width:600px;max-width:90vw}
   #shop{display:none;position:fixed;left:8px;top:64px;min-width:320px;padding:10px 12px;pointer-events:auto;font-size:13px}
   .list-row{display:flex;justify-content:space-between;gap:8px;padding:6px 6px;border-radius:6px}
+  .inv-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:4px 8px}
+  .inv-grid .list-row{flex-direction:column;gap:2px}
   .list-row:hover{background:#1a1d28}
   .muted{opacity:.75}
   .kv{display:flex;gap:6px;align-items:center}
@@ -681,18 +683,18 @@ function redrawInventory(){
     html += `<div class="list-row" data-type="eq" data-slot="${slot}"><div>${slot}: ${name}</div><div class="muted">${it?shortMods(it):''}</div></div>`;
   }
   html += '</div><div class="hr"></div>';
-  html += '<div class="section-title">Bag</div>';
+  html += '<div class="section-title">Bag</div><div class="inv-grid">';
   for(let i=0;i<BAG_SIZE;i++){
     const it = bag[i];
     html += `<div class="list-row" data-type="bag" data-idx="${i}"><div>${i+1}. ${it?`<span style="color:${it.color}">${escapeHtml(it.name)}</span>`:'(empty)'}</div><div class="muted">${it?shortMods(it):''}</div></div>`;
   }
-  html += '<div class="hr"></div>';
-  html += '<div class="section-title">Potions</div>';
+  html += '</div><div class="hr"></div>';
+  html += '<div class="section-title">Potions</div><div class="inv-grid">';
   for(let i=0;i<POTION_BAG_SIZE;i++){
     const it = potionBag[i];
     html += `<div class="list-row" data-type="pbag" data-idx="${i}"><div>${i+1}. ${it?`<span style="color:${it.color}">${escapeHtml(it.name)}</span>`:'(empty)'}</div><div class="muted">${it?shortMods(it):''}</div></div>`;
   }
-  html += '<div class="hr"></div>';
+  html += '</div><div class="hr"></div>';
   html += '<div id="invDetails" class="muted">Hover an item to see details. Click bag item to Equip or Use. Click potion to Use. Click equipped item to Unequip. Use buttons below for Sell/Drop.</div>';
   html += '<div class="actions" style="margin-top:8px"><button id="btnSell" class="btn sml" disabled>Sell</button><button id="btnDrop" class="btn sml" disabled>Drop</button></div>';
   panel.innerHTML = html;
