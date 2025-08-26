@@ -67,7 +67,7 @@
     </div>
     <div class="hud-kv"><b>Gold:</b> <span id="hudGold">0</span></div>
     <div class="hud-kv"><b>Lvl:</b> <span id="hudLvl">1</span></div>
-    <div class="hud-kv"><b>Spell:</b> <span id="hudSpell">None</span></div>
+    <div class="hud-kv"><b id="hudSpellLabel">Spell:</b> <span id="hudSpell">None</span></div>
     <div class="hud-kv" id="hudDmg" style="opacity:.85;margin-left:auto">ATK 2-4 | CRIT 5% | ARM 0</div>
     <div class="hud-kv" style="margin-left:8px; pointer-events:auto">
       <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
@@ -354,7 +354,7 @@ genSprites();
 let seed=(Math.random()*1e9)|0, floorNum=1, rng=new RNG(seed);
 let map=[], fog=[], vis=[]; let rooms=[]; let stairs={x:0,y:0};
 let merchant={x:0,y:0}; let merchantStyle = Math.random()<0.5 ? 'goblin' : 'stall';
-let player={x:0,y:0,hp:150,hpMax:150,mp:60,mpMax:60,gold:0,stepCD:0,stepDelay:140,speedPct:0,lvl:1,xp:0,xpToNext:50,baseAtkBonus:0, gender:'m', class:'warrior', atkCD:0, faceDx:1, faceDy:0, effects:[], magicPoints:0, magic:{healing:[false,false,false,false,false,false],damage:[false,false,false,false,false,false],dot:[false,false,false,false,false,false]}, boundSpell:null};
+let player={x:0,y:0,hp:150,hpMax:150,mp:60,mpMax:60,gold:0,stepCD:0,stepDelay:140,speedPct:0,lvl:1,xp:0,xpToNext:50,baseAtkBonus:0, gender:'m', class:'warrior', atkCD:0, faceDx:1, faceDy:0, effects:[], magicPoints:0, magic:{healing:[false,false,false,false,false,false],damage:[false,false,false,false,false,false],dot:[false,false,false,false,false,false],combat:[false,false,false]}, boundSpell:null};
 let playerSpriteKey = 'player_m';
 const magicTrees={
   healing:{display:'Healing',abilities:[
@@ -380,6 +380,11 @@ const magicTrees={
     {name:'Inferno',type:'dot',dmg:25,mp:25,cost:4,range:8,elem:'fire',status:{k:'burn',dur:3400,power:1.3,chance:1}},
     {name:'Conflagrate',type:'dot',dmg:30,mp:28,cost:5,range:8,elem:'fire',status:{k:'burn',dur:3800,power:1.4,chance:1}},
     {name:'Hellfire',type:'dot',dmg:40,mp:35,cost:9,range:8,elem:'fire',status:{k:'burn',dur:4200,power:1.5,chance:1}}
+  ]},
+  combat:{display:'Combat',abilities:[
+    {name:'Power Slash',type:'damage',dmg:30,mp:10,cost:1,range:6},
+    {name:'Whirlwind',type:'damage',dmg:45,mp:15,cost:2,range:6},
+    {name:'Earth Shatter',type:'damage',dmg:60,mp:20,cost:3,range:7}
   ]}
 };
 // Monsters now have richer AI with per-type patterns and scaling
@@ -402,7 +407,9 @@ let currentStats={dmgMin:0,dmgMax:0,crit:0,armor:0,resF:0,resI:0,resS:0,resM:0,h
 const hpFill=document.getElementById('hpFill'); const mpFill=document.getElementById('mpFill');
 const hpLbl=document.getElementById('hpLbl'); const mpLbl=document.getElementById('mpLbl');
 const hudFloor=document.getElementById('hudFloor'); const hudSeed=document.getElementById('hudSeed'); const hudGold=document.getElementById('hudGold'); const hudDmg=document.getElementById('hudDmg');
-const xpFill=document.getElementById('xpFill'); const xpLbl=document.getElementById('xpLbl'); const hudLvl=document.getElementById('hudLvl'); const hudSpell=document.getElementById('hudSpell');
+const xpFill=document.getElementById('xpFill'); const xpLbl=document.getElementById('xpLbl'); const hudLvl=document.getElementById('hudLvl'); const hudSpell=document.getElementById('hudSpell'); const hudSpellLabel=document.getElementById('hudSpellLabel');
+
+function getResourceLabel(){ return player.class==='warrior' ? 'Stamina' : 'Mana'; }
 
 // ===== Audio =====
 let audioCtx, musicTimer;
@@ -643,7 +650,8 @@ const WEAPON_SUFFIXES=['of Power','of Doom','of the Fox','of Frost','of Flames',
 
 const POTION_TYPES=[
   {k:'hp', base:'Health Potion', vals:[40,80,160,240,400]},
-  {k:'mp', base:'Mana Potion', vals:[25,50,100,150,250]}
+  {k:'mp', base:'Mana Potion', vals:[25,50,100,150,250]},
+  {k:'stam', base:'Stamina Potion', vals:[25,50,100,150,250]}
 ];
 function generateWeaponName(base){
   const pre=rng.next()<0.5?WEAPON_PREFIXES[rng.int(0,WEAPON_PREFIXES.length-1)]+' ':'';
@@ -719,13 +727,13 @@ function usePotionFromBag(idx){
 }
 
 function usePotion(it){
-  let healed=0, mana=0;
+  let healed=0, resource=0;
   if(it.hp){ const before=player.hp; player.hp=Math.min(player.hpMax, player.hp+it.hp); healed=player.hp-before; }
-  if(it.mp){ const before=player.mp; player.mp=Math.min(player.mpMax, player.mp+it.mp); mana=player.mp-before; }
+  if(it.mp){ const before=player.mp; player.mp=Math.min(player.mpMax, player.mp+it.mp); resource=player.mp-before; }
   if(healed>0) addDamageText(player.x,player.y,`+${healed}`,'#76d38b');
-  if(mana>0) addDamageText(player.x,player.y,`+${mana}`,'#4aa3ff');
+  if(resource>0) addDamageText(player.x,player.y,`+${resource}`,'#4aa3ff');
   hpFill.style.width=`${(player.hp/player.hpMax)*100}%`; hpLbl.textContent=`HP ${player.hp}/${player.hpMax}`;
-  mpFill.style.width=`${(player.mp/player.mpMax)*100}%`; mpLbl.textContent=`Mana ${player.mp}/${player.mpMax}`;
+  mpFill.style.width=`${(player.mp/player.mpMax)*100}%`; mpLbl.textContent=`${getResourceLabel()} ${player.mp}/${player.mpMax}`;
   showToast(`Used ${it.name}`);
 }
 
@@ -753,7 +761,7 @@ function redrawInventory(){
   html += '<div class="section-title">Character Stats</div>';
   html += '<div>';
   html += `<div class="list-row"><div>HP</div><div class="muted">${player.hp}/${currentStats.hpMax}</div></div>`;
-  html += `<div class="list-row"><div>Mana</div><div class="muted">${player.mp}/${currentStats.mpMax}</div></div>`;
+  html += `<div class="list-row"><div>${getResourceLabel()}</div><div class="muted">${player.mp}/${currentStats.mpMax}</div></div>`;
   html += `<div class="list-row"><div>ATK</div><div class="muted">${currentStats.dmgMin}-${currentStats.dmgMax}</div></div>`;
   html += `<div class="list-row"><div>CRIT</div><div class="muted">${currentStats.crit}%</div></div>`;
   html += `<div class="list-row"><div>Armor</div><div class="muted">${currentStats.armor}</div></div>`;
@@ -862,7 +870,7 @@ function renderDetails(it, origin){
     const rows=[];
     lines.push(`<div class="muted">Potion · ${RARITY[it.rarity]?.n||'?'}</div>`);
     if(it.hp) rows.push(`<div>Restores <span class="mono">${it.hp}</span> HP</div>`);
-    if(it.mp) rows.push(`<div>Restores <span class="mono">${it.mp}</span> Mana</div>`);
+    if(it.mp) rows.push(`<div>Restores <span class="mono">${it.mp}</span> ${getResourceLabel()}</div>`);
     lines.push(`<div style="margin:6px 0">${rows.join('')}</div>`);
     lines.push(`<div class="kv"><span class="pill">Value ${val}</span><span class="pill">Sell ${sell}</span>${origin==='shop'?'<span class="pill">Buy</span>':''}</div>`);
     return lines.join('');
@@ -876,7 +884,7 @@ function renderDetails(it, origin){
   if(m.mpMax) rows.push(`<div>MP Max: <span class="mono">+${m.mpMax}</span></div>`);
   if(m.speedPct) rows.push(`<div>Speed: <span class="mono">+${m.speedPct}%</span></div>`);
   if(m.ls) rows.push(`<div>Lifesteal: <span class="mono">${m.ls}%</span></div>`);
-  if(m.mp) rows.push(`<div>Mana on hit: <span class="mono">+${m.mp}</span></div>`);
+  if(m.mp) rows.push(`<div>${getResourceLabel()} on hit: <span class="mono">+${m.mp}</span></div>`);
   if(m.status) rows.push(`<div>${m.status.k.toUpperCase()} Chance: <span class="mono">${Math.round((m.status.chance||0)*100)}%</span></div>`);
   if(m.resFire||m.resIce||m.resShock||m.resMagic){
     rows.push(`<div>Resists (F/I/S/M): <span class="mono">${m.resFire||0}/${m.resIce||0}/${m.resShock||0}/${m.resMagic||0}%</span></div>`);
@@ -933,10 +941,11 @@ function makeRandomGear(){
 
 function makeRandomPotion(){
   const rarityIdx = rng.int(0, RARITY.length-1);
-  const p = POTION_TYPES[rng.int(0, POTION_TYPES.length-1)];
+  const pool = player.class==='warrior' ? POTION_TYPES.filter(p=>p.k!=='mp') : POTION_TYPES.filter(p=>p.k!=='stam');
+  const p = pool[rng.int(0, pool.length-1)];
   const item = { color: RARITY[rarityIdx].c, type:'potion', slot:'Potion', name:`${RARITY[rarityIdx].n} ${p.base}`, rarity:rarityIdx };
   if(p.k==='hp') item.hp = p.vals[rarityIdx];
-  if(p.k==='mp') item.mp = p.vals[rarityIdx];
+  if(p.k==='mp' || p.k==='stam') item.mp = p.vals[rarityIdx];
   return item;
 }
 
@@ -1489,7 +1498,7 @@ function draw(dt){
   mpFill.style.width=(100*player.mp/player.mpMax).toFixed(0)+'%';
   const xpPct = Math.min(100, Math.floor(100*player.xp/Math.max(1,player.xpToNext)));
   xpFill.style.width = xpPct+'%'; xpLbl.textContent=`XP ${player.xp}/${player.xpToNext}`; hudLvl.textContent=player.lvl;
-  hpLbl.textContent=`HP ${player.hp}/${player.hpMax}`; mpLbl.textContent=`Mana ${player.mp}/${player.mpMax}`;
+  hpLbl.textContent=`HP ${player.hp}/${player.hpMax}`; mpLbl.textContent=`${getResourceLabel()} ${player.mp}/${player.mpMax}`;
 }
 
 // ===== Update (smooth tween + 8-dir) =====
@@ -1638,8 +1647,10 @@ function toggleInv(){ let panel=document.getElementById('inventory'); if(!panel)
 function redrawMagic(){
   let panel=document.getElementById('magic');
   if(!panel){ panel=document.createElement('div'); panel.id='magic'; panel.className='panel'; document.body.appendChild(panel); }
-  let html = `<div class="section-title">Magic Points: ${player.magicPoints}</div>`;
-  for(const treeName of ['healing','damage','dot']){
+  const header = player.class==='warrior' ? 'Ability Points' : 'Magic Points';
+  const treeNames = player.class==='warrior' ? ['combat'] : ['healing','damage','dot'];
+  let html = `<div class="section-title">${header}: ${player.magicPoints}</div>`;
+  for(const treeName of treeNames){
     const tree=magicTrees[treeName];
     html += `<div class="section-title">${tree.display}</div><div>`;
     tree.abilities.forEach((ab,i)=>{
@@ -1678,7 +1689,8 @@ function unlockSpell(treeName, idx){
 }
 
 function bindSpell(treeName, idx){
-  if(!player.magic[treeName][idx]){ showToast('Ability not unlocked'); return; }
+  const w = player.class==='warrior'?'Ability':'Spell';
+  if(!player.magic[treeName][idx]){ showToast(`${w} not unlocked`); return; }
   player.boundSpell={tree:treeName, idx};
   const ab=magicTrees[treeName].abilities[idx];
   hudSpell.textContent=ab.name;
@@ -1686,11 +1698,12 @@ function bindSpell(treeName, idx){
 }
 
 function castSelectedSpell(){
-  const b=player.boundSpell; if(!b){ showToast('No spell bound'); return; }
+  const b=player.boundSpell; const w = player.class==='warrior'?'ability':'spell';
+  if(!b){ showToast(`No ${w} bound`); return; }
   const ab=magicTrees[b.tree].abilities[b.idx];
-  if(!player.magic[b.tree][b.idx]){ showToast('Spell locked'); return; }
-  if(player.mp<ab.mp){ showToast('Not enough mana'); return; }
-  player.mp-=ab.mp; mpFill.style.width=`${(player.mp/player.mpMax)*100}%`; mpLbl.textContent=`Mana ${player.mp}/${player.mpMax}`;
+  if(!player.magic[b.tree][b.idx]){ showToast(`${w.charAt(0).toUpperCase()+w.slice(1)} locked`); return; }
+  if(player.mp<ab.mp){ showToast(`Not enough ${getResourceLabel().toLowerCase()}`); return; }
+  player.mp-=ab.mp; mpFill.style.width=`${(player.mp/player.mpMax)*100}%`; mpLbl.textContent=`${getResourceLabel()} ${player.mp}/${player.mpMax}`;
   if(ab.type==='heal'){
     const amt=ab.value===null?player.hpMax:ab.value;
     const heal=Math.min(amt, player.hpMax-player.hp);
@@ -1728,7 +1741,7 @@ function loadGame(){
   generate();
   Object.assign(player, data.player||{});
   if(!player.class) player.class = 'warrior';
-  for(const t of ['healing','damage','dot']){
+  for(const t of ['healing','damage','dot','combat']){
     player.magic[t] = player.magic[t] || [];
     while(player.magic[t].length < magicTrees[t].abilities.length) player.magic[t].push(false);
   }
@@ -1739,6 +1752,7 @@ function loadGame(){
   player.rx=player.x; player.ry=player.y; player.fromX=player.x; player.fromY=player.y; player.toX=player.x; player.toY=player.y; player.moving=false; player.moveT=1;
   recalcStats(); recomputeFOV(); redrawInventory();
   hudSpell.textContent = player.boundSpell ? magicTrees[player.boundSpell.tree].abilities[player.boundSpell.idx].name : 'None';
+  hudSpellLabel.textContent = player.class==='warrior' ? 'Ability:' : 'Spell:';
   toggleEscMenu(false); showToast('Game loaded');
 }
 
@@ -1765,9 +1779,9 @@ function levelUp(){
   hpFill.style.width = `${(player.hp/player.hpMax)*100}%`;
   mpFill.style.width = `${(player.mp/player.mpMax)*100}%`;
   hpLbl.textContent = `HP ${player.hp}/${player.hpMax}`;
-  mpLbl.textContent = `Mana ${player.mp}/${player.mpMax}`;
+  mpLbl.textContent = `${getResourceLabel()} ${player.mp}/${player.mpMax}`;
   showToast(`Level up! Lv ${player.lvl}`);
-  showToast('Gained magic point');
+  showToast('Gained '+(player.class==='warrior'?'ability':'magic')+' point');
 }
 
 // ===== Toast =====
@@ -1803,7 +1817,7 @@ function recalcStats(){
   currentStats={dmgMin,dmgMax,crit,armor,resF,resI,resS,resM,hpMax,mpMax};
   hudDmg.textContent = `ATK ${dmgMin}-${dmgMax} | CRIT ${crit}% | ARM ${armor} | RES F/I/S/M ${resF}/${resI}/${resS}/${resM}`;
   hpFill.style.width = `${(player.hp/player.hpMax)*100}%`; mpFill.style.width = `${(player.mp/player.mpMax)*100}%`;
-  hpLbl.textContent = `HP ${player.hp}/${player.hpMax}`; mpLbl.textContent = `Mana ${player.mp}/${player.mpMax}`;
+  hpLbl.textContent = `HP ${player.hp}/${player.hpMax}`; mpLbl.textContent = `${getResourceLabel()} ${player.mp}/${player.mpMax}`;
 }
 
 // ===== Main Loop =====
@@ -1821,13 +1835,14 @@ function startGame(){
   // class pick -> stats
   const cSel = document.querySelector('input[name="class"]:checked');
   player.class = (cSel?.value==='mage')?'mage':'warrior';
+  hudSpellLabel.textContent = player.class==='warrior' ? 'Ability:' : 'Spell:';
 
   hudFloor.textContent=floorNum; hudSeed.textContent=seed>>>0; hudGold.textContent=player.gold; hudLvl.textContent=player.lvl;
   generate(); recalcStats();
   player.hp = player.hpMax; player.mp = player.mpMax;
   hpFill.style.width = `100%`; mpFill.style.width = `100%`;
   hpLbl.textContent = `HP ${player.hp}/${player.hpMax}`;
-  mpLbl.textContent = `Mana ${player.mp}/${player.mpMax}`;
+  mpLbl.textContent = `${getResourceLabel()} ${player.mp}/${player.mpMax}`;
   recomputeFOV();
   hudSpell.textContent = player.boundSpell ? magicTrees[player.boundSpell.tree].abilities[player.boundSpell.idx].name : 'None';
   const smoothToggle=document.getElementById('smoothToggle'); const speedRange=document.getElementById('speedRange');
