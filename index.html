@@ -66,6 +66,7 @@
     </div>
     <div class="hud-kv"><b>Gold:</b> <span id="hudGold">0</span></div>
     <div class="hud-kv"><b>Lvl:</b> <span id="hudLvl">1</span></div>
+    <div class="hud-kv"><b>Spell:</b> <span id="hudSpell">None</span></div>
     <div class="hud-kv" id="hudDmg" style="opacity:.85;margin-left:auto">ATK 2-4 | CRIT 5% | ARM 0</div>
     <div class="hud-kv" style="margin-left:8px; pointer-events:auto">
       <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
@@ -330,8 +331,28 @@ genSprites();
 let seed=(Math.random()*1e9)|0, floorNum=1, rng=new RNG(seed);
 let map=[], fog=[], vis=[]; let rooms=[]; let stairs={x:0,y:0};
 let merchant={x:0,y:0}; let merchantStyle = Math.random()<0.5 ? 'goblin' : 'stall';
-let player={x:0,y:0,hp:150,hpMax:150,mp:60,mpMax:60,gold:0,stepCD:0,stepDelay:140,speedPct:0,lvl:1,xp:0,xpToNext:50,baseAtkBonus:0, gender:'m', atkCD:0, faceDx:1, faceDy:0, effects:[]};
+let player={x:0,y:0,hp:150,hpMax:150,mp:60,mpMax:60,gold:0,stepCD:0,stepDelay:140,speedPct:0,lvl:1,xp:0,xpToNext:50,baseAtkBonus:0, gender:'m', atkCD:0, faceDx:1, faceDy:0, effects:[], magicPoints:0, magic:{healing:[false,false,false,false],damage:[false,false,false,false],dot:[false,false,false,false]}, boundSpell:null};
 let playerSpriteKey = 'player_m';
+const magicTrees={
+  healing:{display:'Healing',abilities:[
+    {name:'Heal I',type:'heal',value:30,mp:10,cost:1},
+    {name:'Heal II',type:'heal',value:60,mp:20,cost:1},
+    {name:'Heal III',type:'heal',value:120,mp:30,cost:1},
+    {name:'Heal IV',type:'heal',value:null,mp:40,cost:1}
+  ]},
+  damage:{display:'Damage',abilities:[
+    {name:'Fire Bolt',type:'damage',dmg:25,mp:10,cost:1,range:8,elem:'fire',status:{k:'burn',dur:2000,power:1.0,chance:1}},
+    {name:'Ice Spike',type:'damage',dmg:35,mp:15,cost:1,range:8,elem:'ice',status:{k:'freeze',dur:1800,power:0.4,chance:1}},
+    {name:'Lightning Bolt',type:'damage',dmg:50,mp:20,cost:1,range:9,elem:'shock',status:{k:'shock',dur:2000,power:0.25,chance:1}},
+    {name:'Arcane Blast',type:'damage',dmg:70,mp:30,cost:1,range:9,elem:'magic'}
+  ]},
+  dot:{display:'Damage Over Time',abilities:[
+    {name:'Ignite',type:'dot',dmg:10,mp:12,cost:1,range:8,elem:'fire',status:{k:'burn',dur:2200,power:1.0,chance:1}},
+    {name:'Scorch',type:'dot',dmg:15,mp:16,cost:1,range:8,elem:'fire',status:{k:'burn',dur:2600,power:1.1,chance:1}},
+    {name:'Sear',type:'dot',dmg:20,mp:20,cost:1,range:8,elem:'fire',status:{k:'burn',dur:3000,power:1.2,chance:1}},
+    {name:'Inferno',type:'dot',dmg:25,mp:25,cost:1,range:8,elem:'fire',status:{k:'burn',dur:3400,power:1.3,chance:1}}
+  ]}
+};
 // Monsters now have richer AI with per-type patterns and scaling
 // {x,y,rx,ry,type,hp,hpMax,dmgMin,dmgMax,atkCD,moveCD,state:{...},hitFlash,effects:[]}
 let monsters=[];
@@ -352,7 +373,7 @@ let currentStats={dmgMin:0,dmgMax:0,crit:0,armor:0,resF:0,resI:0,resS:0,resM:0,h
 const hpFill=document.getElementById('hpFill'); const mpFill=document.getElementById('mpFill');
 const hpLbl=document.getElementById('hpLbl'); const mpLbl=document.getElementById('mpLbl');
 const hudFloor=document.getElementById('hudFloor'); const hudSeed=document.getElementById('hudSeed'); const hudGold=document.getElementById('hudGold'); const hudDmg=document.getElementById('hudDmg');
-const xpFill=document.getElementById('xpFill'); const xpLbl=document.getElementById('xpLbl'); const hudLvl=document.getElementById('hudLvl');
+const xpFill=document.getElementById('xpFill'); const xpLbl=document.getElementById('xpLbl'); const hudLvl=document.getElementById('hudLvl'); const hudSpell=document.getElementById('hudSpell');
 
 // ===== Audio =====
 let audioCtx, musicTimer;
@@ -1514,6 +1535,8 @@ window.addEventListener('keydown',e=>{
   keys[e.key]=true;
   if(e.key==='Escape'){ toggleEscMenu(); return; }
   if(e.key==='i'||e.key==='I') toggleInv();
+  if(e.key==='k'||e.key==='K') toggleMagic();
+  if(e.key==='q'||e.key==='Q') castSelectedSpell();
   // quick-use potions from potion bag slots with number keys 1-3
   if(e.key==='1'||e.key==='2'||e.key==='3'){
     const idx = parseInt(e.key,10)-1;
@@ -1555,6 +1578,71 @@ window.addEventListener('keypress',e=>{
 // ===== Inventory UI (toggle only) =====
 function toggleInv(){ let panel=document.getElementById('inventory'); if(!panel){ redrawInventory(); panel=document.getElementById('inventory'); } if(!panel) return; const show=panel.style.display===''||panel.style.display==='none'; panel.style.display=show?'block':'none'; if(show) redrawInventory(); }
 
+function redrawMagic(){
+  let panel=document.getElementById('magic');
+  if(!panel){ panel=document.createElement('div'); panel.id='magic'; panel.className='panel'; document.body.appendChild(panel); }
+  let html = `<div class="section-title">Magic Points: ${player.magicPoints}</div>`;
+  for(const treeName of ['healing','damage','dot']){
+    const tree=magicTrees[treeName];
+    html += `<div class="section-title">${tree.display}</div><div>`;
+    tree.abilities.forEach((ab,i)=>{
+      const unlocked=player.magic[treeName][i];
+      const bind = player.boundSpell && player.boundSpell.tree===treeName && player.boundSpell.idx===i;
+      if(unlocked){
+        html += `<div class="list-row"><div>${ab.name}</div><div>${bind?'<span class="green">Bound</span>':`<button class="btn sml" data-bind="${treeName}-${i}">Bind</button>`}</div></div>`;
+      }else{
+        const dis = player.magicPoints<ab.cost?'disabled':'';
+        html += `<div class="list-row"><div>${ab.name}</div><div><button class="btn sml" data-unlock="${treeName}-${i}" ${dis}>Unlock (${ab.cost})</button></div></div>`;
+      }
+    });
+    html += '</div>';
+  }
+  panel.innerHTML = html;
+  panel.onclick=(e)=>{
+    const b=e.target.closest('button'); if(!b) return;
+    if(b.dataset.unlock){
+      const [t,i]=b.dataset.unlock.split('-'); unlockSpell(t,parseInt(i,10)); redrawMagic();
+    }
+    if(b.dataset.bind){
+      const [t,i]=b.dataset.bind.split('-'); bindSpell(t,parseInt(i,10)); redrawMagic();
+    }
+  };
+}
+
+function toggleMagic(){ let panel=document.getElementById('magic'); if(!panel){ redrawMagic(); panel=document.getElementById('magic'); } if(!panel) return; const show=panel.style.display===''||panel.style.display==='none'; panel.style.display=show?'block':'none'; if(show) redrawMagic(); }
+
+function unlockSpell(treeName, idx){
+  const ab=magicTrees[treeName].abilities[idx];
+  if(player.magic[treeName][idx]) return;
+  if(player.magicPoints>=ab.cost){ player.magicPoints-=ab.cost; player.magic[treeName][idx]=true; showToast(`Unlocked ${ab.name}`); }
+  else showToast('Not enough points');
+}
+
+function bindSpell(treeName, idx){
+  if(!player.magic[treeName][idx]){ showToast('Ability not unlocked'); return; }
+  player.boundSpell={tree:treeName, idx};
+  const ab=magicTrees[treeName].abilities[idx];
+  hudSpell.textContent=ab.name;
+  showToast(`Bound ${ab.name} to Q`);
+}
+
+function castSelectedSpell(){
+  const b=player.boundSpell; if(!b){ showToast('No spell bound'); return; }
+  const ab=magicTrees[b.tree].abilities[b.idx];
+  if(!player.magic[b.tree][b.idx]){ showToast('Spell locked'); return; }
+  if(player.mp<ab.mp){ showToast('Not enough mana'); return; }
+  player.mp-=ab.mp; mpFill.style.width=`${(player.mp/player.mpMax)*100}%`; mpLbl.textContent=`Mana ${player.mp}/${player.mpMax}`;
+  if(ab.type==='heal'){
+    const amt=ab.value===null?player.hpMax:ab.value;
+    const heal=Math.min(amt, player.hpMax-player.hp);
+    player.hp+=heal; hpFill.style.width=`${(player.hp/player.hpMax)*100}%`; hpLbl.textContent=`HP ${player.hp}/${player.hpMax}`; addDamageText(player.x,player.y,'+'+heal,'#76d38b');
+    return;
+  }
+  const dx=player.faceDx, dy=player.faceDy;
+  if(dx===0 && dy===0){ showToast('Face a direction'); return; }
+  projectiles.push({x:player.x+0.5,y:player.y+0.5,dx,dy,speed:12,damage:ab.dmg||0,type:'magic',elem:ab.elem||null,owner:'player',alive:true,maxDist:ab.range||8,dist:0,status:ab.status||null});
+}
+
 function toggleEscMenu(force){
   const menu=document.getElementById('escMenu'); if(!menu) return;
   const show=typeof force==='boolean'?force:(menu.style.display===''||menu.style.display==='none');
@@ -1580,6 +1668,7 @@ function loadGame(){
   hudFloor.textContent=floorNum; hudSeed.textContent=seed>>>0; hudGold.textContent=player.gold; hudLvl.textContent=player.lvl;
   player.rx=player.x; player.ry=player.y; player.fromX=player.x; player.fromY=player.y; player.toX=player.x; player.toY=player.y; player.moving=false; player.moveT=1;
   recalcStats(); recomputeFOV(); redrawInventory();
+  hudSpell.textContent = player.boundSpell ? magicTrees[player.boundSpell.tree].abilities[player.boundSpell.idx].name : 'None';
   toggleEscMenu(false); showToast('Game loaded');
 }
 
@@ -1599,6 +1688,7 @@ function levelUp(){
   player.lvl++;
   player.baseAtkBonus += 1;
   player.xpToNext = Math.floor(50*Math.pow(1.35, player.lvl-1));
+  player.magicPoints++;
   recalcStats();
   player.hp = player.hpMax;
   player.mp = player.mpMax;
@@ -1607,6 +1697,7 @@ function levelUp(){
   hpLbl.textContent = `HP ${player.hp}/${player.hpMax}`;
   mpLbl.textContent = `Mana ${player.mp}/${player.mpMax}`;
   showToast(`Level up! Lv ${player.lvl}`);
+  showToast('Gained magic point');
 }
 
 // ===== Toast =====
@@ -1652,6 +1743,7 @@ function startGame(){
 
   hudFloor.textContent=floorNum; hudSeed.textContent=seed>>>0; hudGold.textContent=player.gold; hudLvl.textContent=player.lvl;
   generate(); recalcStats(); recomputeFOV();
+  hudSpell.textContent = player.boundSpell ? magicTrees[player.boundSpell.tree].abilities[player.boundSpell.idx].name : 'None';
   const smoothToggle=document.getElementById('smoothToggle'); const speedRange=document.getElementById('speedRange');
   if(smoothToggle){ smoothToggle.checked = smoothEnabled; smoothToggle.addEventListener('change', e=>{ smoothEnabled = e.target.checked; if(!smoothEnabled){ player.rx=player.x; player.ry=player.y; } }); }
   if(speedRange){ baseStepDelay = player.stepDelay; speedRange.value = String(baseStepDelay); speedRange.addEventListener('input', e=>{ const v=parseInt(e.target.value,10); if(!isNaN(v)) baseStepDelay=v; }); }

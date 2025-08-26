@@ -15,6 +15,8 @@ Then visit [http://localhost:8000](http://localhost:8000).
 ## Controls
 - **WASD or Arrow Keys** – Move in eight directions
 - **I** – Toggle inventory
+- **K** – Toggle magic menu
+- **Q** – Cast bound spell
 - **E** – Use stairs or the merchant
 - **1/2/3** – Quick-use potion from potion bag slot 1–3
 - **Click monsters** – Attack
