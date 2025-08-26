@@ -121,6 +121,26 @@
       </label>
     </div>
 
+    <div class="section-title" style="margin-top:10px">Choose your class</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;pointer-events:auto">
+      <label class="gender-card">
+        <input type="radio" name="class" value="warrior" checked>
+        <div class="gender-preview" style="font-size:20px">⚔️</div>
+        <div>
+          <div><b>Warrior</b></div>
+          <div class="muted" style="font-size:12px">High HP and damage</div>
+        </div>
+      </label>
+      <label class="gender-card">
+        <input type="radio" name="class" value="mage">
+        <div class="gender-preview" style="font-size:20px">✨</div>
+        <div>
+          <div><b>Mage</b></div>
+          <div class="muted" style="font-size:12px">Extra mana, stronger spells</div>
+        </div>
+      </label>
+    </div>
+
     <p class="hint" style="margin-top:10px">All sprites (player, monsters, stairs, shop) are generated and embedded as base64 data URLs.</p>
     <div style="display:flex;gap:8px;margin-top:8px">
       <button id="playBtn" class="btn">Play</button>
@@ -331,7 +351,7 @@ genSprites();
 let seed=(Math.random()*1e9)|0, floorNum=1, rng=new RNG(seed);
 let map=[], fog=[], vis=[]; let rooms=[]; let stairs={x:0,y:0};
 let merchant={x:0,y:0}; let merchantStyle = Math.random()<0.5 ? 'goblin' : 'stall';
-let player={x:0,y:0,hp:150,hpMax:150,mp:60,mpMax:60,gold:0,stepCD:0,stepDelay:140,speedPct:0,lvl:1,xp:0,xpToNext:50,baseAtkBonus:0, gender:'m', atkCD:0, faceDx:1, faceDy:0, effects:[], magicPoints:0, magic:{healing:[false,false,false,false],damage:[false,false,false,false],dot:[false,false,false,false]}, boundSpell:null};
+let player={x:0,y:0,hp:150,hpMax:150,mp:60,mpMax:60,gold:0,stepCD:0,stepDelay:140,speedPct:0,lvl:1,xp:0,xpToNext:50,baseAtkBonus:0, gender:'m', class:'warrior', atkCD:0, faceDx:1, faceDy:0, effects:[], magicPoints:0, magic:{healing:[false,false,false,false],damage:[false,false,false,false],dot:[false,false,false,false]}, boundSpell:null};
 let playerSpriteKey = 'player_m';
 const magicTrees={
   healing:{display:'Healing',abilities:[
@@ -1640,7 +1660,8 @@ function castSelectedSpell(){
   }
   const dx=player.faceDx, dy=player.faceDy;
   if(dx===0 && dy===0){ showToast('Face a direction'); return; }
-  projectiles.push({x:player.x+0.5,y:player.y+0.5,dx,dy,speed:12,damage:ab.dmg||0,type:'magic',elem:ab.elem||null,owner:'player',alive:true,maxDist:ab.range||8,dist:0,status:ab.status||null});
+  const dmg = (ab.dmg||0)*(1+(player.spellBonus||0));
+  projectiles.push({x:player.x+0.5,y:player.y+0.5,dx,dy,speed:12,damage:dmg,type:'magic',elem:ab.elem||null,owner:'player',alive:true,maxDist:ab.range||8,dist:0,status:ab.status||null});
 }
 
 function toggleEscMenu(force){
@@ -1662,6 +1683,7 @@ function loadGame(){
   seed=data.seed; rng=new RNG(seed); floorNum=data.floorNum;
   generate();
   Object.assign(player, data.player||{});
+  if(!player.class) player.class = 'warrior';
   bag=data.bag||new Array(BAG_SIZE).fill(null);
   potionBag=data.potionBag||new Array(POTION_BAG_SIZE).fill(null);
   equip=data.equip||{helmet:null,chest:null,legs:null,hands:null,feet:null,weapon:null};
@@ -1712,6 +1734,13 @@ function recalcStats(){
   let mpMax = 60 + (player.lvl-1)*mpGainPerLevel;
   let speedPct=0;
   let resF=0,resI=0,resS=0,resM=0;
+  let spellBonus=0;
+  // class bonuses
+  if(player.class==='warrior'){
+    hpMax += 40; dmgMin += 2; dmgMax += 2;
+  }else if(player.class==='mage'){
+    mpMax += 40; spellBonus = 0.2;
+  }
   // level bonus
   const lvlBonus = Math.floor((player.lvl-1)*0.6) + (player.baseAtkBonus||0);
   dmgMin += lvlBonus; dmgMax += lvlBonus;
@@ -1720,7 +1749,7 @@ function recalcStats(){
     if(m.dmgMin) dmgMin+=m.dmgMin; if(m.dmgMax) dmgMax+=m.dmgMax; if(m.crit) crit+=m.crit; if(m.armor) armor+=m.armor; if(m.hpMax) hpMax+=m.hpMax; if(m.mpMax) mpMax+=m.mpMax; if(m.speedPct) speedPct+=m.speedPct;
     resF += m.resFire||0; resI += m.resIce||0; resS += m.resShock||0; resM += m.resMagic||0;
   }
-  player.hpMax=hpMax; player.mpMax=mpMax; player.speedPct=speedPct; if(player.hp>hpMax) player.hp=hpMax; if(player.mp>mpMax) player.mp=mpMax;
+  player.hpMax=hpMax; player.mpMax=mpMax; player.speedPct=speedPct; player.spellBonus=spellBonus; if(player.hp>hpMax) player.hp=hpMax; if(player.mp>mpMax) player.mp=mpMax;
   player.armor = armor;
   player.resFire=resF; player.resIce=resI; player.resShock=resS; player.resMagic=resM;
   currentStats={dmgMin,dmgMax,crit,armor,resF,resI,resS,resM,hpMax,mpMax};
@@ -1741,8 +1770,17 @@ function startGame(){
   player.gender = (gSel?.value==='f')?'f':'m';
   playerSpriteKey = player.gender==='f' ? 'player_f' : 'player_m';
 
+  // class pick -> stats
+  const cSel = document.querySelector('input[name="class"]:checked');
+  player.class = (cSel?.value==='mage')?'mage':'warrior';
+
   hudFloor.textContent=floorNum; hudSeed.textContent=seed>>>0; hudGold.textContent=player.gold; hudLvl.textContent=player.lvl;
-  generate(); recalcStats(); recomputeFOV();
+  generate(); recalcStats();
+  player.hp = player.hpMax; player.mp = player.mpMax;
+  hpFill.style.width = `100%`; mpFill.style.width = `100%`;
+  hpLbl.textContent = `HP ${player.hp}/${player.hpMax}`;
+  mpLbl.textContent = `Mana ${player.mp}/${player.mpMax}`;
+  recomputeFOV();
   hudSpell.textContent = player.boundSpell ? magicTrees[player.boundSpell.tree].abilities[player.boundSpell.idx].name : 'None';
   const smoothToggle=document.getElementById('smoothToggle'); const speedRange=document.getElementById('speedRange');
   if(smoothToggle){ smoothToggle.checked = smoothEnabled; smoothToggle.addEventListener('change', e=>{ smoothEnabled = e.target.checked; if(!smoothEnabled){ player.rx=player.x; player.ry=player.y; } }); }
