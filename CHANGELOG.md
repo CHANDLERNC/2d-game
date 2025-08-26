@@ -28,6 +28,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) with
 - Increased potion drop rate to 40% (from 25%).
 - Mage enemies now fire 30% slower but hit 10% harder.
 
+### Fixed
+- Melee attacks now track the mouse and register hits within a 35° cone (2-tile reach by default).
+
 ## 2025-08-26
 ### Added
 - Directional player attacks and a full projectile system (per-weapon reach/cooldowns; melee vs. ranged profiles). (27799af)

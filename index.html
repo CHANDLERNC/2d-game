@@ -1132,7 +1132,7 @@ const WEAPON_RULES = {
   bow:   {kind:'ranged', projSpeed:14, projRange:14, cooldown:320, dtype:'ranged'},
   wand:  {kind:'ranged', projSpeed:12, projRange:12, cooldown:260, dtype:'magic', elem:'fire',  status:{k:'burn',  dur:2200, power:1.0, chance:0.55}},
   staff: {kind:'ranged', projSpeed:10, projRange:12, cooldown:300, dtype:'magic', elem:'shock', status:{k:'shock', dur:2000, power:0.25, chance:0.60}},
-  _default:{kind:'melee', reach:1, cooldown:260, status:{k:'bleed', elem:'bleed', dur:2000, power:1.0, chance:0.25}}
+  _default:{kind:'melee', reach:2, cooldown:260, status:{k:'bleed', elem:'bleed', dur:2000, power:1.0, chance:0.25}}
 };
 function wclassFromName(n){
   if(!n) return null; const s=n.toLowerCase();
@@ -1149,38 +1149,31 @@ function firstMonsterAt(tx,ty){ return monsters.find(mm=>mm.x===tx && mm.y===ty)
 function performPlayerAttack(dx,dy){
   if(player.atkCD>0) return;
   const prof = currentWeaponProfile();
-  let ndx=dx, ndy=dy;
-  if(prof.kind==='melee'){
-    if(Math.abs(dx) > Math.abs(dy)){
-      ndx = Math.sign(dx);
-      ndy = 0;
-    } else {
-      ndx = 0;
-      ndy = Math.sign(dy);
-    }
-    if(ndx===0 && ndy===0) return;
-  } else {
-    const mag=Math.hypot(dx,dy);
-    if(mag===0) return;
-    ndx = dx/mag; ndy = dy/mag;
-  }
+  const mag = Math.hypot(dx,dy);
+  if(mag===0) return;
+  const ndx = dx/mag, ndy = dy/mag;
   player.faceDx = ndx; player.faceDy = ndy; playAttack();
   const {min,max,crit,ls} = currentAtk();
   let dmg=rng.int(min,max); const wasCrit=(Math.random()*100<crit); if(wasCrit) dmg=Math.floor(dmg*1.5); dmg=Math.max(1,dmg);
   const wStatus = equip.weapon?.mods?.status || null;
   const atkStatus = wStatus || prof.status || null;
   if(prof.kind==='melee'){
-    const steps = Math.max(1, prof.reach|0);
-    for(let s=1; s<=steps; s++){
-      const tx=player.x + ndx*s, ty=player.y + ndy*s;
-      if(isBlock(tx,ty)) break;
-      const m = firstMonsterAt(tx,ty);
-      if(m){
-        dealDamageToMonster(m, dmg, null, wasCrit);
-        if(atkStatus) tryApplyStatus(m, atkStatus, atkStatus.elem);
-        if(ls>0){ const heal=Math.max(1,Math.floor(dmg*ls/100)); player.hp=Math.min(player.hpMax, player.hp+heal); addDamageText(player.x,player.y,`+${heal}`,'#76d38b'); }
-        break;
-      }
+    const reach = prof.reach ?? 2;
+    const cone = (prof.cone || 35) * Math.PI / 180;
+    let target=null, bestDist=Infinity;
+    for(const m of monsters){
+      const dxm = m.x - player.x, dym = m.y - player.y;
+      const dist = Math.hypot(dxm,dym);
+      if(dist>reach || dist===0) continue;
+      const ang = Math.acos((ndx*dxm + ndy*dym)/dist);
+      if(ang > cone/2) continue;
+      if(!clearPath8(player.x, player.y, m.x, m.y)) continue;
+      if(dist < bestDist){ target=m; bestDist=dist; }
+    }
+    if(target){
+      dealDamageToMonster(target, dmg, null, wasCrit);
+      if(atkStatus) tryApplyStatus(target, atkStatus, atkStatus.elem);
+      if(ls>0){ const heal=Math.max(1,Math.floor(dmg*ls/100)); player.hp=Math.min(player.hpMax, player.hp+heal); addDamageText(player.x,player.y,`+${heal}`,'#76d38b'); }
     }
     player.atkCD = prof.cooldown;
   } else {
