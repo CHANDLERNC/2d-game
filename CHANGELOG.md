@@ -22,6 +22,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) with
 - Distinct loot icons per item class with glow effect for rare+ drops.
 - Uncommon rarity tier and revamped color scheme; rarer weapons gain stronger stats and glow from Rare upward.
 - Torches now cast light, revealing nearby tiles for increased visibility.
+- Subtle floor and wall color variations between floors for greater variety.
 
 ### Changed
 - Recombined CSS and JavaScript into `index.html` to maintain a single-file distribution.

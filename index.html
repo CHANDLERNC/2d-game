@@ -205,6 +205,7 @@ canvas.addEventListener('mousemove', e=>{ const r=canvas.getBoundingClientRect()
 function resizeCanvas(){ canvas.width = VIEW_W = window.innerWidth; canvas.height = VIEW_H = window.innerHeight; }
 window.addEventListener('resize', resizeCanvas); resizeCanvas();
 let camX=0, camY=0; let floorLayer=null, wallLayer=null;
+let floorTint='#ffffff', wallTint='#ffffff';
 let torches=[];
 let gameOver=false;
 let paused=false;
@@ -534,6 +535,14 @@ function generate(){
   vis=new Array(MAP_W*MAP_H).fill(0);
   rooms=[]; monsters=[]; projectiles=[]; lootMap.clear(); player.effects = [];
   torches=[];
+  // vary floor and wall colors slightly each floor
+  const hue = rng.int(0,360);
+  const sat = 8 + rng.int(0,8); // low saturation for subtle tint
+  const light = 35 + rng.int(-5,5);
+  floorTint = `hsl(${hue}, ${sat}%, ${light}%)`;
+  const wallHue = (hue + rng.int(-20,20) + 360) % 360;
+  const wallLight = Math.max(10, light - 5);
+  wallTint = `hsl(${wallHue}, ${sat}%, ${wallLight}%)`;
   // rooms
   for(let i=0;i<28;i++){
     const w=rng.int(6,11), h=rng.int(6,11);
@@ -706,9 +715,17 @@ function buildLayers(){
   mg.fillStyle='#fff';
   for(let y=0;y<MAP_H;y++) for(let x=0;x<MAP_W;x++) if(map[y*MAP_W+x]===T_FLOOR){ mg.fillRect(x*TILE,y*TILE,TILE,TILE); }
   f.drawImage(mask,0,0);
+  f.globalCompositeOperation='multiply';
+  f.fillStyle=floorTint;
+  f.fillRect(0,0,floorLayer.width,floorLayer.height);
+  f.globalCompositeOperation='source-over';
   // walls
   w.fillStyle=w.createPattern(wallTex,'repeat');
   for(let y=0;y<MAP_H;y++) for(let x=0;x<MAP_W;x++) if(map[y*MAP_W+x]===T_WALL) w.fillRect(x*TILE,y*TILE,TILE,TILE);
+  w.globalCompositeOperation='multiply';
+  w.fillStyle=wallTint;
+  w.fillRect(0,0,wallLayer.width,wallLayer.height);
+  w.globalCompositeOperation='source-over';
 }
 
 // ===== FOV =====
