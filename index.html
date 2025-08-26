@@ -142,7 +142,10 @@ const FOV_RADIUS=8; const LOOT_CHANCE=0.18;
 const MONSTER_LOOT_CHANCE=0.3; const AGGRO_RANGE=6;
 function monsterCountForFloor(floor){
   const dec=(floor-1)*MONSTER_COUNT_DECAY;
-  return Math.max(MONSTER_MIN_COUNT, MONSTER_BASE_COUNT - dec);
+  let count = MONSTER_BASE_COUNT - dec;
+  // Reduce monster density on early floors
+  if(floor <= 3){ count = Math.floor(count * 0.75); }
+  return Math.max(MONSTER_MIN_COUNT, count);
 }
 // Higher values slow all enemy actions (movement frequency and speed)
 const ENEMY_SPEED_MULT = 1.5;
@@ -1249,7 +1252,7 @@ function draw(dt){
     if(m.hp<=0){
       if(Math.random()<MONSTER_LOOT_CHANCE) dropLoot(m.x,m.y);
       if(Math.random()<0.55){ lootMap.set(`${m.x},${m.y}`,{color:'#ffd24a',type:'gold',amt:rng.int(3,12)}); }
-      grantXP(10 + rng.int(0,6));
+      grantXP(Math.floor((10 + rng.int(0,6)) * 1.25));
       const idx=monsters.indexOf(m); if(idx>=0) monsters.splice(idx,1);
     }
   }

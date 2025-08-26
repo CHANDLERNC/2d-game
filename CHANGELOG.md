@@ -17,6 +17,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) with
 - Increased player starting health by 50 points.
 - Reduced base health of all monster types.
 - Reworked weapon and armor attributes for improved random bonuses.
+- Reduced monster density on early floors.
+- Increased XP reward per monster by 25%.
 
 ## 2025-08-26
 ### Added
