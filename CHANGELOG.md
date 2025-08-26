@@ -7,6 +7,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) with
 ### Added
 - Warrior and Mage player classes with unique stat bonuses.
 - Player magic system with three ability trees and Q-bound spells.
+- Additional spells added to each magic tree.
 - Random weapon name generator for unique gear titles.
 - Weapon damage-over-time affix that can ignite foes.
 - Melee weapon classes now inflict bleed damage over time.
@@ -18,6 +19,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) with
 ### Changed
 - Increased player starting health by 50 points.
 - Reduced base health of all monster types.
+- Magic abilities now require sequential unlocking with escalating point costs.
 - Reworked weapon and armor attributes for improved random bonuses.
 - Reduced monster density on early floors.
 - Increased XP reward per monster by 25%.
