@@ -1689,17 +1689,28 @@ function startGame(){
   initAudio(); startMusic();
   // class pick -> sprite and stats
   const cSel = document.querySelector('input[name="class"]:checked');
-  player.class = (cSel?.value==='mage')?'mage':'warrior';
-  if(player.class==='warrior'){
-    player.hpBase=180; player.mpBase=40; player.baseAtkBonus=2; player.baseSpellBonus=0;
+  player.class = cSel?.value === 'mage' ? 'mage' : 'warrior';
+  if (player.class === 'warrior') {
+    player.hpBase = 180; player.mpBase = 40;
+    player.baseAtkBonus = 2; player.baseSpellBonus = 0;
   } else {
-    player.hpBase=150; player.mpBase=100; player.baseAtkBonus=0; player.baseSpellBonus=3;
+    player.hpBase = 150; player.mpBase = 100;
+    player.baseAtkBonus = 0; player.baseSpellBonus = 3;
   }
-  player.hp=player.hpMax=player.hpBase; player.mp=player.mpMax=player.mpBase;
-  playerSpriteKey = player.class==='mage' ? 'player_mage' : 'player_warrior';
+  playerSpriteKey = player.class === 'mage' ? 'player_mage' : 'player_warrior';
 
-  hudFloor.textContent=floorNum; hudSeed.textContent=seed>>>0; hudGold.textContent=player.gold; hudLvl.textContent=player.lvl;
-  generate(); recalcStats(); recomputeFOV();
+  // reset stats and apply bonuses
+  player.hp = player.hpBase;
+  player.mp = player.mpBase;
+  recalcStats();
+  player.hp = player.hpMax;
+  player.mp = player.mpMax;
+
+  hudFloor.textContent = floorNum;
+  hudSeed.textContent = seed >>> 0;
+  hudGold.textContent = player.gold;
+  hudLvl.textContent = player.lvl;
+  generate(); recomputeFOV();
   const smoothToggle=document.getElementById('smoothToggle'); const speedRange=document.getElementById('speedRange');
   if(smoothToggle){ smoothToggle.checked = smoothEnabled; smoothToggle.addEventListener('change', e=>{ smoothEnabled = e.target.checked; if(!smoothEnabled){ player.rx=player.x; player.ry=player.y; } }); }
   if(speedRange){ baseStepDelay = player.stepDelay; speedRange.value = String(baseStepDelay); speedRange.addEventListener('input', e=>{ const v=parseInt(e.target.value,10); if(!isNaN(v)) baseStepDelay=v; }); }
