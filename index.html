@@ -1132,6 +1132,73 @@ function monsterAI(m, dt){
 }
 
 // ===== Drawing =====
+function drawLootIcon(it, x, y){
+  ctx.save();
+  if(it.rarity>=2){
+    ctx.shadowColor = it.color;
+    ctx.shadowBlur = 8;
+  }
+  ctx.fillStyle = it.color;
+  ctx.strokeStyle = '#000';
+  ctx.lineWidth = 1;
+  if(it.type==='gold'){
+    ctx.beginPath();
+    ctx.arc(x+7, y+7, 6, 0, Math.PI*2);
+    ctx.fill();
+    ctx.stroke();
+  }else if(it.type==='potion'){
+    ctx.fillRect(x+5, y, 4, 4);
+    ctx.strokeRect(x+5, y, 4, 4);
+    ctx.beginPath();
+    ctx.arc(x+7, y+9, 5, 0, Math.PI*2);
+    ctx.fill();
+    ctx.stroke();
+  }else{
+    switch(it.slot){
+      case 'weapon':
+        ctx.fillRect(x+6, y, 2, 10);
+        ctx.strokeRect(x+6, y, 2, 10);
+        ctx.fillRect(x+4, y+8, 6, 2);
+        ctx.strokeRect(x+4, y+8, 6, 2);
+        break;
+      case 'helmet':
+        ctx.beginPath();
+        ctx.arc(x+7, y+6, 5, Math.PI, 0);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillRect(x+2, y+6, 10, 6);
+        ctx.strokeRect(x+2, y+6, 10, 6);
+        break;
+      case 'chest':
+        ctx.fillRect(x+3, y+3, 8, 8);
+        ctx.strokeRect(x+3, y+3, 8, 8);
+        break;
+      case 'legs':
+        ctx.fillRect(x+4, y+3, 3, 8);
+        ctx.strokeRect(x+4, y+3, 3, 8);
+        ctx.fillRect(x+7, y+3, 3, 8);
+        ctx.strokeRect(x+7, y+3, 3, 8);
+        break;
+      case 'hands':
+        ctx.beginPath();
+        ctx.arc(x+7, y+7, 5, 0, Math.PI*2);
+        ctx.fill();
+        ctx.stroke();
+        break;
+      case 'feet':
+        ctx.fillRect(x+3, y+8, 4, 4);
+        ctx.strokeRect(x+3, y+8, 4, 4);
+        ctx.fillRect(x+7, y+8, 4, 4);
+        ctx.strokeRect(x+7, y+8, 4, 4);
+        break;
+      default:
+        ctx.fillRect(x, y, 14, 14);
+        ctx.strokeRect(x, y, 14, 14);
+    }
+  }
+  ctx.restore();
+}
+
 function draw(dt){
   const maxX=MAP_W*TILE - VIEW_W, maxY=MAP_H*TILE - VIEW_H;
   const camTileX = (smoothEnabled && player.rx!==undefined ? player.rx : player.x);
@@ -1160,7 +1227,7 @@ function draw(dt){
     if(vis[ly*MAP_W+lx]){
       const lxpx = lx*TILE - camX + (TILE-14)/2;
       const lypy = ly*TILE - camY + (TILE-14)/2;
-      ctx.fillStyle=it.color; ctx.fillRect(lxpx, lypy, 14, 14);
+      drawLootIcon(it, lxpx, lypy);
     }
   }
 
