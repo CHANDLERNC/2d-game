@@ -6,8 +6,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) with
 ## [Unreleased]
 ### Added
 - Random weapon name generator for unique gear titles.
- codex/rework-weapon-attributes-for-damage-effects
 - Weapon damage-over-time affix that can ignite foes.
+- Melee weapon classes now inflict bleed damage over time.
 
 - Consumable potions appear in loot and shop inventories.
 - Legendary rarity added for gear and weapon drops.
