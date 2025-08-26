@@ -8,7 +8,7 @@
 <style>
   html,body{margin:0;background:#0b0b0e;color:#ddd;font-family:system-ui,Segoe UI,Roboto,Ubuntu,Arial,sans-serif;overflow:hidden}
   #ui{position:fixed;inset:0;display:grid;grid-template-rows:auto 1fr auto;pointer-events:none}
-  .topbar{display:flex;gap:16px;align-items:center;padding:8px 14px;background:linear-gradient(#191a1f,#111219);border-bottom:1px solid #2a2d39}
+  .topbar{display:flex;gap:16px;align-items:center;padding:8px 14px;background:linear-gradient(#191a1f,#111219);border-bottom:1px solid #2a2d39;transform:scale(1.2);transform-origin:top left;width:calc(100%/1.2)}
   .panel{background:rgba(15,16,22,0.9);border:1px solid #2a2d39;border-radius:10px;box-shadow:0 0 0 1px rgba(255,255,255,0.03) inset}
   .stat{height:14px;width:220px; background:#222;border:1px solid #333;border-radius:6px;position:relative}
   .fill{position:absolute;left:0;top:0;height:100%;background:#3c7}
@@ -1340,7 +1340,7 @@ function grantXP(x){ player.xp+=x; while(player.xp>=player.xpToNext){ player.xp-
 function levelUp(){ player.lvl++; const hpGain=12, mpGain=6; player.hpMax+=hpGain; player.mpMax+=mpGain; player.baseAtkBonus+=1; player.hp=player.hpMax; player.mp=player.mpMax; player.xpToNext = Math.floor(50*Math.pow(1.35, player.lvl-1)); recalcStats(); showToast(`Level up! Lv ${player.lvl}`); }
 
 // ===== Toast =====
-let toastTimer=0; function showToast(msg){ const bar=document.querySelector('.topbar'); const span=document.createElement('span'); span.style.marginLeft='8px'; span.style.opacity=.85; span.textContent='• '+msg; bar.appendChild(span); clearTimeout(toastTimer); toastTimer=setTimeout(()=>{ if(span.parentNode) span.remove(); }, 1600); }
+let toastTimer=0; function showToast(msg){ const bar=document.querySelector('.topbar'); const span=document.createElement('span'); span.style.marginLeft='8px'; span.style.opacity=.85; span.textContent='• '+msg; bar.appendChild(span); clearTimeout(toastTimer); toastTimer=setTimeout(()=>{ if(span.parentNode) span.remove(); }, 5000); }
 function showRespawn(){ gameOver=true; const d=document.getElementById('respawn'); if(d) d.style.display='grid'; }
 
 // ===== Stats =====
