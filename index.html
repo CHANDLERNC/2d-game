@@ -652,12 +652,13 @@ function generateWeaponName(base){
 }
 let lootMap=new Map();
 
-function affixMods(slot){
+function affixMods(slot, lvl){
   const R={};
+  const lvlBonus = Math.max(0, (lvl||1)-1);
   if(slot==='weapon'){
-    R.dmgMin=rng.int(1,3);
-    R.dmgMax=rng.int(2,6);
-    if(rng.next()<0.35) R.crit=rng.int(3,8);
+    R.dmgMin=rng.int(1,3)+Math.floor(lvlBonus*0.5);
+    R.dmgMax=rng.int(2,6)+Math.floor(lvlBonus*0.8);
+    if(rng.next()<0.35) R.crit=rng.int(3,8)+Math.floor(lvlBonus*0.2);
     if(rng.next()<0.2) R.ls=rng.int(1,5);
     if(rng.next()<0.2) R.mp=rng.int(1,4);
     if(rng.next()<0.2){
@@ -838,7 +839,7 @@ function shortMods(it){
     if(it.mp) bits.push(`MP ${it.mp}`);
     return bits.join(' · ');
   }
-  const m=it.mods||{}; const bits=[];
+  const m=it.mods||{}; const bits=[`Lv ${it.lvl||1}`];
   if(m.dmgMin||m.dmgMax) bits.push(`ATK ${m.dmgMin||0}-${m.dmgMax||0}`);
   if(m.crit) bits.push(`CR ${m.crit}%`);
   if(m.armor) bits.push(`ARM ${m.armor}`);
@@ -866,7 +867,7 @@ function renderDetails(it, origin){
     lines.push(`<div class="kv"><span class="pill">Value ${val}</span><span class="pill">Sell ${sell}</span>${origin==='shop'?'<span class="pill">Buy</span>':''}</div>`);
     return lines.join('');
   }
-  lines.push(`<div class="muted">${it.slot} · ${RARITY[it.rarity]?.n||'?'}</div>`);
+  lines.push(`<div class="muted">Lv ${it.lvl||1} · ${it.slot} · ${RARITY[it.rarity]?.n||'?'}</div>`);
   const m = it.mods||{}; const rows = [];
   if(m.dmgMin||m.dmgMax) rows.push(`<div>Attack: <span class="mono">${m.dmgMin||0}-${m.dmgMax||0}</span></div>`);
   if(m.crit) rows.push(`<div>Crit: <span class="mono">+${m.crit}%</span></div>`);
@@ -919,12 +920,13 @@ function makeRandomGear(){
   const nonWeaponSlots = SLOTS.filter(s=>s!=='weapon');
   const slot = rng.next()<0.4 ? 'weapon' : nonWeaponSlots[rng.int(0, nonWeaponSlots.length-1)];
   const rarityIdx = rng.int(0, RARITY.length-1);
+  const lvl = Math.max(1, floorNum + rng.int(-3,3));
   const bases = ITEM_BASES[slot];
   const base = bases[rng.int(0, bases.length-1)];
   let baseName = base;
   if(slot==='weapon') baseName = generateWeaponName(base);
   const name = `${RARITY[rarityIdx].n} ${baseName}`;
-  const item = { color: RARITY[rarityIdx].c, type:'gear', slot, name, rarity: rarityIdx, mods: affixMods(slot) };
+  const item = { color: RARITY[rarityIdx].c, type:'gear', slot, name, rarity: rarityIdx, lvl, mods: affixMods(slot, lvl) };
   if(slot==='weapon'){ item.wclass = base.toLowerCase(); }
   return item;
 }
