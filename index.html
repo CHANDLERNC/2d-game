@@ -24,6 +24,7 @@
   .footer{padding:6px 12px;border-top:1px solid #2a2d39;background:linear-gradient(#0f1016,#0b0c11);opacity:.85}
   #inventory{display:none;position:fixed;right:8px;top:64px;padding:8px 12px;pointer-events:auto;font-size:13px;width:600px;max-width:90vw}
   #shop{display:none;position:fixed;left:8px;top:64px;min-width:320px;padding:10px 12px;pointer-events:auto;font-size:13px}
+  #magic{display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);padding:8px 12px;pointer-events:auto;font-size:13px;width:340px;max-width:90vw;max-height:70vh;overflow:auto}
   .list-row{display:flex;justify-content:space-between;gap:8px;padding:6px 6px;border-radius:6px}
   .inv-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:4px 8px}
   .inv-grid .list-row{flex-direction:column;gap:2px}
@@ -1576,7 +1577,9 @@ window.addEventListener('keypress',e=>{
 });
 
 // ===== Inventory UI (toggle only) =====
-function toggleInv(){ let panel=document.getElementById('inventory'); if(!panel){ redrawInventory(); panel=document.getElementById('inventory'); } if(!panel) return; const show=panel.style.display===''||panel.style.display==='none'; panel.style.display=show?'block':'none'; if(show) redrawInventory(); }
+function updatePaused(){ const inv=document.getElementById('inventory'); const magic=document.getElementById('magic'); const esc=document.getElementById('escMenu'); paused=(inv&&inv.style.display==='block')||(magic&&magic.style.display==='block')||(esc&&esc.style.display==='grid'); }
+
+function toggleInv(){ let panel=document.getElementById('inventory'); if(!panel){ redrawInventory(); panel=document.getElementById('inventory'); } if(!panel) return; const show=panel.style.display===''||panel.style.display==='none'; panel.style.display=show?'block':'none'; if(show) redrawInventory(); updatePaused(); }
 
 function redrawMagic(){
   let panel=document.getElementById('magic');
@@ -1609,7 +1612,7 @@ function redrawMagic(){
   };
 }
 
-function toggleMagic(){ let panel=document.getElementById('magic'); if(!panel){ redrawMagic(); panel=document.getElementById('magic'); } if(!panel) return; const show=panel.style.display===''||panel.style.display==='none'; panel.style.display=show?'block':'none'; if(show) redrawMagic(); }
+function toggleMagic(){ let panel=document.getElementById('magic'); if(!panel){ redrawMagic(); panel=document.getElementById('magic'); } if(!panel) return; const show=panel.style.display===''||panel.style.display==='none'; panel.style.display=show?'block':'none'; if(show) redrawMagic(); updatePaused(); }
 
 function unlockSpell(treeName, idx){
   const ab=magicTrees[treeName].abilities[idx];
@@ -1647,7 +1650,7 @@ function toggleEscMenu(force){
   const menu=document.getElementById('escMenu'); if(!menu) return;
   const show=typeof force==='boolean'?force:(menu.style.display===''||menu.style.display==='none');
   menu.style.display=show?'grid':'none';
-  paused=show;
+  updatePaused();
 }
 
 function saveGame(){
