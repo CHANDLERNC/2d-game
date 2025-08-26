@@ -8,6 +8,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) with
 - Random weapon name generator for unique gear titles.
 - Weapon damage-over-time affix that can ignite foes.
 - Melee weapon classes now inflict bleed damage over time.
+- Playable Warrior and Mage classes with distinct health, mana, and attack bonuses.
 
 - Consumable potions appear in loot and shop inventories.
 - Legendary rarity added for gear and weapon drops.
