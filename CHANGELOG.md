@@ -9,6 +9,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) with
 - Player magic system with three ability trees and Q-bound spells.
 - Additional spells added to each magic tree.
 - Warrior skill tree with 12 abilities and escalating point costs.
+- Stamina resource and Power Strike ability for the Warrior class.
 - Random weapon name generator for unique gear titles.
 - Weapon damage-over-time affix that can ignite foes.
 - Melee weapon classes now inflict bleed damage over time.
@@ -32,6 +33,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) with
 
 ### Fixed
 - Melee attacks now track the mouse and register hits within a 35° cone (2-tile reach by default).
+- Warrior class no longer registers as a mage.
 
 ## 2025-08-26
 ### Added
