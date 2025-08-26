@@ -500,9 +500,20 @@ const ITEM_BASES = {
   weapon:['Sword','Axe','Mace','Dagger','Bow','Wand','Staff','Spear','Halberd','Crossbow','Flail','Katana']
 };
 // Total base items: 37
-const RARITY=[{n:'Common',c:'#c0c8d0'},{n:'Magic',c:'#4aa3ff'},{n:'Rare',c:'#ffd24a'},{n:'Epic',c:'#b84aff'}];
+const RARITY=[
+  {n:'Common',c:'#c0c8d0'},
+  {n:'Magic',c:'#4aa3ff'},
+  {n:'Rare',c:'#ffd24a'},
+  {n:'Epic',c:'#b84aff'},
+  {n:'Legendary',c:'#ff8000'}
+];
 const WEAPON_PREFIXES=['Ancient','Flaming','Shadow','Swift','Vicious','Mystic'];
 const WEAPON_SUFFIXES=['of Power','of Doom','of the Fox','of Frost','of Flames','of Shadows'];
+
+const POTION_TYPES=[
+  {k:'hp', base:'Health Potion', vals:[40,80,160,240,400]},
+  {k:'mp', base:'Mana Potion', vals:[25,50,100,150,250]}
+];
 function generateWeaponName(base){
   const pre=rng.next()<0.5?WEAPON_PREFIXES[rng.int(0,WEAPON_PREFIXES.length-1)]+' ':'';
   const suf=rng.next()<0.5?' '+WEAPON_SUFFIXES[rng.int(0,WEAPON_SUFFIXES.length-1)]:'';
@@ -552,9 +563,26 @@ function pickupHere(){
 
 function equipFromBag(idx){
   const it = bag[idx]; if(!it) return;
+  if(it.type==='potion'){
+    usePotion(it);
+    bag[idx]=null;
+    redrawInventory();
+    return;
+  }
   const slot = it.slot; const prev = equip[slot];
   equip[slot] = it; bag[idx] = prev || null; showToast(`Equipped ${it.name}`);
   redrawInventory(); recalcStats();
+}
+
+function usePotion(it){
+  let healed=0, mana=0;
+  if(it.hp){ const before=player.hp; player.hp=Math.min(player.hpMax, player.hp+it.hp); healed=player.hp-before; }
+  if(it.mp){ const before=player.mp; player.mp=Math.min(player.mpMax, player.mp+it.mp); mana=player.mp-before; }
+  if(healed>0) addDamageText(player.x,player.y,`+${healed}`,'#76d38b');
+  if(mana>0) addDamageText(player.x,player.y,`+${mana}`,'#4aa3ff');
+  hpFill.style.width=`${(player.hp/player.hpMax)*100}%`; hpLbl.textContent=`HP ${player.hp}/${player.hpMax}`;
+  mpFill.style.width=`${(player.mp/player.mpMax)*100}%`; mpLbl.textContent=`Mana ${player.mp}/${player.mpMax}`;
+  showToast(`Used ${it.name}`);
 }
 
 function unequip(slot){
@@ -587,7 +615,7 @@ function redrawInventory(){
     html += `<div class="list-row" data-type="bag" data-idx="${i}"><div>${i+1}. ${it?`<span style="color:${it.color}">${escapeHtml(it.name)}</span>`:'(empty)'}</div><div class="muted">${it?shortMods(it):''}</div></div>`;
   }
   html += '<div class="hr"></div>';
-  html += '<div id="invDetails" class="muted">Hover an item to see details. Click bag item to Equip. Click equipped item to Unequip. Use buttons below for Sell/Drop.</div>';
+  html += '<div id="invDetails" class="muted">Hover an item to see details. Click bag item to Equip or Use. Click equipped item to Unequip. Use buttons below for Sell/Drop.</div>';
   html += '<div class="actions" style="margin-top:8px"><button id="btnSell" class="btn sml" disabled>Sell</button><button id="btnDrop" class="btn sml" disabled>Drop</button></div>';
   panel.innerHTML = html;
 
@@ -633,7 +661,14 @@ function showItemDetailsFromRow(row){
 function disableInvActions(){ document.getElementById('btnSell').disabled=true; document.getElementById('btnDrop').disabled=true; }
 function setDetailsText(html){ const det=document.getElementById('invDetails'); det.innerHTML=html; }
 
-function shortMods(it){ const m=it.mods||{}; const bits=[];
+function shortMods(it){
+  if(it.type==='potion'){
+    const bits=[];
+    if(it.hp) bits.push(`HP ${it.hp}`);
+    if(it.mp) bits.push(`MP ${it.mp}`);
+    return bits.join(' · ');
+  }
+  const m=it.mods||{}; const bits=[];
   if(m.dmgMin||m.dmgMax) bits.push(`ATK ${m.dmgMin||0}-${m.dmgMax||0}`);
   if(m.crit) bits.push(`CR ${m.crit}%`);
   if(m.armor) bits.push(`ARM ${m.armor}`);
@@ -651,6 +686,15 @@ function renderDetails(it, origin){
   const val = getItemValue(it); const sell = getSellPrice(it);
   const lines = [];
   lines.push(`<div class="item-title" style="color:${it.color}">${escapeHtml(it.name)}</div>`);
+  if(it.type==='potion'){
+    const rows=[];
+    lines.push(`<div class="muted">Potion · ${RARITY[it.rarity]?.n||'?'}</div>`);
+    if(it.hp) rows.push(`<div>Restores <span class="mono">${it.hp}</span> HP</div>`);
+    if(it.mp) rows.push(`<div>Restores <span class="mono">${it.mp}</span> Mana</div>`);
+    lines.push(`<div style="margin:6px 0">${rows.join('')}</div>`);
+    lines.push(`<div class="kv"><span class="pill">Value ${val}</span><span class="pill">Sell ${sell}</span>${origin==='shop'?'<span class="pill">Buy</span>':''}</div>`);
+    return lines.join('');
+  }
   lines.push(`<div class="muted">${it.slot} · ${RARITY[it.rarity]?.n||'?'}</div>`);
   const m = it.mods||{}; const rows = [];
   if(m.dmgMin||m.dmgMax) rows.push(`<div>Attack: <span class="mono">${m.dmgMin||0}-${m.dmgMax||0}</span></div>`);
@@ -672,7 +716,15 @@ function renderDetails(it, origin){
 
 // ===== Values / Shop =====
 function getItemValue(it){
-  const rBase=[10,25,60,120][it.rarity||0];
+  if(it.type==='potion'){
+    const rBase=[10,20,40,80,160][it.rarity||0];
+    let score=0;
+    if(it.hp) score+=it.hp*0.3;
+    if(it.mp) score+=it.mp*0.25;
+    const floorBonus=Math.max(0,floorNum-1)*2;
+    return Math.max(5, Math.floor(rBase+score+floorBonus));
+  }
+  const rBase=[10,25,60,120,250][it.rarity||0];
   const slotFactor = it.slot==='weapon'?1.25:1.0;
   const m=it.mods||{}; let score=0;
   score+= (m.dmgMin||0)*4 + (m.dmgMax||0)*6;
@@ -690,7 +742,7 @@ function genShopStock(){
   const count=5; for(let i=0;i<count;i++) shopStock.push(makeRandomItem());
 }
 
-function makeRandomItem(){
+function makeRandomGear(){
   const slot = SLOTS[rng.int(0, SLOTS.length-1)];
   const rarityIdx = rng.int(0, RARITY.length-1);
   const bases = ITEM_BASES[slot];
@@ -700,6 +752,25 @@ function makeRandomItem(){
   const name = `${RARITY[rarityIdx].n} ${baseName}`;
   const item = { color: RARITY[rarityIdx].c, type:'gear', slot, name, rarity: rarityIdx, mods: affixMods(slot) };
   if(slot==='weapon'){ item.wclass = base.toLowerCase(); }
+  return item;
+}
+
+function makeRandomPotion(){
+  const rarityIdx = rng.int(0, RARITY.length-1);
+  const p = POTION_TYPES[rng.int(0, POTION_TYPES.length-1)];
+  const item = { color: RARITY[rarityIdx].c, type:'potion', slot:'Potion', name:`${RARITY[rarityIdx].n} ${p.base}`, rarity:rarityIdx };
+  if(p.k==='hp') item.hp = p.vals[rarityIdx];
+  if(p.k==='mp') item.mp = p.vals[rarityIdx];
+  return item;
+}
+
+function makeRandomItem(){
+  if(rng.next()<0.3){
+    const p = makeRandomPotion();
+    p.price = clamp(5, 9999, Math.floor(getItemValue(p) * (1.0 + (floorNum-1)*0.05)));
+    return p;
+  }
+  const item = makeRandomGear();
   item.price = clamp(8, 9999, Math.floor(getItemValue(item) * (1.0 + (floorNum-1)*0.05)));
   return item;
 }
@@ -1236,13 +1307,11 @@ function toggleInv(){ let panel=document.getElementById('inventory'); if(!panel)
 
 // ===== Loot helpers =====
 function dropLoot(x,y){
-  const slot = SLOTS[rng.int(0, SLOTS.length-1)];
-  const rarityIdx = rng.int(0, RARITY.length-1);
-  const bases = ITEM_BASES[slot];
-  const base = bases[rng.int(0, bases.length-1)];
-  const name = `${RARITY[rarityIdx].n} ${base}`;
-  const item = { color: RARITY[rarityIdx].c, type: 'gear', slot, name, rarity: rarityIdx, mods: affixMods(slot) };
-  if(slot==='weapon'){ item.wclass = base.toLowerCase(); }
+  if(rng.next()<0.3){
+    lootMap.set(`${x},${y}`, makeRandomPotion());
+    return;
+  }
+  const item = makeRandomGear();
   lootMap.set(`${x},${y}`, item);
 }
 
