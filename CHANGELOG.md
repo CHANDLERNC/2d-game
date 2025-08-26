@@ -10,6 +10,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) with
 - Additional spells added to each magic tree.
 - Warrior skill tree with 12 abilities and escalating point costs.
 - Stamina resource and Power Strike ability for the Warrior class.
+- Additional warrior stamina abilities: Whirlwind and Shield Bash.
 - Random weapon name generator for unique gear titles.
 - Weapon damage-over-time affix that can ignite foes.
 - Melee weapon classes now inflict bleed damage over time.
@@ -30,6 +31,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) with
 - Increased potion drop rate to 40% (from 25%).
 - Mage enemies now fire 30% slower but hit 10% harder.
 - Enemy elemental resistances now scale with floor level.
+ - Warrior abilities now unlock sequentially on the skill tree and bind to Q instead of using modifier keys.
 
 ### Fixed
 - Melee attacks now track the mouse and register hits within a 35° cone (2-tile reach by default).
