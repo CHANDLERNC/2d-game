@@ -8,6 +8,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) with
 - Warrior and Mage player classes with unique stat bonuses.
 - Player magic system with three ability trees and Q-bound spells.
 - Additional spells added to each magic tree.
+- Warrior skill tree with 12 abilities and escalating point costs.
 - Random weapon name generator for unique gear titles.
 - Weapon damage-over-time affix that can ignite foes.
 - Melee weapon classes now inflict bleed damage over time.
