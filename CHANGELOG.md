@@ -20,6 +20,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) with
 - Reduced monster density on early floors.
 - Increased XP reward per monster by 25%.
 - Reduced wizard spawn chance on lower floors.
+- Increased potion drop rate to 40% (from 25%).
 
 ## 2025-08-26
 ### Added

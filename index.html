@@ -1493,7 +1493,7 @@ function toggleInv(){ let panel=document.getElementById('inventory'); if(!panel)
 
 // ===== Loot helpers =====
 function dropLoot(x,y){
-  if(rng.next()<0.25){
+  if(rng.next()<0.4){
     lootMap.set(`${x},${y}`, makeRandomPotion());
     return;
   }
