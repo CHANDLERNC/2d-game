@@ -5,6 +5,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) with
 
 ## [Unreleased]
 ### Added
+- Project license clarifying sole ownership.
 - Warrior and Mage player classes with unique stat bonuses.
 - Player magic system with three ability trees and Q-bound spells.
 - Additional spells added to each magic tree.
@@ -20,6 +21,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) with
 - Distinct loot icons per item class with glow effect for rare+ drops.
 
 ### Changed
+- Recombined CSS and JavaScript into `index.html` to maintain a single-file distribution.
 - Expanded spell and projectile aiming to support more precise directions.
 - Increased player starting health by 50 points.
 - Reduced base health of all monster types.

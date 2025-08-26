@@ -1,6 +1,6 @@
 # 2D Dungeon Game
 
-An offline single-file HTML5 dungeon crawler with inline sprites, now featuring class selection, a warrior skill tree, consumable potions and legendary gear.
+An offline HTML5 dungeon crawler with inline sprites, now featuring class selection, a warrior skill tree, consumable potions and legendary gear.
 
 ## Play the Game
 Open `index.html` in your browser.  
@@ -23,7 +23,7 @@ Then visit [http://localhost:8000](http://localhost:8000).
 - **Click monsters** – Attack
 
 ## Development Notes
-- The project is contained in a single HTML file (`index.html`) with inline JavaScript and no build step.
+- All game logic, styling, and assets live inline within `index.html` to keep the project self-contained.
 - Constants such as tile sizes and game balance are defined near the top of the script for quick tweaking.
 
 ## Contributing
@@ -33,3 +33,7 @@ Then visit [http://localhost:8000](http://localhost:8000).
 4. Submit a pull request describing your changes.
 
 Contributions should remain self-contained and avoid external dependencies.
+
+
+## License
+This project is proprietary and solely owned by the project owner. Use, reproduction, or distribution requires explicit permission.
