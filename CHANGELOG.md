@@ -21,6 +21,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) with
 - Legendary rarity added for gear and weapon drops.
 - Distinct loot icons per item class with glow effect for rare+ drops.
 - Uncommon rarity tier and revamped color scheme; rarer weapons gain stronger stats and glow from Rare upward.
+- Torches now cast light, revealing nearby tiles for increased visibility.
 
 ### Changed
 - Recombined CSS and JavaScript into `index.html` to maintain a single-file distribution.
