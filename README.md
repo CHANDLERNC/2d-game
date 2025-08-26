@@ -1,6 +1,6 @@
 # 2D Dungeon Game
 
-An offline single-file HTML5 dungeon crawler with inline sprites, now featuring consumable potions and legendary gear.
+An offline single-file HTML5 dungeon crawler with inline sprites, now featuring consumable potions, legendary gear, and class-based heroes.
 
 ## Play the Game
 Open `index.html` in your browser.  
@@ -18,6 +18,10 @@ Then visit [http://localhost:8000](http://localhost:8000).
 - **E** – Use stairs or the merchant
 - **1/2/3** – Quick-use potion from potion bag slot 1–3
 - **Click monsters** – Attack
+
+## Classes
+- **Warrior** – high health and attack, low mana
+- **Mage** – high mana and spell damage
 
 ## Development Notes
 - The project is contained in a single HTML file (`index.html`) with inline JavaScript and no build step.
