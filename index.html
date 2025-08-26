@@ -138,6 +138,8 @@
 let VIEW_W=window.innerWidth, VIEW_H=window.innerHeight;
 const TILE=32, MAP_W=48, MAP_H=48; const MONSTER_COUNT=24; const FOV_RADIUS=8; const LOOT_CHANCE=0.18;
 const MONSTER_LOOT_CHANCE=0.3; const AGGRO_RANGE=6;
+// Higher values slow all enemy actions (movement frequency and speed)
+const ENEMY_SPEED_MULT = 1.5;
 let canvas=document.getElementById('gameCanvas'); let ctx=canvas.getContext('2d');
 function resizeCanvas(){ canvas.width = VIEW_W = window.innerWidth; canvas.height = VIEW_H = window.innerHeight; }
 window.addEventListener('resize', resizeCanvas); resizeCanvas();
@@ -410,8 +412,8 @@ function spawnMonster(type,x,y){
     dmgMin: scaleStat(a.dmg[0], SCALE.DMG_PER_FLOOR),
     dmgMax: scaleStat(a.dmg[1], SCALE.DMG_PER_FLOOR),
     atkCD: rng.int(10, a.atkCD), // frames
-    moveCD: rng.int(a.moveCD[0], a.moveCD[1]),
-    state: {}, hitFlash:0, moving:false, moveT:1, moveDur:140, fromX:x, fromY:y, toX:x, toY:y, effects:[]
+    moveCD: Math.round(rng.int(a.moveCD[0], a.moveCD[1]) * ENEMY_SPEED_MULT),
+    state: {}, hitFlash:0, moving:false, moveT:1, moveDur: Math.round(140 * ENEMY_SPEED_MULT), fromX:x, fromY:y, toX:x, toY:y, effects:[]
   };
   m.hp = m.hpMax;
   return m;
@@ -878,6 +880,7 @@ function tryMoveMonster(m, dx, dy, dur=140){
   const nx=m.x+dx, ny=m.y+dy;
   if(!walkable(nx,ny)) return false;
   m.x=nx; m.y=ny;
+  dur = Math.round(dur * ENEMY_SPEED_MULT);
   if(smoothEnabled){ m.fromX=m.rx; m.fromY=m.ry; m.toX=nx; m.toY=ny; m.moveT=0; m.moving=true; m.moveDur=dur; }
   else{ m.rx=m.x; m.ry=m.y; m.moving=false; m.moveT=1; }
   return true;
@@ -920,7 +923,7 @@ function monsterAI(m, dt){
         const stepX = tryMoveMonster(m, dx, 0, 150);
         if(!stepX) tryMoveMonster(m, 0, dy, 150);
       }
-      m.moveCD = rng.int(6, 10);
+      m.moveCD = Math.round(rng.int(6, 10) * ENEMY_SPEED_MULT);
     }
   } else if(m.type===1){ // Bat — fast diagonal swoop
     if(m.state.swoop>0){
@@ -935,7 +938,7 @@ function monsterAI(m, dt){
       if(m.state.sdx===0 && m.state.sdy===0){ m.state.sdx = (rng.next()<0.5?1:-1); }
       m.state.swoop = 2;
       m.atkCD = 18;
-      m.moveCD = 2;
+      m.moveCD = Math.round(2 * ENEMY_SPEED_MULT);
       return;
     }
     if(m.moveCD===0){
@@ -943,7 +946,7 @@ function monsterAI(m, dt){
       if(!tryMoveMonster(m, dx, dy, 110)){
         if(!tryMoveMonster(m, dx, 0, 110)) tryMoveMonster(m, 0, dy, 110);
       }
-      m.moveCD = rng.int(4, 8);
+      m.moveCD = Math.round(rng.int(4, 8) * ENEMY_SPEED_MULT);
     }
   } else if(m.type===2) { // Skeleton — ranged: shoot if LoS, otherwise shuffle toward
     if(manhattan<=7 && clearPathCardinal(m.x,m.y,player.x,player.y) && m.atkCD===0){
@@ -956,7 +959,7 @@ function monsterAI(m, dt){
     if(m.moveCD===0){
       // slow shuffle
       if(!tryMoveMonster(m, dx, 0, 160)) tryMoveMonster(m, 0, dy, 160);
-      m.moveCD = rng.int(6, 10);
+      m.moveCD = Math.round(rng.int(6, 10) * ENEMY_SPEED_MULT);
     }
   } else { // Mage — caster: maintain distance, shoot magic bolts with 8-dir LoS
     const preferRange = 5; // keep around 4-6 tiles away
@@ -978,7 +981,7 @@ function monsterAI(m, dt){
       }else{
         if(!tryMoveMonster(m, dx, 0, 150)) tryMoveMonster(m, 0, dy, 150);
       }
-      m.moveCD = rng.int(6, 10);
+      m.moveCD = Math.round(rng.int(6, 10) * ENEMY_SPEED_MULT);
     }
   }
 }
