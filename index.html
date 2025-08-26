@@ -190,6 +190,7 @@ const FOV_RADIUS=8; const LOOT_CHANCE=0.18;
 const MONSTER_LOOT_CHANCE=0.3; const AGGRO_RANGE=6;
 const TORCH_CHANCE=0.06;
 const TORCH_LIGHT_RADIUS=4;
+const FOV_RAYS=360;
 function monsterCountForFloor(floor){
   const dec=(floor-1)*MONSTER_COUNT_DECAY;
   let count = MONSTER_BASE_COUNT - dec;
@@ -730,32 +731,35 @@ function buildLayers(){
 }
 
 // ===== FOV =====
-function isBlock(x,y){ if(x<0||y<0||x>=MAP_W||y>=MAP_H) return true; return map[y*MAP_W+x]===T_WALL || map[y*MAP_W+x]===T_EMPTY; }
-function recomputeFOV(){
-  vis.fill(0);
-  const rays=360;
-  for(let a=0;a<rays;a++){
-    const ang=a*Math.PI*2/rays; let x=player.x+0.5, y=player.y+0.5;
-    for(let r=0;r<FOV_RADIUS*2;r++){
-      const ix=x|0, iy=y|0; if(ix<0||iy<0||ix>=MAP_W||iy>=MAP_H) break;
-      const idx=iy*MAP_W+ix; vis[idx]=1; fog[idx]=Math.max(fog[idx],1);
-      if(isBlock(ix,iy) && !(ix===player.x && iy===player.y)) break;
+function isBlock(x,y){
+  if(x<0||y<0||x>=MAP_W||y>=MAP_H) return true;
+  return map[y*MAP_W+x]===T_WALL || map[y*MAP_W+x]===T_EMPTY;
+}
+
+function castLightFrom(sx, sy, radius){
+  for(let a=0; a<FOV_RAYS; a++){
+    const ang = a*Math.PI*2/FOV_RAYS;
+    let x=sx+0.5, y=sy+0.5;
+    for(let r=0; r<radius*2; r++){
+      const ix=x|0, iy=y|0;
+      if(ix<0||iy<0||ix>=MAP_W||iy>=MAP_H) break;
+      const idx=iy*MAP_W+ix;
+      vis[idx]=1; fog[idx]=Math.max(fog[idx],1);
+      if(isBlock(ix,iy) && !(ix===sx && iy===sy)) break;
       x+=Math.cos(ang)*0.5; y+=Math.sin(ang)*0.5;
     }
   }
+}
 
-  // Extend visibility around lit torches
+function recomputeFOV(){
+  vis.fill(0);
+  castLightFrom(player.x, player.y, FOV_RADIUS);
   for(const t of torches){
-    if(!vis[t.y*MAP_W + t.x]) continue;
-    for(let a=0;a<rays;a++){
-      const ang=a*Math.PI*2/rays; let x=t.x+0.5, y=t.y+0.5;
-      for(let r=0;r<TORCH_LIGHT_RADIUS*2;r++){
-        const ix=x|0, iy=y|0; if(ix<0||iy<0||ix>=MAP_W||iy>=MAP_H) break;
-        const idx=iy*MAP_W+ix; vis[idx]=1; fog[idx]=Math.max(fog[idx],1);
-        if(isBlock(ix,iy) && !(ix===t.x && iy===t.y)) break;
-        x+=Math.cos(ang)*0.5; y+=Math.sin(ang)*0.5;
-      }
-    }
+    const dx = t.x - player.x;
+    const dy = t.y - player.y;
+    const maxDist = FOV_RADIUS + TORCH_LIGHT_RADIUS;
+    if(dx*dx + dy*dy > maxDist*maxDist) continue;
+    castLightFrom(t.x, t.y, TORCH_LIGHT_RADIUS);
   }
 }
 
