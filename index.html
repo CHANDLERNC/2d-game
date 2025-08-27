@@ -382,15 +382,31 @@ function genSprites(){
     px(g,18,40,4,8,'#8c6239'); px(g,26,40,4,8,'#8c6239');
     outline(g,S);
   });
-  SPRITES.dragon = makeSprite(48,(g,S)=>{
-    // wings
-    px(g,4,16,16,8,'#b33'); px(g,28,16,16,8,'#b33');
-    // body
-    px(g,12,24,24,16,'#a22');
-    // head
-    px(g,32,12,12,12,'#a22');
-    outline(g,S);
-  });
+  // Dragon boss: load idle animation sheet and slice into frames
+  {
+    const blank = document.createElement('canvas');
+    blank.width = blank.height = 48;
+    SPRITES.dragon = { cv: blank, frames: [] };
+    const img = new Image();
+    img.src = 'dragon_idle.png';
+    img.onload = () => {
+      const fw = img.width / 2;
+      const fh = img.height / 2;
+      for (let row = 0; row < 2; row++) {
+        for (let col = 0; col < 2; col++) {
+          const c = document.createElement('canvas');
+          c.width = c.height = 48;
+          const g = c.getContext('2d');
+          g.imageSmoothingEnabled = false;
+          g.drawImage(img, col * fw, row * fh, fw, fh, 0, 0, 48, 48);
+          SPRITES.dragon.frames.push(c);
+        }
+      }
+      if (SPRITES.dragon.frames.length) {
+        SPRITES.dragon.cv = SPRITES.dragon.frames[0];
+      }
+    };
+  }
   SPRITES.snake = makeSprite(48,(g,S)=>{
     // body
     px(g,8,28,32,8,'#3a8');
@@ -1739,7 +1755,13 @@ function draw(dt){
     const size = m.spriteSize || 24;
     const mx = mtx*TILE - camX + (TILE-size)/2; const my = mty*TILE - camY + (TILE-size)/2;
     const key = m.spriteKey || (m.type===0?'slime' : m.type===1?'bat' : m.type===2?'skeleton' : 'mage');
-    ctx.drawImage(SPRITES[key].cv, mx, my);
+    const spr = SPRITES[key];
+    let frame = spr.cv;
+    if(spr.frames && spr.frames.length>0){
+      const animIdx = Math.floor(now/200) % spr.frames.length;
+      frame = spr.frames[animIdx];
+    }
+    ctx.drawImage(frame, mx, my);
     if(m.hitFlash>0){ ctx.globalAlpha=0.5; ctx.fillStyle='#ff6666'; ctx.fillRect(mx,my,size,size); ctx.globalAlpha=1; }
     // hp bar
     ctx.fillStyle='#111'; ctx.fillRect(mx, my-6, size, 3);
