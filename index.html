@@ -533,45 +533,87 @@ function genSprites(){
   }
   SPRITES.ghost = makeGhostAnim();
 
-  // Boss variants 48x48
-  function makeBossAnim(body, head) {
-    const frames = [];
-    const bob = [0,1,0,-1];
-    for (let i = 0; i < 4; i++) {
-      const c = document.createElement("canvas");
-      c.width = c.height = 48;
-      const g = c.getContext("2d");
-      g.imageSmoothingEnabled = false;
-      const oy = bob[i];
-      px(g,8,20+oy,32,20,body);
-      px(g,14,8+oy,20,16,head);
-      px(g,18,12+oy,4,4,"#000");
-      px(g,26,12+oy,4,4,"#000");
+
+  // Boss variants 48x48 with idle animations
+  // Griffin idle animation 48x48
+  // Inspired by OpenGameArt griffin sprites
+  function makeGriffinAnim(){
+    const frames=[], bob=[0,1,0,-1], wing=[0,-2,0,-2];
+    for(let i=0;i<4;i++){
+      const c=document.createElement('canvas');
+      c.width=c.height=48;
+      const g=c.getContext('2d');
+      g.imageSmoothingEnabled=false;
+      const oy=bob[i], wy=wing[i];
+      const body='#c49a6b', head='#f4e6c4', wingCol='#e0cc91', beak='#d4aa00';
+      px(g,4,8+wy+oy,16,12,wingCol);
+      px(g,28,8+wy+oy,16,12,wingCol);
+      px(g,14,22+oy,20,14,body);
+      px(g,16,14+oy,16,8,head);
+      px(g,14,18+oy,6,4,beak);
+      px(g,22,17+oy,2,2,'#000');
+      px(g,26,17+oy,2,2,'#000');
+      px(g,32,28+oy,8,4,body);
       outline(g,48);
       frames.push(c);
     }
     return { cv: frames[0], frames };
   }
-  SPRITES.griffin = makeBossAnim("#c49a6b","#e0cc91");
+  SPRITES.griffin = makeGriffinAnim();
 
-  const dragonImg = new Image();
-  // Bone dragon sprite with blue flames
-  dragonImg.src = 'data:image/png;base64,' +
-    'iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAABUUlEQVR4nO2XzW3EIBCFIUoJSwW5' +
-    '0MH6kg5ycBHeIlJBmnARPmwHudgdcEkFUwQ5ObFYMAw/3k30PsmyjYB5zDCMLQQAANRCD7Pljnlu' +
-    'IYRLjvAVWVMIl1W47s/CTIswY8fWc7cI6GG2uj8Xz/NUQQsLPczWFe/zfuq2OiwC2+2S0i+VQ3Ig' +
-    'tl3MtNy2JeZD0wjEvO4TzqVJBEqFc06j6hEIia/hbR/NciC3OHFrQbNj1IydzClMXA6txLGoNK3E' +
-    'RPRjXCmVbIiIrFJKbu+v719cnUGSttBWvO+dixk7+fnxctOWM1c0AiGxpYsQ4ld0ydcoO4kvyynX' +
-    'VpCSZI8O3PO0Lxc4keHkUhFEZN2LM3bv7trgamOdJutzjudccaE51n6pNg6rA6kLcPtflpOY3mSw' +
-    '70P8E/vYLrC/Wru3iD9Bf7XFxzYAAAAAAAAAAPCf+AZMNb5fuO3w0AAAAABJRU5ErkJggg==';
-  const dragonCanvas = document.createElement('canvas');
-  dragonCanvas.width = dragonCanvas.height = 48;
-  const dragonCtx = dragonCanvas.getContext('2d');
-  dragonCtx.imageSmoothingEnabled = false;
-  dragonImg.onload = () => {
-    dragonCtx.drawImage(dragonImg, 0, 0, 48, 48);
-  };
-  SPRITES.dragon = { cv: dragonCanvas, frames: [dragonCanvas] };
+  // Dragon idle animation 48x48
+  // Inspired by OpenGameArt dragon sprites
+  function makeDragonAnim(){
+    const frames=[], bob=[0,1,0,-1], wing=[0,-2,0,-2];
+    for(let i=0;i<4;i++){
+      const c=document.createElement('canvas');
+      c.width=c.height=48;
+      const g=c.getContext('2d');
+      g.imageSmoothingEnabled=false;
+      const oy=bob[i], wy=wing[i];
+      const body='#5c8a42', wingCol='#7ba75e', belly='#a2d46f', horn='#ffffb5', flame='#6cf';
+      px(g,2,8+wy+oy,18,12,wingCol);
+      px(g,28,8+wy+oy,18,12,wingCol);
+      px(g,14,22+oy,20,12,body);
+      px(g,14,26+oy,20,6,belly);
+      px(g,18,14+oy,12,8,body);
+      px(g,18,12+oy,2,4,horn);
+      px(g,28,12+oy,2,4,horn);
+      px(g,22,18+oy,2,2,'#000');
+      px(g,8,18+oy+i%2,4,2,flame);
+      px(g,32,26+oy,10,4,body);
+      outline(g,48);
+      frames.push(c);
+    }
+    return { cv: frames[0], frames };
+  }
+  SPRITES.dragon = makeDragonAnim();
+
+  // Snake idle animation 48x48
+  // Inspired by OpenGameArt snake sprite sheets
+  function makeSnakeAnim(){
+    const frames=[], bob=[0,1,0,-1], sway=[0,2,0,-2];
+    for(let i=0;i<4;i++){
+      const c=document.createElement('canvas');
+      c.width=c.height=48;
+      const g=c.getContext('2d');
+      g.imageSmoothingEnabled=false;
+      const oy=bob[i], sx=sway[i];
+      const body='#8a5c8a', belly='#b97ab9', tongue='#f44';
+      px(g,12+sx,28+oy,24,8,body);
+      px(g,8+sx,20+oy,16,8,body);
+      px(g,24+sx,20+oy,16,8,body);
+      px(g,18+sx,14+oy,12,6,body);
+      px(g,18+sx,18+oy,12,4,belly);
+      px(g,20+sx,16+oy,2,2,'#000');
+      px(g,26+sx,16+oy,2,2,'#000');
+      if(i%2===0) px(g,24+sx,20+oy,2,4,tongue);
+      outline(g,48);
+      frames.push(c);
+    }
+    return { cv: frames[0], frames };
+  }
+  SPRITES.snake = makeSnakeAnim();
 
   function makeDragonHatchling() {
     const frames = [];
@@ -604,8 +646,6 @@ function genSprites(){
     return { cv: frames[0], frames };
   }
   SPRITES.dragon_hatchling = makeDragonHatchling();
-
-  SPRITES.snake = makeBossAnim("#8a5c8a","#d98bff");
 
 
   // Stairs (down) 24x24
