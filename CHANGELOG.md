@@ -5,6 +5,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) with
 
 ## [Unreleased]
 ### Added
+- Optional cellular‑automata cave floors with secret rooms and environmental hazards like spike traps and lava.
+- Weighted monster spawning based on player level with elite variants that gain special perks.
 - Project license clarifying sole ownership.
 - Warrior and Mage player classes with unique stat bonuses.
 - Player magic system with three ability trees and Q-bound spells.
@@ -34,9 +36,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) with
 - Fire and poison skeleton variants that inflict burn or poison damage.
 - Passive health regeneration when out of combat.
 - Animated projectile sprites for elemental arrows and magic bolts.
+- Basic package.json with placeholder test script for CI compatibility.
 
 ### Changed
 - Monster spawn counts are now randomized and increase on deeper floors.
+- Enemy AI split into per-type behavior modules for easier extension.
 - Recombined CSS and JavaScript into `index.html` to maintain a single-file distribution.
 - Expanded spell and projectile aiming to support more precise directions.
 - Increased player starting health by 50 points.
