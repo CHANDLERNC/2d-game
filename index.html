@@ -1199,22 +1199,10 @@ RNG.prototype.next=function(){ this.s=(this.s*1664525+1013904223)|0; return ((th
 RNG.prototype.int=function(a,b){ return Math.floor(a + (b-a+1)*this.next()); }
 
 // ===== Map / Gen =====
-const T_EMPTY=0, T_FLOOR=1, T_WALL=2;
-function generate(){
-  map=new Array(MAP_W*MAP_H).fill(T_EMPTY);
-  fog=new Array(MAP_W*MAP_H).fill(0);
-  vis=new Array(MAP_W*MAP_H).fill(0);
-  rooms=[]; monsters=[]; projectiles=[]; lootMap.clear(); player.effects = [];
-  torches=[];
-  // vary floor and wall colors slightly each floor
-  const hue = rng.int(0,360);
-  const sat = 8 + rng.int(0,8); // low saturation for subtle tint
-  const baseLight = 35 + rng.int(-5,5);
-  const light = Math.min(100, Math.round(baseLight * 1.1));
-  floorTint = `hsl(${hue}, ${sat}%, ${light}%)`;
-  const wallHue = (hue + rng.int(-20,20) + 360) % 360;
-  const wallLight = Math.max(10, light - 5);
-  wallTint = `hsl(${wallHue}, ${sat}%, ${wallLight}%)`;
+const T_EMPTY=0, T_FLOOR=1, T_WALL=2, T_TRAP=3, T_LAVA=4;
+const TRAP_CHANCE=0.03, LAVA_CHANCE=0.02;
+
+function generateRooms(){
   // rooms
   for(let i=0;i<28;i++){
     const w=rng.int(6,11), h=rng.int(6,11);
@@ -1259,15 +1247,7 @@ function generate(){
       const x=rng.int(r.x+1,r.x+r.w-2), y=rng.int(r.y+1,r.y+r.h-2);
       if((x===player.x && y===player.y) || (x===merchant.x && y===merchant.y)){ tries++; continue; }
       if(monsters.some(m=>Math.abs(m.x-x)+Math.abs(m.y-y)<4)){ tries++; continue; }
-      let t;
-      if(floorNum <= 3){
-        // reduce mage frequency on early floors
-        const baseTypes = [0,1,2,5,6];
-        t = rng.next() < 0.1 ? 3 : baseTypes[rng.int(0, baseTypes.length-1)];
-      } else {
-        t = rng.int(0,6);
-      }
-      // 0=slime, 1=bat, 2=skeleton, 3=mage, 4=dragon hatchling, 5=goblin, 6=ghost
+      const t = pickMonsterType();
       monsters.push(spawnMonster(t,x,y));
       placed=true;
     }
@@ -1328,7 +1308,166 @@ function generate(){
       showBossAlert();
     }
   }
+}
 
+function generateCave(){
+  // random initial map
+  for(let y=0;y<MAP_H;y++){
+    for(let x=0;x<MAP_W;x++){
+      const idx=y*MAP_W+x;
+      if(x===0||y===0||x===MAP_W-1||y===MAP_H-1) map[idx]=T_WALL;
+      else map[idx]=rng.next()<0.45?T_FLOOR:T_WALL;
+    }
+  }
+  // cellular automata smoothing
+  for(let iter=0; iter<4; iter++){
+    const next=map.slice();
+    for(let y=1;y<MAP_H-1;y++){
+      for(let x=1;x<MAP_W-1;x++){
+        let cnt=0;
+        for(let yy=-1;yy<=1;yy++) for(let xx=-1;xx<=1;xx++) if(!(xx===0&&yy===0) && map[(y+yy)*MAP_W+(x+xx)]===T_FLOOR) cnt++;
+        const idx=y*MAP_W+x;
+        if(map[idx]===T_FLOOR) next[idx]=cnt>=4?T_FLOOR:T_WALL;
+        else next[idx]=cnt>=5?T_FLOOR:T_WALL;
+      }
+    }
+    map=next;
+  }
+  // connectivity
+  let startIdx=map.findIndex(t=>t===T_FLOOR);
+  if(startIdx!==-1){
+    const q=[[startIdx%MAP_W, Math.floor(startIdx/MAP_W)]];
+    const seen=new Set([startIdx]);
+    while(q.length){
+      const [x,y]=q.pop();
+      for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){
+        const nx=x+dx, ny=y+dy; if(nx<0||ny<0||nx>=MAP_W||ny>=MAP_H) continue;
+        const i=ny*MAP_W+nx; if(map[i]!==T_FLOOR || seen.has(i)) continue; seen.add(i); q.push([nx,ny]);
+      }
+    }
+    for(let i=0;i<map.length;i++) if(map[i]===T_FLOOR && !seen.has(i)) map[i]=T_WALL;
+  }
+  // secret rooms
+  for(let s=0;s<3;s++){
+    const baseX=rng.int(2,MAP_W-3), baseY=rng.int(2,MAP_H-3);
+    if(map[baseY*MAP_W+baseX]!==T_FLOOR) continue;
+    const dirs=[[1,0],[-1,0],[0,1],[0,-1]];
+    const dir=dirs[rng.int(0,dirs.length-1)];
+    const wx=baseX+dir[0], wy=baseY+dir[1];
+    const rx=wx+dir[0], ry=wy+dir[1];
+    const rw=rng.int(3,5), rh=rng.int(3,5);
+    if(rx<1||ry<1||rx+rw>=MAP_W-1||ry+rh>=MAP_H-1) continue;
+    map[wy*MAP_W+wx]=T_FLOOR;
+    for(let yy=ry; yy<ry+rh; yy++) for(let xx=rx; xx<rx+rw; xx++) map[yy*MAP_W+xx]=T_FLOOR;
+  }
+  // torches
+  for(let y=1;y<MAP_H-1;y++) for(let x=1;x<MAP_W-1;x++){
+    if(map[y*MAP_W+x]!==T_WALL) continue;
+    let adj=false;
+    for(const d of [[1,0],[-1,0],[0,1],[0,-1]]){
+      const nx=x+d[0], ny=y+d[1]; if(map[ny*MAP_W+nx]===T_FLOOR){ adj=true; break; }
+    }
+    if(adj && rng.next()<TORCH_CHANCE){ torches.push({x,y,phase:rng.next()*Math.PI*2}); }
+  }
+  // collect floor tiles
+  const tiles=[];
+  for(let y=1;y<MAP_H-1;y++) for(let x=1;x<MAP_W-1;x++) if(map[y*MAP_W+x]===T_FLOOR) tiles.push({x,y});
+  function pick(){ return tiles[rng.int(0,tiles.length-1)]; }
+  const p=pick(); player.x=p.x; player.y=p.y;
+  let s=pick(); stairs.x=s.x; stairs.y=s.y;
+  let m=pick(); merchant.x=m.x; merchant.y=m.y;
+  while((merchant.x===player.x && merchant.y===player.y) || (merchant.x===stairs.x && merchant.y===stairs.y)){
+    m=pick(); merchant.x=m.x; merchant.y=m.y;
+  }
+  const spawnCount = monsterCountForFloor(floorNum);
+  for(let i=0;i<spawnCount;i++){
+    let placed=false, tries=0;
+    while(!placed && tries<25){
+      const t=pick(); const x=t.x, y=t.y;
+      if((x===player.x && y===player.y) || (x===merchant.x && y===merchant.y) || (x===stairs.x && y===stairs.y)){ tries++; continue; }
+      if(monsters.some(mo=>Math.abs(mo.x-x)+Math.abs(mo.y-y)<4)){ tries++; continue; }
+      const tt = pickMonsterType();
+      monsters.push(spawnMonster(tt,x,y)); placed=true;
+    }
+  }
+  if(floorNum>3 && !monsters.some(m=>m.type===3)){
+    let placed=false, tries=0;
+    while(!placed && tries<25){
+      const t=pick(); const x=t.x, y=t.y;
+      if((x===player.x && y===player.y) || (x===merchant.x && y===merchant.y)){ tries++; continue; }
+      if(monsters.some(mo=>Math.abs(mo.x-x)+Math.abs(mo.y-y)<4)){ tries++; continue; }
+      monsters.push(spawnMonster(3,x,y)); placed=true;
+    }
+  }
+  let strongest=null;
+  for(const m of monsters){ if(!strongest || m.hpMax>strongest.hpMax) strongest=m; }
+  if(strongest){
+    let placed=false, tries=0;
+    while(!placed && tries<50){
+      const t=pick(); const x=t.x, y=t.y;
+      if((x===player.x && y===player.y) || (x===merchant.x && y===merchant.y)){ tries++; continue; }
+      if(monsters.some(mo=>Math.abs(mo.x-x)+Math.abs(mo.y-y)<4)){ tries++; continue; }
+      const mb=spawnMonster(strongest.type,x,y);
+      mb.hpMax = mb.hp = Math.round(strongest.hpMax*1.8);
+      mb.miniBoss=true; mb.spriteKey=randomBossVariant(); mb.spriteSize=48; monsters.push(mb); placed=true;
+    }
+    if(floorNum%5===0){
+      placed=false; tries=0; const hpMult=2.5 + rng.next()*0.5;
+      while(!placed && tries<50){
+        const t=pick(); const x=t.x, y=t.y;
+        if((x===player.x && y===player.y) || (x===merchant.x && y===merchant.y)){ tries++; continue; }
+        if(monsters.some(mo=>Math.abs(mo.x-x)+Math.abs(mo.y-y)<4)){ tries++; continue; }
+        const bb=spawnMonster(strongest.type,x,y);
+        bb.hpMax = bb.hp = Math.round(strongest.hpMax*hpMult);
+        bb.dmgMin = Math.round(bb.dmgMin*2); bb.dmgMax = Math.round(bb.dmgMax*2);
+        bb.bigBoss=true; bb.spriteKey=randomBossVariant(); bb.spriteSize=48; monsters.push(bb); placed=true;
+      }
+      showBossAlert();
+    }
+  }
+}
+
+function placeHazards(){
+  for(let y=1;y<MAP_H-1;y++){
+    for(let x=1;x<MAP_W-1;x++){
+      const idx=y*MAP_W+x;
+      if(map[idx]!==T_FLOOR) continue;
+      if((x===player.x && y===player.y) || (x===stairs.x && y===stairs.y) || (x===merchant.x && y===merchant.y)) continue;
+      if(monsters.some(m=>m.x===x && m.y===y)) continue;
+      const r=rng.next();
+      if(r<LAVA_CHANCE) map[idx]=T_LAVA;
+      else if(r<LAVA_CHANCE+TRAP_CHANCE) map[idx]=T_TRAP;
+    }
+  }
+}
+
+function checkHazard(x,y){
+  const t=map[y*MAP_W+x];
+  if(t===T_TRAP){
+    applyDamageToPlayer(5);
+    addDamageText(x,y,'Trap!','#f55');
+  } else if(t===T_LAVA){
+    applyDamageToPlayer(8,'fire');
+    addDamageText(x,y,'Lava!','#f80');
+  }
+}
+
+function generate(){
+  map=new Array(MAP_W*MAP_H).fill(T_EMPTY);
+  fog=new Array(MAP_W*MAP_H).fill(0);
+  vis=new Array(MAP_W*MAP_H).fill(0);
+  rooms=[]; monsters=[]; projectiles=[]; lootMap.clear(); player.effects = [];
+  torches=[];
+  const hue=rng.int(0,360);
+  const sat=8+rng.int(0,8);
+  const baseLight=35+rng.int(-5,5);
+  const light=Math.min(100,Math.round(baseLight*1.1));
+  floorTint=`hsl(${hue}, ${sat}%, ${light}%)`;
+  const wallHue=(hue + rng.int(-20,20) + 360)%360;
+  const wallLight=Math.max(10, light-5);
+  wallTint=`hsl(${wallHue}, ${sat}%, ${wallLight}%)`;
+  if(rng.next()<0.5) generateCave(); else generateRooms();
+  placeHazards();
   buildLayers();
   recomputeFOV();
   seedRoomLoot();
@@ -1341,6 +1480,28 @@ function generate(){
 // ===== Difficulty scaling & Monster factory =====
 const SCALE = { HP_PER_FLOOR: 6, DMG_PER_FLOOR: 1, HARDNESS_MULT: 0.15, RES_PER_FLOOR: 0.5, RES_MAGIC_PER_FLOOR: 0.3 };
 function scaleStat(base, perFloor){ return Math.max(1, Math.floor(base + perFloor * Math.max(0, floorNum-1))); }
+
+const MONSTER_TYPES=[
+  {type:0, weight:3, unlock:1}, // slime
+  {type:1, weight:2, unlock:1}, // bat
+  {type:2, weight:2, unlock:2}, // skeleton
+  {type:5, weight:2, unlock:3}, // goblin
+  {type:3, weight:1, unlock:4}, // mage
+  {type:6, weight:1, unlock:5}, // ghost
+  {type:4, weight:1, unlock:7}, // dragon hatchling
+];
+function pickMonsterType(){
+  const lvl = player.lvl || 1;
+  const pool = MONSTER_TYPES.filter(t=>floorNum >= t.unlock);
+  const total = pool.reduce((s,t)=>s + t.weight + lvl*0.1*t.weight,0);
+  let r = rng.next()*total;
+  for(const t of pool){
+    const w = t.weight + lvl*0.1*t.weight;
+    if((r-=w)<=0) return t.type;
+  }
+  return pool[0].type;
+}
+
 function spawnMonster(type,x,y){
   // Base stats per archetype
   const archetypes = [
@@ -1404,6 +1565,16 @@ function spawnMonster(type,x,y){
   m.resPoison = elemRes;
   m.resMagic = magicRes;
   if(spriteKey) m.spriteKey = spriteKey;
+  const eliteChance = Math.min(0.05 + floorNum*0.01 + player.lvl*0.005, 0.25);
+  if(rng.next() < eliteChance){
+    m.elite = true;
+    m.hpMax = m.hp = Math.round(m.hpMax * 1.5);
+    m.dmgMin = Math.round(m.dmgMin * 1.2);
+    m.dmgMax = Math.round(m.dmgMax * 1.2);
+    const abilities=['regen','haste'];
+    m.eliteAbility = abilities[rng.int(0, abilities.length-1)];
+  }
+  m.ai = MONSTER_BEHAVIORS[type] || MONSTER_BEHAVIORS.default;
   return m;
 }
 
@@ -1442,7 +1613,7 @@ function buildLayers(){
   const mg=mask.getContext('2d'); mg.fillStyle='#000'; mg.fillRect(0,0,mask.width,mask.height);
   mg.globalCompositeOperation='destination-out';
   mg.fillStyle='#fff';
-  for(let y=0;y<MAP_H;y++) for(let x=0;x<MAP_W;x++) if(map[y*MAP_W+x]===T_FLOOR){ mg.fillRect(x*TILE,y*TILE,TILE,TILE); }
+  for(let y=0;y<MAP_H;y++) for(let x=0;x<MAP_W;x++) if(map[y*MAP_W+x]===T_FLOOR||map[y*MAP_W+x]===T_TRAP||map[y*MAP_W+x]===T_LAVA){ mg.fillRect(x*TILE,y*TILE,TILE,TILE); }
   f.drawImage(mask,0,0);
   f.globalCompositeOperation='multiply';
   f.fillStyle=floorTint;
@@ -1455,6 +1626,27 @@ function buildLayers(){
   w.fillStyle=wallTint;
   w.fillRect(0,0,wallLayer.width,wallLayer.height);
   w.globalCompositeOperation='source-over';
+  // hazards overlay
+  f.lineWidth=2;
+  for(let y=0;y<MAP_H;y++){
+    for(let x=0;x<MAP_W;x++){
+      const t=map[y*MAP_W+x];
+      if(t===T_TRAP){
+        f.fillStyle='#555';
+        f.fillRect(x*TILE,y*TILE,TILE,TILE);
+        f.strokeStyle='#999';
+        f.beginPath();
+        f.moveTo(x*TILE+4,y*TILE+4); f.lineTo(x*TILE+TILE-4,y*TILE+TILE-4);
+        f.moveTo(x*TILE+TILE-4,y*TILE+4); f.lineTo(x*TILE+4,y*TILE+TILE-4);
+        f.stroke();
+      } else if(t===T_LAVA){
+        f.fillStyle='#a00';
+        f.fillRect(x*TILE,y*TILE,TILE,TILE);
+        f.fillStyle='#f80';
+        f.fillRect(x*TILE+2,y*TILE+2,TILE-4,TILE-4);
+      }
+    }
+  }
 }
 
 // ===== FOV =====
@@ -1607,7 +1799,18 @@ function affixMods(slot, rarityIdx, lvl=1){
 }
 
 function seedRoomLoot(){
-  for(const r of rooms){ if(rng.next()<LOOT_CHANCE){ const x=rng.int(r.x+1,r.x+r.w-2), y=rng.int(r.y+1,r.y+r.h-2); lootMap.set(`${x},${y}`,{color:'#ffd24a',type:'gold',amt:rng.int(5,20)}); } }
+  if(rooms.length){
+    for(const r of rooms){
+      if(rng.next()<LOOT_CHANCE){
+        const x=rng.int(r.x+1,r.x+r.w-2), y=rng.int(r.y+1,r.y+r.h-2);
+        lootMap.set(`${x},${y}`,{color:'#ffd24a',type:'gold',amt:rng.int(5,20)});
+      }
+    }
+  } else {
+    for(let y=1;y<MAP_H-1;y++) for(let x=1;x<MAP_W-1;x++) if(map[y*MAP_W+x]===T_FLOOR && rng.next()<LOOT_CHANCE*0.3){
+      lootMap.set(`${x},${y}`,{color:'#ffd24a',type:'gold',amt:rng.int(5,20)});
+    }
+  }
 }
 
 function pickupHere(){
@@ -2224,20 +2427,8 @@ function meleeIfAdjacent(m){
   return true;
 }
 
-function monsterAI(m, dt){
-  // Cooldowns tick in frames scaled by dt
-  m.atkCD = Math.max(0, m.atkCD - 1);
-  m.moveCD = Math.max(0, m.moveCD - 1);
-  m.aggroT = Math.max(0, (m.aggroT || 0) - dt);
-
-  // Shared: if adjacent, attempt melee
-  if(meleeIfAdjacent(m)) return;
-
-  const dx = sign(player.x - m.x), dy = sign(player.y - m.y);
-  const manhattan = Math.abs(player.x-m.x)+Math.abs(player.y-m.y);
-  if(manhattan>AGGRO_RANGE && (m.aggroT||0)<=0) return;
-
-  if(m.type===0){ // Slime — slow chase, occasional 2-tile charge
+const MONSTER_BEHAVIORS={
+  0(m,dt,dx,dy,manhattan){ // Slime — slow chase, occasional charge
     if(m.spriteKey==='slime_shadow'){
       if(m.atkCD===0 && manhattan<=6){
         const spots=[];
@@ -2272,43 +2463,39 @@ function monsterAI(m, dt){
       return;
     }
     if(m.moveCD===0){
-      // 30% chance to start a short charge when near
       if(manhattan<=3 && m.atkCD===0 && rng.next()<0.3){
         m.state.cdx = dx; m.state.cdy = dy; m.state.chargeSteps = 2;
-        m.atkCD = 12; // short windup
+        m.atkCD = 12;
       }else{
-        // Greedy step toward player, prefer axis with larger distance
         const stepX = tryMoveMonster(m, dx, 0, 150);
         if(!stepX) tryMoveMonster(m, 0, dy, 150);
       }
       m.moveCD = Math.round(rng.int(6, 10) * ENEMY_SPEED_MULT);
     }
-  } else if(m.type===1){ // Bat — fast diagonal swoop
+  },
+  1(m,dt,dx,dy,manhattan){ // Bat — fast diagonal swoop
     if(m.state.swoop>0){
-      // continue swoop; if hits wall, cancel
       const ok = tryMoveMonster(m, m.state.sdx, m.state.sdy, 90);
       m.state.swoop = ok ? m.state.swoop-1 : 0;
       return;
     }
     if(manhattan<=6 && m.atkCD===0 && m.moveCD===0){
-      // start a 2-step swoop (diagonal favored)
       m.state.sdx = dx!==0?dx:0; m.state.sdy = dy!==0?dy:0;
-      if(m.state.sdx===0 && m.state.sdy===0){ m.state.sdx = (rng.next()<0.5?1:-1); }
+      if(m.state.sdx===0 && m.state.sdy===0) m.state.sdx = (rng.next()<0.5?1:-1);
       m.state.swoop = 2;
       m.atkCD = 18;
       m.moveCD = Math.round(2 * ENEMY_SPEED_MULT);
       return;
     }
     if(m.moveCD===0){
-      // wander toward player quickly
       if(!tryMoveMonster(m, dx, dy, 110)){
         if(!tryMoveMonster(m, dx, 0, 110)) tryMoveMonster(m, 0, dy, 110);
       }
       m.moveCD = Math.round(rng.int(4, 8) * ENEMY_SPEED_MULT);
     }
-  } else if(m.type===2) { // Skeleton — ranged: shoot if LoS, otherwise shuffle toward
+  },
+  2(m,dt,dx,dy,manhattan){ // Skeleton — ranged
     if(manhattan<=7 && clearPathCardinal(m.x,m.y,player.x,player.y) && m.atkCD===0){
-      // elemental arrows based on variant
       const adx = sign(player.x - m.x), ady = sign(player.y - m.y);
       let elem='ranged', status=null;
       if(m.spriteKey==='skeleton_red'){ elem='fire'; status={k:'burn',  dur:2200, power:1.0, chance:0.9}; }
@@ -2318,35 +2505,35 @@ function monsterAI(m, dt){
       return;
     }
     if(m.moveCD===0){
-      // slow shuffle
       if(!tryMoveMonster(m, dx, 0, 160)) tryMoveMonster(m, 0, dy, 160);
       m.moveCD = Math.round(rng.int(6, 10) * ENEMY_SPEED_MULT);
     }
-  } else if(m.type===5){ // Goblin — quick melee pursuer
+  },
+  5(m,dt,dx,dy,manhattan){ // Goblin — quick melee pursuer
     if(m.moveCD===0){
       if(!tryMoveMonster(m, dx, 0, 120)) tryMoveMonster(m, 0, dy, 120);
       m.moveCD = Math.round(rng.int(4, 8) * ENEMY_SPEED_MULT);
     }
-  } else if(m.type===6){ // Ghost — slow drifting threat
+  },
+  6(m,dt,dx,dy,manhattan){ // Ghost — slow drifting threat
     if(m.moveCD===0){
       if(!tryMoveMonster(m, dx, 0, 140)) tryMoveMonster(m, 0, dy, 140);
       m.moveCD = Math.round(rng.int(6, 12) * ENEMY_SPEED_MULT);
     }
-  } else { // Mage — caster: maintain distance, shoot magic bolts with 8-dir LoS
-    const preferRange = 5; // keep around 4-6 tiles away
+  },
+  default(m,dt,dx,dy,manhattan){ // Mage — caster with 8-dir LoS
+    const preferRange = 5;
     if(manhattan<=8 && clearPath8(m.x,m.y,player.x,player.y) && m.atkCD===0){
       const adx = sign(player.x - m.x), ady = sign(player.y - m.y);
-      // roll elemental flavor
       const roll = rng.next(); let elem='magic', status=null, speed=10, maxDist=10;
-      if(roll<0.34){ elem='fire';  status={k:'burn',  dur:2200, power:1.0, chance:0.9}; }
-      else if(roll<0.67){ elem='ice';   status={k:'freeze',dur:1800, power:0.40, chance:0.9}; }
+      if(roll<0.34){ elem='fire'; status={k:'burn',  dur:2200, power:1.0, chance:0.9}; }
+      else if(roll<0.67){ elem='ice'; status={k:'freeze',dur:1800, power:0.40, chance:0.9}; }
       else { elem='shock'; status={k:'shock', dur:2000, power:0.25, chance:0.9}; }
       projectiles.push({ x:m.x+0.5, y:m.y+0.5, dx:adx, dy:ady, speed, damage:rng.int(m.dmgMin,m.dmgMax+2), type:'magic', elem, owner:'enemy', alive:true, maxDist, dist:0, status });
       m.atkCD = rng.int(24, 34);
       return;
     }
     if(m.moveCD===0){
-      // too close -> step away; too far/blocked -> step toward
       if(manhattan<=preferRange-1){
         if(!tryMoveMonster(m, -dx, 0, 150)) tryMoveMonster(m, 0, -dy, 150);
       }else{
@@ -2355,6 +2542,24 @@ function monsterAI(m, dt){
       m.moveCD = Math.round(rng.int(6, 10) * ENEMY_SPEED_MULT);
     }
   }
+};
+
+function monsterAI(m, dt){
+  m.atkCD = Math.max(0, m.atkCD - 1);
+  m.moveCD = Math.max(0, m.moveCD - 1);
+  m.aggroT = Math.max(0, (m.aggroT || 0) - dt);
+  if(m.elite && m.eliteAbility==='regen' && m.hp<m.hpMax){
+    m.hp = Math.min(m.hpMax, m.hp + 0.02*dt);
+  }
+  if(m.elite && m.eliteAbility==='haste'){
+    m.moveCD = Math.max(0, m.moveCD - 1);
+  }
+  if(meleeIfAdjacent(m)) return;
+  const dx = sign(player.x - m.x), dy = sign(player.y - m.y);
+  const manhattan = Math.abs(player.x-m.x)+Math.abs(player.y-m.y);
+  if(manhattan>AGGRO_RANGE && (m.aggroT||0)<=0) return;
+  const fn = m.ai || MONSTER_BEHAVIORS.default;
+  fn(m, dt, dx, dy, manhattan);
 }
 
 // ===== Drawing =====
@@ -2506,6 +2711,7 @@ function draw(dt){
       frame = spr.frames[animIdx];
     }
     ctx.drawImage(frame, mx, my);
+    if(m.elite){ ctx.strokeStyle='#ffd700'; ctx.lineWidth=2; ctx.strokeRect(mx-1,my-1,size+2,size+2); }
     if(m.hitFlash>0){ ctx.globalAlpha=0.5; ctx.fillStyle='#ff6666'; ctx.fillRect(mx,my,size,size); ctx.globalAlpha=1; }
     // hp bar
     ctx.fillStyle='#111'; ctx.fillRect(mx, my-6, size, 3);
@@ -2635,7 +2841,7 @@ function update(dt){
       if(canMoveFrom(player.x, player.y, dx, dy)){
         const nx=player.x+dx, ny=player.y+dy;
         if(!firstMonsterAt(nx,ny)){
-          player.x=nx; player.y=ny; pickupHere(); recomputeFOV();
+          player.x=nx; player.y=ny; pickupHere(); recomputeFOV(); checkHazard(player.x,player.y);
           const diag = (dx!==0 && dy!==0) ? Math.SQRT2 : 1;
           const gearFactor = (1 - Math.min(0.5, player.speedPct/100));
           const freezeMul = speedMultFromEffects(player);
