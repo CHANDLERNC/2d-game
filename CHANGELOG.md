@@ -5,6 +5,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) with
 
 ## [Unreleased]
 ### Added
+- Optional cellular‑automata cave floors with secret rooms and environmental hazards like spike traps and lava.
 - Project license clarifying sole ownership.
 - Warrior and Mage player classes with unique stat bonuses.
 - Player magic system with three ability trees and Q-bound spells.
