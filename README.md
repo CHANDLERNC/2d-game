@@ -2,6 +2,8 @@
 
 An offline HTML5 dungeon crawler with inline sprites, now featuring class selection, a warrior skill tree, consumable potions and legendary gear.
 
+Recent updates add varied combat sound effects and multiple music tracks that rotate every floor.
+
 ## Play the Game
 Open `index.html` in your browser.  
 For full functionality, serve the directory with a local server:
