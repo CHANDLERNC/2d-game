@@ -729,6 +729,19 @@ function generate(){
     }
   }
 
+  // ensure at least one mage spawns on higher floors
+  if(floorNum > 3 && !monsters.some(m=>m.type===3)){
+    let placed=false, tries=0;
+    while(!placed && tries<25){
+      const r=rooms[rng.int(0,rooms.length-1)];
+      const x=rng.int(r.x+1,r.x+r.w-2), y=rng.int(r.y+1,r.y+r.h-2);
+      if((x===player.x && y===player.y) || (x===merchant.x && y===merchant.y)){ tries++; continue; }
+      if(monsters.some(m=>Math.abs(m.x-x)+Math.abs(m.y-y)<4)){ tries++; continue; }
+      monsters.push(spawnMonster(3,x,y));
+      placed=true;
+    }
+  }
+
   // determine strongest monster to scale bosses from
   let strongest = null;
   for(const m of monsters){ if(!strongest || m.hpMax > strongest.hpMax) strongest = m; }
