@@ -419,12 +419,15 @@ function genSprites(){
   SPRITES.griffin = makeBossAnim("#c49a6b","#e0cc91");
 
   const dragonImg = new Image();
+  // Bone dragon sprite with blue flames
   dragonImg.src = 'data:image/png;base64,' +
-    'iVBORw0KGgoAAAANSUhEUgAAAwcAAANbCAYAAAAXFOPDAAABamlDQ1BJQ0MgUHJvZmlsZQAAeJx1kL1Lw1AUxU+rUtA6iA4dHDKJ' +
-    'Q9TSCnZxaCsURTBUBatTmn4JbXwkKVJxE1cp+B9YwVlwsIhUcHFwEEQHEd2cOim4aHjel1TaIt7H5f04nHO5XMAbUBkr9gIo6ZaR' +
-    'TMSktdS65HuDh55TqmayqKIsCv79u+vz0fXeT4hZTbt2ENlPXJfOLpd2ngJTf/1d1Z/Jmhr939RBjRkW4JGJlW2LCd4lHjFoKeKq' +
-    '4LzLx4LTLp87npVknPiWWNIKaoa4SSynO/R8B5eKZa21g9jen9VXl8Uc6lHMYRMmGIpQUYEEBeF//NOOP44tcldgUC6PAizKREkR' +
-    'E7LE89ChYRIycQhB6pC4c+t+D637yW1t7xWYbXDOL9raQgM4naGT1dvaeAQYGgBu6kw1VEfqofbmcsD7CTCYAobvKLNh5sIhd3t/';
+    'iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAABUUlEQVR4nO2XzW3EIBCFIUoJSwW5' +
+    '0MH6kg5ycBHeIlJBmnARPmwHudgdcEkFUwQ5ObFYMAw/3k30PsmyjYB5zDCMLQQAANRCD7Pljnlu' +
+    'IYRLjvAVWVMIl1W47s/CTIswY8fWc7cI6GG2uj8Xz/NUQQsLPczWFe/zfuq2OiwC2+2S0i+VQ3Ig' +
+    'tl3MtNy2JeZD0wjEvO4TzqVJBEqFc06j6hEIia/hbR/NciC3OHFrQbNj1IydzClMXA6txLGoNK3E' +
+    'RPRjXCmVbIiIrFJKbu+v719cnUGSttBWvO+dixk7+fnxctOWM1c0AiGxpYsQ4ld0ydcoO4kvyynX' +
+    'VpCSZI8O3PO0Lxc4keHkUhFEZN2LM3bv7trgamOdJutzjudccaE51n6pNg6rA6kLcPtflpOY3mSw' +
+    '70P8E/vYLrC/Wru3iD9Bf7XFxzYAAAAAAAAAAPCf+AZMNb5fuO3w0AAAAABJRU5ErkJggg==';
   const dragonCanvas = document.createElement('canvas');
   dragonCanvas.width = dragonCanvas.height = 48;
   const dragonCtx = dragonCanvas.getContext('2d');
