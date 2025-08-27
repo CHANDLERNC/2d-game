@@ -201,6 +201,8 @@ const SCORE_PER_SECOND = 1;
 const SCORE_PER_KILL = 10;
 const SCORE_PER_FLOOR_CLEAR = 100;
 const SCORE_PER_FLOOR_REACHED = 50;
+const BOSS_VARIANTS=['griffin','dragon','snake'];
+function randomBossVariant(){ return BOSS_VARIANTS[rng.int(0,BOSS_VARIANTS.length-1)]; }
 function monsterCountForFloor(floor){
   const dec=(floor-1)*MONSTER_COUNT_DECAY;
   let count = MONSTER_BASE_COUNT - dec;
@@ -330,6 +332,37 @@ function genSprites(){
     px(g,8,2,8,4,'#e6c9a6'); px(g,9,3,2,2,'#000'); px(g,13,3,2,2,'#000');
     // staff/glow
     px(g,3,6,2,14,'#7a5cff'); px(g,2,6,4,2,'#b84aff');
+    outline(g,S);
+  });
+
+  // Boss variants 48x48
+  SPRITES.griffin = makeSprite(48,(g,S)=>{
+    // wings
+    px(g,6,18,36,12,'#b88f4a');
+    // body
+    px(g,16,24,16,16,'#c8a14a');
+    // head
+    px(g,20,12,8,8,'#e0c272');
+    // legs
+    px(g,18,40,4,8,'#8c6239'); px(g,26,40,4,8,'#8c6239');
+    outline(g,S);
+  });
+  SPRITES.dragon = makeSprite(48,(g,S)=>{
+    // wings
+    px(g,4,16,16,8,'#b33'); px(g,28,16,16,8,'#b33');
+    // body
+    px(g,12,24,24,16,'#a22');
+    // head
+    px(g,32,12,12,12,'#a22');
+    outline(g,S);
+  });
+  SPRITES.snake = makeSprite(48,(g,S)=>{
+    // body
+    px(g,8,28,32,8,'#3a8');
+    // neck
+    px(g,20,16,8,12,'#3a8');
+    // head
+    px(g,16,12,16,8,'#3a8');
     outline(g,S);
   });
 
@@ -631,6 +664,8 @@ function generate(){
       const mb=spawnMonster(strongest.type,x,y);
       mb.hpMax = mb.hp = Math.round(strongest.hpMax * 1.8);
       mb.miniBoss = true;
+      mb.spriteKey = randomBossVariant();
+      mb.spriteSize = 48;
       monsters.push(mb);
       placed=true;
     }
@@ -649,6 +684,8 @@ function generate(){
         bb.dmgMin = Math.round(bb.dmgMin * 2);
         bb.dmgMax = Math.round(bb.dmgMax * 2);
         bb.bigBoss = true;
+        bb.spriteKey = randomBossVariant();
+        bb.spriteSize = 48;
         monsters.push(bb);
         placed=true;
       }
@@ -1642,15 +1679,16 @@ function draw(dt){
     if(!vis[m.y*MAP_W+m.x]) continue;
     const mtx = (m.rx!==undefined ? m.rx : m.x);
     const mty = (m.ry!==undefined ? m.ry : m.y);
-    const mx = mtx*TILE - camX + (TILE-24)/2; const my = mty*TILE - camY + (TILE-24)/2;
-    const key = m.type===0?'slime' : m.type===1?'bat' : m.type===2?'skeleton' : 'mage';
+    const size = m.spriteSize || 24;
+    const mx = mtx*TILE - camX + (TILE-size)/2; const my = mty*TILE - camY + (TILE-size)/2;
+    const key = m.spriteKey || (m.type===0?'slime' : m.type===1?'bat' : m.type===2?'skeleton' : 'mage');
     ctx.drawImage(SPRITES[key].cv, mx, my);
-    if(m.hitFlash>0){ ctx.globalAlpha=0.5; ctx.fillStyle='#ff6666'; ctx.fillRect(mx,my,24,24); ctx.globalAlpha=1; }
+    if(m.hitFlash>0){ ctx.globalAlpha=0.5; ctx.fillStyle='#ff6666'; ctx.fillRect(mx,my,size,size); ctx.globalAlpha=1; }
     // hp bar
-    ctx.fillStyle='#111'; ctx.fillRect(mx, my-6, 24, 3);
-    ctx.fillStyle='#e33'; const hw=24*(Math.max(0,m.hp)/m.hpMax); ctx.fillRect(mx, my-6, hw, 3);
+    ctx.fillStyle='#111'; ctx.fillRect(mx, my-6, size, 3);
+    ctx.fillStyle='#e33'; const hw=size*(Math.max(0,m.hp)/m.hpMax); ctx.fillRect(mx, my-6, hw, 3);
     // status pips over bar
-    drawStatusPips(ctx, m, mx+12, my-9);
+    drawStatusPips(ctx, m, mx+size/2, my-9);
     if(m.hitFlash>0) m.hitFlash--;
     if(m.hp<=0){
       player.kills++; player.score += SCORE_PER_KILL; updateScoreUI();

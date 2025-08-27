@@ -23,6 +23,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) with
 - Uncommon rarity tier and revamped color scheme; rarer weapons gain stronger stats and glow from Rare upward.
 - Torches now cast light, revealing nearby tiles for increased visibility.
 - Subtle floor and wall color variations between floors for greater variety.
+- Griffin, dragon, and snake boss variants.
 
 ### Changed
 - Recombined CSS and JavaScript into `index.html` to maintain a single-file distribution.
@@ -40,6 +41,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) with
 - Warrior abilities now unlock sequentially on the skill tree and bind to Q instead of using modifier keys.
 - Adjusted special ability damage scaling for Mage and Warrior classes, weakening early skills and strengthening later unlocks.
 - Rebalanced loot rarity distribution to favor common and uncommon gear and increased bonuses on rare items.
+- Mini bosses and bosses now appear at twice the size of normal monsters.
 
 ### Fixed
 - Melee attacks now track the mouse and register hits within a 35° cone (2-tile reach by default).
