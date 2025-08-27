@@ -470,16 +470,42 @@ function genSprites(){
   dragonCanvas.width = dragonCanvas.height = 48;
   const dragonCtx = dragonCanvas.getContext('2d');
   dragonCtx.imageSmoothingEnabled = false;
-  const hatchCanvas = document.createElement('canvas');
-  hatchCanvas.width = hatchCanvas.height = 24;
-  const hatchCtx = hatchCanvas.getContext('2d');
-  hatchCtx.imageSmoothingEnabled = false;
   dragonImg.onload = () => {
     dragonCtx.drawImage(dragonImg, 0, 0, 48, 48);
-    hatchCtx.drawImage(dragonImg, 0, 0, 24, 24);
   };
   SPRITES.dragon = { cv: dragonCanvas, frames: [dragonCanvas] };
-  SPRITES.dragon_hatchling = { cv: hatchCanvas, frames: [hatchCanvas] };
+
+  function makeDragonHatchling() {
+    const frames = [];
+    const bob = [0, 1, 0, -1];
+    for (let i = 0; i < 4; i++) {
+      const c = document.createElement('canvas');
+      c.width = c.height = 24;
+      const g = c.getContext('2d');
+      g.imageSmoothingEnabled = false;
+      const oy = bob[i];
+      const shell = '#e8e8e8', shellShade = '#c6c6c6';
+      const dragon = '#5c8a42', horn = '#ffffb5';
+      px(g,7,11,10,1,shell);
+      px(g,6,12,12,1,shell);
+      px(g,5,13,14,1,shell);
+      px(g,4,14,16,6,shell);
+      px(g,5,20,14,1,shell);
+      px(g,6,21,12,1,shell);
+      px(g,7,22,10,1,shell);
+      px(g,4,14,1,6,shellShade);
+      px(g,19,14,1,6,shellShade);
+      px(g,9,5+oy,6,6,dragon);
+      px(g,8,5+oy,1,2,horn);
+      px(g,15,5+oy,1,2,horn);
+      px(g,10,7+oy,1,1,'#000');
+      px(g,13,7+oy,1,1,'#000');
+      outline(g,24);
+      frames.push(c);
+    }
+    return { cv: frames[0], frames };
+  }
+  SPRITES.dragon_hatchling = makeDragonHatchling();
 
   SPRITES.snake = makeBossAnim("#8a5c8a","#d98bff");
 
