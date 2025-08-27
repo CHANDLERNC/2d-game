@@ -108,11 +108,11 @@
   <div class="panel" style="padding:18px 22px;max-width:780px">
     <h2 style="margin:6px 0 12px 0">Dungeon</h2>
     <div style="display:flex;gap:16px;align-items:flex-start">
-      <p style="flex:1;opacity:.9">Procedurally generated dungeon with fog‑of‑war. Pick a character, find loot, trade at the merchant, and descend the stairs.</p>
+      <p style="flex:1;opacity:.9">Procedurally generated dungeon with fog‑of‑war. Pick a character, find loot, trade at the merchant, and enter the portal.</p>
       <ul>
         <li>WASD / Arrow Keys — Move (8‑directional)</li>
         <li>I — Toggle Inventory</li>
-        <li>E — Use Stairs / Merchant</li>
+        <li>E — Use Portal / Merchant</li>
         <li>Click monster — Attack</li>
       </ul>
     </div>
@@ -137,7 +137,7 @@
       </label>
     </div>
 
-    <p class="hint" style="margin-top:10px">All sprites (player, monsters, stairs, shop) are generated and embedded as base64 data URLs.</p>
+    <p class="hint" style="margin-top:10px">All sprites (player, monsters, portal, shop) are generated and embedded as base64 data URLs.</p>
     <div style="display:flex;gap:8px;margin-top:8px">
       <button id="playBtn" class="btn">Play</button>
       <button class="btn" onclick="alert('Thanks for playing!')">Quit</button>
@@ -909,16 +909,66 @@ function genSprites(){
   SPRITES.dragon_hatchling = makeDragonHatchling();
 
 
-  // Stairs (down) 24x24
-  SPRITES.stairs = makeSprite(24,(g,S)=>{
-    // tile base
-    px(g,2,2,20,20,'#2a2e3a');
-    // steps
-    px(g,4,5,16,3,'#c7a34a'); px(g,4,9,16,3,'#b69241'); px(g,4,13,16,3,'#a6833a'); px(g,4,17,16,3,'#977634');
-    // shadow
-    g.globalAlpha=0.25; px(g,14,4,2,16,'#000'); g.globalAlpha=1;
-    outline(g,S);
-  });
+  // Portal animation 48x48 (replaces stairs)
+  function makePortalSprite(){
+    const SIZE = 48;
+    const SPEED_SWIRL = 1.2, SPEED_PULSE = 2.0, ARMS = 4, RNG_SPARKLES = 9;
+    const PALETTE = ["#23022f","#38075a","#581091","#7d1fd1","#b264ff","#edd8ff"];
+    const cv = document.createElement('canvas'); cv.width=cv.height=SIZE;
+    const ctx = cv.getContext('2d'); ctx.imageSmoothingEnabled=false;
+
+    function px(x,y,color,a=1){
+      if(x<0||y<0||x>=SIZE||y>=SIZE) return;
+      ctx.globalAlpha=a; ctx.fillStyle=color; ctx.fillRect(x|0,y|0,1,1); ctx.globalAlpha=1;
+    }
+    function ring(cx,cy,r,color,a=0.3){
+      ctx.save(); ctx.globalAlpha=a; ctx.strokeStyle=color; ctx.lineWidth=1;
+      ctx.beginPath(); ctx.arc(cx+0.5,cy+0.5,r,0,Math.PI*2); ctx.stroke(); ctx.restore();
+    }
+    function draw(t){
+      ctx.clearRect(0,0,SIZE,SIZE);
+      const cx=SIZE/2, cy=SIZE/2; const time=t/1000;
+      const pulse=0.5+0.5*Math.sin(time*SPEED_PULSE*Math.PI*2);
+      const baseAngle=time*SPEED_SWIRL;
+
+      ctx.save(); ctx.globalCompositeOperation='lighter';
+      const glowColor=PALETTE[4];
+      ring(cx,cy,18,glowColor,0.15+0.25*pulse);
+      ring(cx,cy,20,glowColor,0.10+0.20*pulse);
+      ring(cx,cy,22,glowColor,0.07+0.15*pulse);
+      ctx.restore();
+
+      for(let a=0;a<ARMS;a++){
+        for(let r=3;r<=18;r+=0.75){
+          const ang=baseAngle + a*(Math.PI*2/ARMS) + r*0.28;
+          const x=Math.cos(ang)*r, y=Math.sin(ang)*r;
+          const xx=(cx+x)|0, yy=(cy+y)|0;
+          const idx=Math.min(PALETTE.length-1, Math.max(0,(PALETTE.length-1)-Math.floor((r-3)/3)));
+          const col=PALETTE[idx];
+          px(xx,yy,col,0.95);
+          if((r*3|0)%2===0){ px(xx+1,yy,col,0.7); px(xx,yy+1,col,0.7); }
+        }
+      }
+
+      ctx.save(); ctx.globalCompositeOperation='lighter';
+      const coreR=4+Math.floor(pulse*2);
+      ctx.fillStyle=PALETTE[PALETTE.length-1];
+      ctx.beginPath(); ctx.arc(cx+0.5,cy+0.5,coreR,0,Math.PI*2); ctx.fill();
+      ring(cx,cy,coreR+2,PALETTE[PALETTE.length-2],0.25+0.25*pulse);
+      ctx.restore();
+
+      for(let i=0;i<RNG_SPARKLES;i++){
+        const ang=baseAngle*1.5 + i*(Math.PI*2/RNG_SPARKLES);
+        const rr=10 + 2*Math.sin(time*3 + i*1.7);
+        const x=(cx + Math.cos(ang)*rr)|0;
+        const y=(cy + Math.sin(ang)*rr)|0;
+        const alpha=0.6 + 0.4*Math.sin(time*6 + i);
+        px(x,y,"#ffd8ff",alpha);
+      }
+    }
+    return { cv, draw };
+  }
+  SPRITES.stairs = makePortalSprite();
 
   // Merchant goblin 24x24 (with lootbag)
   SPRITES.shop_goblin = makeSprite(24,(g,S)=>{
@@ -2701,8 +2751,9 @@ function draw(dt){
     ctx.fillRect(tx-1, ty+rad-2, 2, 6);
   }
 
-  // stairs (sprite)
-  const stairsX = stairs.x*TILE - camX + (TILE-24)/2; const stairsY = stairs.y*TILE - camY + (TILE-24)/2;
+  // portal (stairs replacement) sprite
+  const stairsX = stairs.x*TILE - camX + (TILE-48)/2; const stairsY = stairs.y*TILE - camY + (TILE-48)/2;
+  SPRITES.stairs.draw(performance.now());
   ctx.drawImage(SPRITES.stairs.cv, stairsX, stairsY);
 
   // merchant (sprite)
