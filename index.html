@@ -1241,7 +1241,7 @@ let lootMap=new Map();
 const WEAPON_AFFIX_POOL = [
   {k:'crit', min:3, max:8, lvl:.5},
   {k:'ls', min:1, max:5, lvl:.5},
-  {k:'mp', min:1, max:4, lvl:.5},
+  {k:'md', min:1, max:5, lvl:.5},
   {k:'status'},
   {k:'kb', min:1, max:2, lvl:.5},
   {k:'atkSpd', min:5, max:15, lvl:.5},
@@ -1261,7 +1261,7 @@ const ARMOR_AFFIX_POOL = [
   {k:'mpMax', min:10, max:20, lvl:.5},
   {k:'speedPct', min:3, max:10, lvl:.5},
   {k:'ls', min:1, max:5, lvl:.5},
-  {k:'mp', min:2, max:8, lvl:.5},
+  {k:'md', min:1, max:5, lvl:.5},
   {k:'crit', min:3, max:8, lvl:.5},
 ];
 
@@ -1479,7 +1479,7 @@ function shortMods(it){
   if(m.mpMax) bits.push(`MP+${m.mpMax}`);
   if(m.speedPct) bits.push(`SPD+${m.speedPct}%`);
   if(m.ls) bits.push(`LS ${m.ls}%`);
-  if(m.mp) bits.push(`MPo+${m.mp}`);
+  if(m.md) bits.push(`MD ${m.md}%`);
   if(m.atkSpd) bits.push(`AS+${m.atkSpd}%`);
   if(m.kb) bits.push(`KB ${m.kb}`);
   if(m.pierce) bits.push(`PRC ${m.pierce}`);
@@ -1516,7 +1516,7 @@ function renderDetails(it, origin){
   if(m.mpMax) rows.push(`<div>${player.class==='mage'?'MP':'SP'} Max: <span class="mono">+${m.mpMax}</span></div>`);
   if(m.speedPct) rows.push(`<div>Speed: <span class="mono">+${m.speedPct}%</span></div>`);
   if(m.ls) rows.push(`<div>Lifesteal: <span class="mono">${m.ls}%</span></div>`);
-  if(m.mp) rows.push(`<div>${player.class==='mage'?'Mana':'Stamina'} on hit: <span class="mono">+${m.mp}</span></div>`);
+  if(m.md) rows.push(`<div>${player.class==='mage'?'Mana':'Stamina'} Drain: <span class="mono">${m.md}%</span></div>`);
   if(m.atkSpd) rows.push(`<div>Attack Speed: <span class="mono">+${m.atkSpd}%</span></div>`);
   if(m.kb) rows.push(`<div>Knockback: <span class="mono">${m.kb}</span></div>`);
   if(m.pierce) rows.push(`<div>Projectile Pierce: <span class="mono">${m.pierce}</span></div>`);
@@ -1551,7 +1551,7 @@ function getItemValue(it){
   score+= (m.dmgMin||0)*4 + (m.dmgMax||0)*6;
   score+= (m.crit||0)*3 + (m.armor||0)*3;
   score+= (m.hpMax||0)*0.8 + (m.mpMax||0)*0.6 + (m.speedPct||0)*4;
-  score+= (m.ls||0)*6 + (m.mp||0)*2;
+  score+= (m.ls||0)*6 + (m.md||0)*6;
   score+= (m.atkSpd||0)*4 + (m.kb||0)*8 + (m.pierce||0)*12;
   if(m.status){
     const sts = Array.isArray(m.status) ? m.status : [m.status];
@@ -1770,15 +1770,16 @@ canvas.addEventListener('mousedown', (e)=>{
 
 function currentAtk(){
   // why: single source-of-truth for attack numbers (incl. level & gear)
-  let min=2,max=4,crit=5,ls=0;
+  let min=2,max=4,crit=5,ls=0,md=0;
   const lvlBonus = Math.floor((player.lvl-1)*0.6); min+=lvlBonus; max+=lvlBonus;
   for(const slot of SLOTS){
     const m=equip[slot]?.mods||{};
     if(slot==='weapon'){ min+=m.dmgMin||0; max+=m.dmgMax||0; }
     if(m.crit) crit+=m.crit;
     if(m.ls) ls+=m.ls;
+    if(m.md) md+=m.md;
   }
-  return {min,max,crit,ls};
+  return {min,max,crit,ls,md};
 }
 
 function applyDamageToPlayer(dmg, type='physical'){
@@ -1840,7 +1841,7 @@ function performPlayerAttack(dx,dy,dmgMult=1){
   if(mag===0) return;
   const ndx = dx/mag, ndy = dy/mag;
   player.faceDx = ndx; player.faceDy = ndy; playAttack();
-  const {min,max,crit,ls} = currentAtk();
+  const {min,max,crit,ls,md} = currentAtk();
   let dmg=rng.int(min,max);
   const wasCrit=(Math.random()*100<crit); if(wasCrit) dmg=Math.floor(dmg*1.5);
   dmg=Math.max(1,Math.floor(dmg*dmgMult));
@@ -1874,6 +1875,7 @@ function performPlayerAttack(dx,dy,dmgMult=1){
         tryApplyStatus(target, st, st.elem);
       }
       if(ls>0){ const heal=Math.max(1,Math.floor(dmg*ls/100)); player.hp=Math.min(player.hpMax, player.hp+heal); addDamageText(player.x,player.y,`+${heal}`,'#76d38b'); }
+      if(md>0){ const gain=Math.max(1,Math.floor(dmg*md/100)); if(player.class==='mage'){ player.mp=Math.min(player.mpMax,player.mp+gain); } else { player.sp=Math.min(player.spMax,player.sp+gain); } addDamageText(player.x,player.y,`+${gain}`,'#4aa3ff'); updateResourceUI(); }
       if(kb>0){
         const kdx=Math.sign(ndx), kdy=Math.sign(ndy);
         for(let i=0;i<kb;i++){ if(!tryMoveMonster(target,kdx,kdy)) break; }
@@ -1887,7 +1889,7 @@ function performPlayerAttack(dx,dy,dmgMult=1){
     projectiles.push({
       x: player.x+0.5, y: player.y+0.5, dx: ndx, dy: ndy,
       speed: prof.projSpeed, damage:dmg, type: prof.dtype||'ranged', elem: (atkStatuses[0]?.elem || prof.elem || null),
-      owner:'player', alive:true, maxDist: prof.projRange, dist:0, ls,
+      owner:'player', alive:true, maxDist: prof.projRange, dist:0, ls, md,
       status: atkStatuses, kb, pierce
     });
     let cd = prof.cooldown;
@@ -2380,6 +2382,7 @@ function update(dt){
           for(const st of sts){ tryApplyStatus(m, st, st.elem); }
         }
         if(p.ls>0){ const heal=Math.max(1,Math.floor(p.damage*p.ls/100)); player.hp=Math.min(player.hpMax, player.hp+heal); addDamageText(player.x,player.y,`+${heal}`,'#76d38b'); }
+        if(p.md>0){ const gain=Math.max(1,Math.floor(p.damage*p.md/100)); if(player.class==='mage'){ player.mp=Math.min(player.mpMax,player.mp+gain); } else { player.sp=Math.min(player.spMax,player.sp+gain); } addDamageText(player.x,player.y,`+${gain}`,'#4aa3ff'); updateResourceUI(); }
         if(p.kb>0){
           const kdx=Math.sign(p.dx), kdy=Math.sign(p.dy);
           for(let i=0;i<p.kb;i++){ if(!tryMoveMonster(m,kdx,kdy)) break; }
@@ -2675,7 +2678,7 @@ function castWhirlwind(){
   if(player.sp<cost){ showToast('Not enough stamina'); return; }
   if(player.atkCD>0) return;
   player.sp-=cost; updateResourceUI();
-  const {min,max,crit,ls} = currentAtk();
+  const {min,max,crit,ls,md} = currentAtk();
   const prof=currentWeaponProfile();
   let hit=false;
   for(const m of monsters){
@@ -2686,6 +2689,7 @@ function castWhirlwind(){
       dmg=Math.floor(dmg*1.6);
       dealDamageToMonster(m,dmg,null,wasCrit);
       if(ls>0){ const heal=Math.max(1,Math.floor(dmg*ls/100)); player.hp=Math.min(player.hpMax,player.hp+heal); addDamageText(player.x,player.y,`+${heal}`,'#76d38b'); }
+      if(md>0){ const gain=Math.max(1,Math.floor(dmg*md/100)); if(player.class==='mage'){ player.mp=Math.min(player.mpMax,player.mp+gain); } else { player.sp=Math.min(player.spMax,player.sp+gain); } addDamageText(player.x,player.y,`+${gain}`,'#4aa3ff'); updateResourceUI(); }
       hit=true;
     }
   }
@@ -2698,7 +2702,7 @@ function castShieldBash(){
   if(player.sp<cost){ showToast('Not enough stamina'); return; }
   if(player.atkCD>0) return;
   player.sp-=cost; updateResourceUI();
-  const {min,max,crit,ls}=currentAtk();
+  const {min,max,crit,ls,md}=currentAtk();
   const prof=currentWeaponProfile();
   let dmg=rng.int(min,max);
   const wasCrit=Math.random()*100<crit; if(wasCrit) dmg=Math.floor(dmg*1.5);
@@ -2720,6 +2724,7 @@ function castShieldBash(){
     dealDamageToMonster(target,dmg,null,wasCrit);
     tryApplyStatus(target,{k:'shock',dur:1200,power:0.5,chance:1},'shock');
     if(ls>0){ const heal=Math.max(1,Math.floor(dmg*ls/100)); player.hp=Math.min(player.hpMax,player.hp+heal); addDamageText(player.x,player.y,`+${heal}`,'#76d38b'); }
+    if(md>0){ const gain=Math.max(1,Math.floor(dmg*md/100)); if(player.class==='mage'){ player.mp=Math.min(player.mpMax,player.mp+gain); } else { player.sp=Math.min(player.spMax,player.sp+gain); } addDamageText(player.x,player.y,`+${gain}`,'#4aa3ff'); updateResourceUI(); }
     playAttack();
   }
   player.atkCD = prof.cooldown;
