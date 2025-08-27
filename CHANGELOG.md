@@ -24,6 +24,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) with
 - Torches now cast light, revealing nearby tiles for increased visibility.
 - Subtle floor and wall color variations between floors for greater variety.
 - Griffin, dragon, and snake boss variants.
+- Red, blue, and yellow slime variants with unique stats, plus new mage and bat color schemes.
 
 ### Changed
 - Recombined CSS and JavaScript into `index.html` to maintain a single-file distribution.
