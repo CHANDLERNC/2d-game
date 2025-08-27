@@ -1247,29 +1247,21 @@ function generateRooms(){
       const x=rng.int(r.x+1,r.x+r.w-2), y=rng.int(r.y+1,r.y+r.h-2);
       if((x===player.x && y===player.y) || (x===merchant.x && y===merchant.y)){ tries++; continue; }
       if(monsters.some(m=>Math.abs(m.x-x)+Math.abs(m.y-y)<4)){ tries++; continue; }
-      let t;
-      if(floorNum <= 3){
-        // reduce mage frequency on early floors
-        const baseTypes = [0,1,2,5,6];
-        t = rng.next() < 0.1 ? 3 : baseTypes[rng.int(0, baseTypes.length-1)];
-      } else {
-        t = rng.int(0,6);
-      }
-      // 0=slime, 1=bat, 2=skeleton, 3=mage, 4=dragon hatchling, 5=goblin, 6=ghost
-      monsters.push(spawnMonster(t,x,y));
+      const t = chooseMonsterType(floorNum);
+      monsters.push(spawnMonster(t,x,y, shouldSpawnElite(floorNum)));
       placed=true;
     }
   }
 
   // ensure at least one mage spawns on higher floors
-  if(floorNum > 3 && !monsters.some(m=>m.type===3)){
+  if(floorNum > 4 && !monsters.some(m=>m.type===3)){
     let placed=false, tries=0;
     while(!placed && tries<25){
       const r=rooms[rng.int(0,rooms.length-1)];
       const x=rng.int(r.x+1,r.x+r.w-2), y=rng.int(r.y+1,r.y+r.h-2);
       if((x===player.x && y===player.y) || (x===merchant.x && y===merchant.y)){ tries++; continue; }
       if(monsters.some(m=>Math.abs(m.x-x)+Math.abs(m.y-y)<4)){ tries++; continue; }
-      monsters.push(spawnMonster(3,x,y));
+      monsters.push(spawnMonster(3,x,y, shouldSpawnElite(floorNum)));
       placed=true;
     }
   }
@@ -1394,19 +1386,17 @@ function generateCave(){
       const t=pick(); const x=t.x, y=t.y;
       if((x===player.x && y===player.y) || (x===merchant.x && y===merchant.y) || (x===stairs.x && y===stairs.y)){ tries++; continue; }
       if(monsters.some(mo=>Math.abs(mo.x-x)+Math.abs(mo.y-y)<4)){ tries++; continue; }
-      let tt;
-      if(floorNum <= 3){ const baseTypes=[0,1,2,5,6]; tt=rng.next()<0.1?3:baseTypes[rng.int(0,baseTypes.length-1)]; }
-      else tt=rng.int(0,6);
-      monsters.push(spawnMonster(tt,x,y)); placed=true;
+      const tt = chooseMonsterType(floorNum);
+      monsters.push(spawnMonster(tt,x,y, shouldSpawnElite(floorNum))); placed=true;
     }
   }
-  if(floorNum>3 && !monsters.some(m=>m.type===3)){
+  if(floorNum>4 && !monsters.some(m=>m.type===3)){
     let placed=false, tries=0;
     while(!placed && tries<25){
       const t=pick(); const x=t.x, y=t.y;
       if((x===player.x && y===player.y) || (x===merchant.x && y===merchant.y)){ tries++; continue; }
       if(monsters.some(mo=>Math.abs(mo.x-x)+Math.abs(mo.y-y)<4)){ tries++; continue; }
-      monsters.push(spawnMonster(3,x,y)); placed=true;
+      monsters.push(spawnMonster(3,x,y, shouldSpawnElite(floorNum))); placed=true;
     }
   }
   let strongest=null;
@@ -1490,7 +1480,32 @@ function generate(){
 // ===== Difficulty scaling & Monster factory =====
 const SCALE = { HP_PER_FLOOR: 6, DMG_PER_FLOOR: 1, HARDNESS_MULT: 0.15, RES_PER_FLOOR: 0.5, RES_MAGIC_PER_FLOOR: 0.3 };
 function scaleStat(base, perFloor){ return Math.max(1, Math.floor(base + perFloor * Math.max(0, floorNum-1))); }
-function spawnMonster(type,x,y){
+
+function chooseMonsterType(floor){
+  const pool = [
+    {type:0, w:3}, // slimes always
+    {type:1, w:2}, // bats always
+  ];
+  if(floor>=2) pool.push({type:5, w:2}); // goblins
+  if(floor>=3) pool.push({type:2, w:2}); // skeletons
+  if(floor>=4) pool.push({type:6, w:1}); // ghosts
+  if(floor>=5) pool.push({type:3, w:1}); // mages
+  // weight tough enemies if player overpowered
+  const power = player.lvl + (player.dmgMin + player.dmgMax)/4;
+  if(power > floor*2){
+    for(const opt of pool){ if(opt.type>=2) opt.w += 2; }
+  }
+  const total = pool.reduce((s,o)=>s+o.w,0);
+  let r = rng.next()*total;
+  for(const opt of pool){ r -= opt.w; if(r<=0) return opt.type; }
+  return 0;
+}
+function shouldSpawnElite(floor){
+  const chance = 0.05 + floor*0.02;
+  return rng.next() < Math.min(0.25, chance);
+}
+
+function spawnMonster(type,x,y,elite=false){
   // Base stats per archetype
   const archetypes = [
     { hp:18, dmg:[2,4], atkCD:28, moveCD:[6,10] },    // slime base
@@ -1541,8 +1556,16 @@ function spawnMonster(type,x,y){
     atkCD: rng.int(10, a.atkCD), // frames
     moveCD: Math.round(rng.int(a.moveCD[0], a.moveCD[1]) * ENEMY_SPEED_MULT),
     xp: 0,
-    state: {}, aggroT:0, hitFlash:0, moving:false, moveT:1, moveDur: Math.round(140 * ENEMY_SPEED_MULT), fromX:x, fromY:y, toX:x, toY:y, effects:[]
+    state: {}, aggroT:0, hitFlash:0, moving:false, moveT:1, moveDur: Math.round(140 * ENEMY_SPEED_MULT), fromX:x, fromY:y, toX:x, toY:y, effects:[],
+    elite
   };
+  if(elite){
+    m.hpMax = Math.round(m.hpMax * 1.5);
+    m.dmgMin = Math.round(m.dmgMin * 1.3);
+    m.dmgMax = Math.round(m.dmgMax * 1.3);
+    m.atkCD = Math.max(6, Math.round(m.atkCD * 0.8));
+    m.moveCD = Math.max(2, Math.round(m.moveCD * 0.8));
+  }
   m.hp = m.hpMax;
   m.xp = calcMonsterXP(m);
   const elemRes = Math.floor(SCALE.RES_PER_FLOOR * Math.max(0, floorNum-1));
@@ -2405,137 +2428,164 @@ function meleeIfAdjacent(m){
   return true;
 }
 
-function monsterAI(m, dt){
-  // Cooldowns tick in frames scaled by dt
-  m.atkCD = Math.max(0, m.atkCD - 1);
-  m.moveCD = Math.max(0, m.moveCD - 1);
-  m.aggroT = Math.max(0, (m.aggroT || 0) - dt);
-
-  // Shared: if adjacent, attempt melee
-  if(meleeIfAdjacent(m)) return;
-
-  const dx = sign(player.x - m.x), dy = sign(player.y - m.y);
-  const manhattan = Math.abs(player.x-m.x)+Math.abs(player.y-m.y);
-  if(manhattan>AGGRO_RANGE && (m.aggroT||0)<=0) return;
-
-  if(m.type===0){ // Slime — slow chase, occasional 2-tile charge
-    if(m.spriteKey==='slime_shadow'){
-      if(m.atkCD===0 && manhattan<=6){
-        const spots=[];
-        for(let tx=player.x-1; tx<=player.x+1; tx++){
-          for(let ty=player.y-1; ty<=player.y+1; ty++){
-            if(tx===player.x && ty===player.y) continue;
-            if(!walkable(tx,ty)) continue;
-            if(firstMonsterAt(tx,ty)) continue;
-            spots.push({x:tx,y:ty});
-          }
-        }
-        if(spots.length>0){
-          const s=spots[rng.int(0,spots.length-1)];
-          m.x=s.x; m.y=s.y;
-          m.rx=m.x; m.ry=m.y; m.fromX=m.x; m.fromY=m.y; m.toX=m.x; m.toY=m.y; m.moving=false; m.moveT=1;
-          const dmg=rng.int(m.dmgMin,m.dmgMax);
-          applyDamageToPlayer(dmg);
-          m.atkCD=rng.int(40,60);
-          m.moveCD=Math.round(rng.int(6,10)*ENEMY_SPEED_MULT);
+function slimeAI(m, dt, dx, dy, manhattan){
+  if(m.spriteKey==='slime_shadow'){
+    if(m.atkCD===0 && manhattan<= (m.elite?8:6)){
+      const spots=[];
+      for(let tx=player.x-1; tx<=player.x+1; tx++){
+        for(let ty=player.y-1; ty<=player.y+1; ty++){
+          if(tx===player.x && ty===player.y) continue;
+          if(!walkable(tx,ty)) continue;
+          if(firstMonsterAt(tx,ty)) continue;
+          spots.push({x:tx,y:ty});
         }
       }
-      if(m.moveCD===0){
-        const stepX=tryMoveMonster(m, dx, 0, 150);
-        if(!stepX) tryMoveMonster(m, 0, dy, 150);
+      if(spots.length>0){
+        const s=spots[rng.int(0,spots.length-1)];
+        m.x=s.x; m.y=s.y;
+        m.rx=m.x; m.ry=m.y; m.fromX=m.x; m.fromY=m.y; m.toX=m.x; m.toY=m.y; m.moving=false; m.moveT=1;
+        const dmg=rng.int(m.dmgMin,m.dmgMax);
+        applyDamageToPlayer(dmg);
+        m.atkCD=rng.int(40,60);
         m.moveCD=Math.round(rng.int(6,10)*ENEMY_SPEED_MULT);
       }
-      return;
-    }
-    if(m.state.chargeSteps>0){
-      if(tryMoveMonster(m, m.state.cdx, m.state.cdy, 110)) m.state.chargeSteps--;
-      else m.state.chargeSteps=0;
-      return;
     }
     if(m.moveCD===0){
-      // 30% chance to start a short charge when near
-      if(manhattan<=3 && m.atkCD===0 && rng.next()<0.3){
-        m.state.cdx = dx; m.state.cdy = dy; m.state.chargeSteps = 2;
-        m.atkCD = 12; // short windup
-      }else{
-        // Greedy step toward player, prefer axis with larger distance
-        const stepX = tryMoveMonster(m, dx, 0, 150);
-        if(!stepX) tryMoveMonster(m, 0, dy, 150);
-      }
-      m.moveCD = Math.round(rng.int(6, 10) * ENEMY_SPEED_MULT);
+      const stepX=tryMoveMonster(m, dx, 0, 150);
+      if(!stepX) tryMoveMonster(m, 0, dy, 150);
+      m.moveCD=Math.round(rng.int(6,10)*ENEMY_SPEED_MULT);
     }
-  } else if(m.type===1){ // Bat — fast diagonal swoop
-    if(m.state.swoop>0){
-      // continue swoop; if hits wall, cancel
-      const ok = tryMoveMonster(m, m.state.sdx, m.state.sdy, 90);
-      m.state.swoop = ok ? m.state.swoop-1 : 0;
-      return;
+    return;
+  }
+  if(m.state.chargeSteps>0){
+    if(tryMoveMonster(m, m.state.cdx, m.state.cdy, 110)) m.state.chargeSteps--;
+    else m.state.chargeSteps=0;
+    return;
+  }
+  if(m.moveCD===0){
+    const chance = m.elite?0.5:0.3;
+    const steps = m.elite?3:2;
+    if(manhattan<=3 && m.atkCD===0 && rng.next()<chance){
+      m.state.cdx = dx; m.state.cdy = dy; m.state.chargeSteps = steps;
+      m.atkCD = 12;
+    }else{
+      const stepX = tryMoveMonster(m, dx, 0, 150);
+      if(!stepX) tryMoveMonster(m, 0, dy, 150);
     }
-    if(manhattan<=6 && m.atkCD===0 && m.moveCD===0){
-      // start a 2-step swoop (diagonal favored)
-      m.state.sdx = dx!==0?dx:0; m.state.sdy = dy!==0?dy:0;
-      if(m.state.sdx===0 && m.state.sdy===0){ m.state.sdx = (rng.next()<0.5?1:-1); }
-      m.state.swoop = 2;
-      m.atkCD = 18;
-      m.moveCD = Math.round(2 * ENEMY_SPEED_MULT);
-      return;
+    m.moveCD = Math.round(rng.int(6, 10) * ENEMY_SPEED_MULT);
+  }
+}
+
+function batAI(m, dt, dx, dy, manhattan){
+  if(m.state.swoop>0){
+    const ok = tryMoveMonster(m, m.state.sdx, m.state.sdy, 90);
+    m.state.swoop = ok ? m.state.swoop-1 : 0;
+    return;
+  }
+  const swoopRange = m.elite?8:6;
+  if(manhattan<=swoopRange && m.atkCD===0 && m.moveCD===0){
+    m.state.sdx = dx!==0?dx:0; m.state.sdy = dy!==0?dy:0;
+    if(m.state.sdx===0 && m.state.sdy===0){ m.state.sdx = (rng.next()<0.5?1:-1); }
+    m.state.swoop = m.elite?3:2;
+    m.atkCD = 18;
+    m.moveCD = Math.round(2 * ENEMY_SPEED_MULT);
+    return;
+  }
+  if(m.moveCD===0){
+    if(!tryMoveMonster(m, dx, dy, 110)){
+      if(!tryMoveMonster(m, dx, 0, 110)) tryMoveMonster(m, 0, dy, 110);
     }
-    if(m.moveCD===0){
-      // wander toward player quickly
-      if(!tryMoveMonster(m, dx, dy, 110)){
-        if(!tryMoveMonster(m, dx, 0, 110)) tryMoveMonster(m, 0, dy, 110);
-      }
-      m.moveCD = Math.round(rng.int(4, 8) * ENEMY_SPEED_MULT);
+    m.moveCD = Math.round(rng.int(4, 8) * ENEMY_SPEED_MULT);
+  }
+}
+
+function skeletonAI(m, dt, dx, dy, manhattan){
+  if(manhattan<=7 && clearPathCardinal(m.x,m.y,player.x,player.y) && m.atkCD===0){
+    const adx = sign(player.x - m.x), ady = sign(player.y - m.y);
+    let elem='ranged', status=null;
+    if(m.spriteKey==='skeleton_red'){ elem='fire'; status={k:'burn',  dur:2200, power:1.0, chance:0.9}; }
+    else if(m.spriteKey==='skeleton_green'){ elem='poison'; status={k:'poison',dur:2200, power:1.0, chance:0.9}; }
+    projectiles.push({ x:m.x+0.5, y:m.y+0.5, dx:adx, dy:ady, speed:12, damage:rng.int(m.dmgMin,m.dmgMax), type:'ranged', elem, owner:'enemy', alive:true, maxDist:12, dist:0, status });
+    if(m.elite){
+      projectiles.push({ x:m.x+0.5, y:m.y+0.5, dx:adx, dy:ady, speed:14, damage:rng.int(m.dmgMin,m.dmgMax), type:'ranged', elem, owner:'enemy', alive:true, maxDist:12, dist:0, status });
     }
-  } else if(m.type===2) { // Skeleton — ranged: shoot if LoS, otherwise shuffle toward
-    if(manhattan<=7 && clearPathCardinal(m.x,m.y,player.x,player.y) && m.atkCD===0){
-      // elemental arrows based on variant
-      const adx = sign(player.x - m.x), ady = sign(player.y - m.y);
-      let elem='ranged', status=null;
-      if(m.spriteKey==='skeleton_red'){ elem='fire'; status={k:'burn',  dur:2200, power:1.0, chance:0.9}; }
-      else if(m.spriteKey==='skeleton_green'){ elem='poison'; status={k:'poison',dur:2200, power:1.0, chance:0.9}; }
-      projectiles.push({ x:m.x+0.5, y:m.y+0.5, dx:adx, dy:ady, speed:12, damage:rng.int(m.dmgMin,m.dmgMax), type:'ranged', elem, owner:'enemy', alive:true, maxDist:12, dist:0, status });
-      m.atkCD = rng.int(26, 40);
-      return;
-    }
-    if(m.moveCD===0){
-      // slow shuffle
-      if(!tryMoveMonster(m, dx, 0, 160)) tryMoveMonster(m, 0, dy, 160);
-      m.moveCD = Math.round(rng.int(6, 10) * ENEMY_SPEED_MULT);
-    }
-  } else if(m.type===5){ // Goblin — quick melee pursuer
-    if(m.moveCD===0){
+    m.atkCD = rng.int(26, 40);
+    return;
+  }
+  if(m.moveCD===0){
+    if(!tryMoveMonster(m, dx, 0, 160)) tryMoveMonster(m, 0, dy, 160);
+    m.moveCD = Math.round(rng.int(6, 10) * ENEMY_SPEED_MULT);
+  }
+}
+
+function goblinAI(m, dt, dx, dy, manhattan){
+  if(m.moveCD===0){
+    if(!tryMoveMonster(m, dx, 0, 120)) tryMoveMonster(m, 0, dy, 120);
+    if(m.elite){
       if(!tryMoveMonster(m, dx, 0, 120)) tryMoveMonster(m, 0, dy, 120);
-      m.moveCD = Math.round(rng.int(4, 8) * ENEMY_SPEED_MULT);
     }
-  } else if(m.type===6){ // Ghost — slow drifting threat
-    if(m.moveCD===0){
+    m.moveCD = Math.round(rng.int(4, 8) * ENEMY_SPEED_MULT);
+  }
+}
+
+function ghostAI(m, dt, dx, dy, manhattan){
+  if(m.moveCD===0){
+    if(!tryMoveMonster(m, dx, dy, 140)){
       if(!tryMoveMonster(m, dx, 0, 140)) tryMoveMonster(m, 0, dy, 140);
-      m.moveCD = Math.round(rng.int(6, 12) * ENEMY_SPEED_MULT);
     }
-  } else { // Mage — caster: maintain distance, shoot magic bolts with 8-dir LoS
-    const preferRange = 5; // keep around 4-6 tiles away
-    if(manhattan<=8 && clearPath8(m.x,m.y,player.x,player.y) && m.atkCD===0){
-      const adx = sign(player.x - m.x), ady = sign(player.y - m.y);
-      // roll elemental flavor
-      const roll = rng.next(); let elem='magic', status=null, speed=10, maxDist=10;
-      if(roll<0.34){ elem='fire';  status={k:'burn',  dur:2200, power:1.0, chance:0.9}; }
-      else if(roll<0.67){ elem='ice';   status={k:'freeze',dur:1800, power:0.40, chance:0.9}; }
-      else { elem='shock'; status={k:'shock', dur:2000, power:0.25, chance:0.9}; }
-      projectiles.push({ x:m.x+0.5, y:m.y+0.5, dx:adx, dy:ady, speed, damage:rng.int(m.dmgMin,m.dmgMax+2), type:'magic', elem, owner:'enemy', alive:true, maxDist, dist:0, status });
-      m.atkCD = rng.int(24, 34);
-      return;
+    if(m.elite){
+      if(!tryMoveMonster(m, dx, dy, 140)){
+        if(!tryMoveMonster(m, dx, 0, 140)) tryMoveMonster(m, 0, dy, 140);
+      }
     }
-    if(m.moveCD===0){
-      // too close -> step away; too far/blocked -> step toward
+    m.moveCD = Math.round(rng.int(6, 12) * ENEMY_SPEED_MULT);
+  }
+}
+
+function mageAI(m, dt, dx, dy, manhattan){
+  const preferRange = 5;
+  if(manhattan<=8 && clearPath8(m.x,m.y,player.x,player.y) && m.atkCD===0){
+    const adx = sign(player.x - m.x), ady = sign(player.y - m.y);
+    const roll = rng.next(); let elem='magic', status=null, speed=10, maxDist=10;
+    if(roll<0.34){ elem='fire';  status={k:'burn',  dur:2200, power:1.0, chance:0.9}; }
+    else if(roll<0.67){ elem='ice';   status={k:'freeze',dur:1800, power:0.40, chance:0.9}; }
+    else { elem='shock'; status={k:'shock', dur:2000, power:0.25, chance:0.9}; }
+    projectiles.push({ x:m.x+0.5, y:m.y+0.5, dx:adx, dy:ady, speed, damage:rng.int(m.dmgMin,m.dmgMax+2), type:'magic', elem, owner:'enemy', alive:true, maxDist, dist:0, status });
+    if(m.elite){
+      projectiles.push({ x:m.x+0.5, y:m.y+0.5, dx:adx, dy:ady, speed:speed+2, damage:rng.int(m.dmgMin,m.dmgMax+2), type:'magic', elem, owner:'enemy', alive:true, maxDist, dist:0, status });
+    }
+    m.atkCD = rng.int(24, 34);
+    return;
+  }
+  if(m.moveCD===0){
+    if(manhattan<=preferRange-1){
+      if(!tryMoveMonster(m, -dx, 0, 150)) tryMoveMonster(m, 0, -dy, 150);
+    }else{
+      if(!tryMoveMonster(m, dx, 0, 150)) tryMoveMonster(m, 0, dy, 150);
+    }
+    if(m.elite){
       if(manhattan<=preferRange-1){
         if(!tryMoveMonster(m, -dx, 0, 150)) tryMoveMonster(m, 0, -dy, 150);
       }else{
         if(!tryMoveMonster(m, dx, 0, 150)) tryMoveMonster(m, 0, dy, 150);
       }
-      m.moveCD = Math.round(rng.int(6, 10) * ENEMY_SPEED_MULT);
     }
+    m.moveCD = Math.round(rng.int(6, 10) * ENEMY_SPEED_MULT);
   }
+}
+
+const MONSTER_BEHAVIORS = {0:slimeAI,1:batAI,2:skeletonAI,3:mageAI,4:mageAI,5:goblinAI,6:ghostAI};
+
+function monsterAI(m, dt){
+  m.atkCD = Math.max(0, m.atkCD - 1);
+  m.moveCD = Math.max(0, m.moveCD - 1);
+  m.aggroT = Math.max(0, (m.aggroT || 0) - dt);
+  if(meleeIfAdjacent(m)) return;
+  const dx = sign(player.x - m.x), dy = sign(player.y - m.y);
+  const manhattan = Math.abs(player.x-m.x)+Math.abs(player.y-m.y);
+  if(manhattan>AGGRO_RANGE && (m.aggroT||0)<=0) return;
+  const fn = MONSTER_BEHAVIORS[m.type] || mageAI;
+  fn(m, dt, dx, dy, manhattan);
 }
 
 // ===== Drawing =====
