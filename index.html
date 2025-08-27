@@ -194,6 +194,9 @@ function monsterCountForFloor(floor){
 const XP_GAIN_MULT = 1.1;
 // Higher values slow all enemy actions (movement frequency and speed)
 const ENEMY_SPEED_MULT = 1.5;
+// Global modifiers for monster stats
+const MONSTER_HP_MULT = 1.2;
+const MONSTER_DMG_MULT = 0.9;
 let canvas=document.getElementById('gameCanvas'); let ctx=canvas.getContext('2d');
 let mouseX=0, mouseY=0;
 canvas.addEventListener('mousemove', e=>{ const r=canvas.getBoundingClientRect(); mouseX=e.clientX-r.left; mouseY=e.clientY-r.top; });
@@ -1081,10 +1084,10 @@ function spawnMonster(type,x,y){
   const diff = 1 + SCALE.HARDNESS_MULT * Math.max(0, floorNum-1);
   const m = {
     x, y, rx:x, ry:y, type,
-    hpMax: Math.round(scaleStat(a.hp, SCALE.HP_PER_FLOOR) * diff),
+    hpMax: Math.round(scaleStat(a.hp * MONSTER_HP_MULT, SCALE.HP_PER_FLOOR) * diff),
     hp: 0,
-    dmgMin: Math.round(scaleStat(a.dmg[0], SCALE.DMG_PER_FLOOR) * diff),
-    dmgMax: Math.round(scaleStat(a.dmg[1], SCALE.DMG_PER_FLOOR) * diff),
+    dmgMin: Math.round(scaleStat(a.dmg[0] * MONSTER_DMG_MULT, SCALE.DMG_PER_FLOOR) * diff),
+    dmgMax: Math.round(scaleStat(a.dmg[1] * MONSTER_DMG_MULT, SCALE.DMG_PER_FLOOR) * diff),
     atkCD: rng.int(10, a.atkCD), // frames
     moveCD: Math.round(rng.int(a.moveCD[0], a.moveCD[1]) * ENEMY_SPEED_MULT),
     xp: 0,
