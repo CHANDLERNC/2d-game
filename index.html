@@ -394,7 +394,29 @@ function genSprites(){
   }
   SPRITES.coin = makeCoinAnim();
 
-  // Health potion sprite (12x12 SVG)
+  // Potion sprites with simple rotation animation
+  function makePotionAnim(svg){
+    const img = new Image();
+    const sprite = { cv: img, frames: [] };
+    img.onload = () => {
+      const steps = 8;
+      for(let i=0;i<steps;i++){
+        const c=document.createElement('canvas');
+        c.width=c.height=12;
+        const g=c.getContext('2d');
+        g.imageSmoothingEnabled=false;
+        const t=i/steps*Math.PI*2;
+        const sx=Math.abs(Math.cos(t))*0.6+0.4; // scale 0.4–1.0
+        g.setTransform(sx,0,0,1,6-6*sx,0);
+        g.drawImage(img,0,0);
+        sprite.frames.push(c);
+      }
+      sprite.cv=sprite.frames[0];
+    };
+    img.src='data:image/svg+xml;base64,'+btoa(svg);
+    return sprite;
+  }
+
   const hpPotionSVG = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12" shape-rendering="crispEdges">
   <!-- Palette -->
   <!-- O = outline #6b0018, B = body #d61a3c, H = highlight #ff9aaa, D = deep red #a10f28 -->
@@ -477,9 +499,91 @@ function genSprites(){
   <rect x="5" y="11" width="1" height="1" fill="#6b0018"/>
   <rect x="6" y="11" width="1" height="1" fill="#6b0018"/>
 </svg>`;
-  const hpPotionImg = new Image();
-  hpPotionImg.src = 'data:image/svg+xml;base64,' + btoa(hpPotionSVG);
-  SPRITES.potion_hp = { cv: hpPotionImg };
+
+  const mpPotionSVG = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12" shape-rendering="crispEdges">
+  <!-- Palette: outline #0d2a5f, body #1f86ff, highlight #bfe3ff, deep #135bbf -->
+
+  <!-- y=0 -->
+  <rect x="5" y="0" width="1" height="1" fill="#0d2a5f"/>
+
+  <!-- y=1 -->
+  <rect x="4" y="1" width="1" height="1" fill="#0d2a5f"/>
+  <rect x="5" y="1" width="1" height="1" fill="#1f86ff"/>
+  <rect x="6" y="1" width="1" height="1" fill="#0d2a5f"/>
+
+  <!-- y=2 -->
+  <rect x="3" y="2" width="1" height="1" fill="#0d2a5f"/>
+  <rect x="4" y="2" width="1" height="1" fill="#1f86ff"/>
+  <rect x="5" y="2" width="1" height="1" fill="#bfe3ff"/>
+  <rect x="6" y="2" width="1" height="1" fill="#1f86ff"/>
+  <rect x="7" y="2" width="1" height="1" fill="#0d2a5f"/>
+
+  <!-- y=3 -->
+  <rect x="2" y="3" width="1" height="1" fill="#0d2a5f"/>
+  <rect x="3" y="3" width="1" height="1" fill="#1f86ff"/>
+  <rect x="4" y="3" width="1" height="1" fill="#bfe3ff"/>
+  <rect x="5" y="3" width="1" height="1" fill="#1f86ff"/>
+  <rect x="6" y="3" width="1" height="1" fill="#1f86ff"/>
+  <rect x="7" y="3" width="1" height="1" fill="#1f86ff"/>
+  <rect x="8" y="3" width="1" height="1" fill="#0d2a5f"/>
+
+  <!-- y=4 -->
+  <rect x="1" y="4" width="1" height="1" fill="#0d2a5f"/>
+  <rect x="2" y="4" width="1" height="1" fill="#1f86ff"/>
+  <rect x="3" y="4" width="1" height="1" fill="#1f86ff"/>
+  <rect x="4" y="4" width="1" height="1" fill="#1f86ff"/>
+  <rect x="5" y="4" width="1" height="1" fill="#bfe3ff"/>
+  <rect x="6" y="4" width="1" height="1" fill="#1f86ff"/>
+  <rect x="7" y="4" width="1" height="1" fill="#1f86ff"/>
+  <rect x="8" y="4" width="1" height="1" fill="#1f86ff"/>
+  <rect x="9" y="4" width="1" height="1" fill="#0d2a5f"/>
+
+  <!-- y=5 -->
+  <rect x="1" y="5" width="1" height="1" fill="#0d2a5f"/>
+  <rect x="2" y="5" width="1" height="1" fill="#1f86ff"/>
+  <rect x="3" y="5" width="1" height="1" fill="#1f86ff"/>
+  <rect x="4" y="5" width="1" height="1" fill="#1f86ff"/>
+  <rect x="5" y="5" width="1" height="1" fill="#bfe3ff"/>
+  <rect x="6" y="5" width="1" height="1" fill="#1f86ff"/>
+  <rect x="7" y="5" width="1" height="1" fill="#1f86ff"/>
+  <rect x="8" y="5" width="1" height="1" fill="#1f86ff"/>
+  <rect x="9" y="5" width="1" height="1" fill="#0d2a5f"/>
+
+  <!-- y=6 -->
+  <rect x="2" y="6" width="1" height="1" fill="#0d2a5f"/>
+  <rect x="3" y="6" width="1" height="1" fill="#1f86ff"/>
+  <rect x="4" y="6" width="1" height="1" fill="#1f86ff"/>
+  <rect x="5" y="6" width="1" height="1" fill="#1f86ff"/>
+  <rect x="6" y="6" width="1" height="1" fill="#1f86ff"/>
+  <rect x="7" y="6" width="1" height="1" fill="#1f86ff"/>
+  <rect x="8" y="6" width="1" height="1" fill="#0d2a5f"/>
+
+  <!-- y=7 -->
+  <rect x="3" y="7" width="1" height="1" fill="#0d2a5f"/>
+  <rect x="4" y="7" width="1" height="1" fill="#1f86ff"/>
+  <rect x="5" y="7" width="1" height="1" fill="#1f86ff"/>
+  <rect x="6" y="7" width="1" height="1" fill="#1f86ff"/>
+  <rect x="7" y="7" width="1" height="1" fill="#0d2a5f"/>
+
+  <!-- y=8 -->
+  <rect x="4" y="8" width="1" height="1" fill="#0d2a5f"/>
+  <rect x="5" y="8" width="1" height="1" fill="#135bbf"/>
+  <rect x="6" y="8" width="1" height="1" fill="#0d2a5f"/>
+
+  <!-- y=9 -->
+  <rect x="5" y="9" width="1" height="1" fill="#135bbf"/>
+
+  <!-- y=10 -->
+  <rect x="5" y="10" width="1" height="1" fill="#0d2a5f"/>
+
+  <!-- y=11 -->
+  <rect x="4" y="11" width="1" height="1" fill="#0d2a5f"/>
+  <rect x="5" y="11" width="1" height="1" fill="#0d2a5f"/>
+  <rect x="6" y="11" width="1" height="1" fill="#0d2a5f"/>
+</svg>`;
+
+  SPRITES.potion_hp = makePotionAnim(hpPotionSVG);
+  SPRITES.potion_mp = makePotionAnim(mpPotionSVG);
 
   // Bat idle animations 24x24
   function makeBatAnim(wing, body){
@@ -2198,16 +2302,10 @@ function drawLootIcon(it, x, y){
     const idx = Math.floor(performance.now()/100) % frames.length;
     ctx.drawImage(frames[idx], x, y);
   }else if(it.type==='potion'){
-    if(it.hp){
-      ctx.drawImage(SPRITES.potion_hp.cv, x+1, y+1);
-    }else{
-      ctx.fillRect(x+5, y, 4, 4);
-      ctx.strokeRect(x+5, y, 4, 4);
-      ctx.beginPath();
-      ctx.arc(x+7, y+9, 5, 0, Math.PI*2);
-      ctx.fill();
-      ctx.stroke();
-    }
+    const spr = it.hp ? SPRITES.potion_hp : SPRITES.potion_mp;
+    const frames = spr.frames;
+    const idx = frames.length ? Math.floor(performance.now()/100)%frames.length : 0;
+    ctx.drawImage(frames[idx]||spr.cv, x+1, y+1);
   }else{
     switch(it.slot){
       case 'weapon':
