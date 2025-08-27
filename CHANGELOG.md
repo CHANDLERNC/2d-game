@@ -23,6 +23,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) with
 - Distinct loot icons per item class with glow effect for rare+ drops.
 - Rotating gold coin animation for dropped loot.
 - Uncommon rarity tier and revamped color scheme; rarer weapons gain stronger stats and glow from Rare upward.
+- Rotating chest armor loot icon with rarity glow.
 - Torches now cast light, revealing nearby tiles for increased visibility.
 - Subtle floor and wall color variations between floors for greater variety.
 - Griffin, dragon, and snake boss variants.

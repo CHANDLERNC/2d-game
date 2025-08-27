@@ -636,11 +636,24 @@ function genSprites(){
   <rect x="5" y="9" width="2" height="2" fill="#8b4513"/>
   <rect x="5" y="11" width="2" height="1" fill="#d2b48c"/>
   </svg>`;
+  const chestLootSVG = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12" shape-rendering="crispEdges">
+    <rect x="2" y="0" width="3" height="2" fill="#3a3b44"/>
+    <rect x="7" y="0" width="3" height="2" fill="#3a3b44"/>
+    <rect x="1" y="2" width="10" height="1" fill="#3a3b44"/>
+    <rect x="1" y="3" width="1" height="8" fill="#3a3b44"/>
+    <rect x="10" y="3" width="1" height="8" fill="#3a3b44"/>
+    <rect x="2" y="10" width="8" height="1" fill="#3a3b44"/>
+    <rect x="2" y="3" width="8" height="7" fill="#8c8d9f"/>
+    <rect x="3" y="4" width="6" height="5" fill="#aeb0c0"/>
+    <rect x="4" y="5" width="4" height="3" fill="#c5c6d5"/>
+    <rect x="2" y="9" width="8" height="1" fill="#7a7b8c"/>
+  </svg>`;
 
   SPRITES.potion_hp = makePotionAnim(hpPotionSVG);
   SPRITES.potion_mp = makePotionAnim(mpPotionSVG);
   SPRITES.bow_loot = makeSpinAnim(bowLootSVG);
   SPRITES.sword_loot = makeSpinAnim(swordLootSVG);
+  SPRITES.chest_loot = makeSpinAnim(chestLootSVG);
 
   // Bat idle animations 24x24
   function makeBatAnim(wing, body){
@@ -2391,10 +2404,13 @@ function drawLootIcon(it, x, y){
         ctx.fillRect(x+2, y+6, 10, 6);
         ctx.strokeRect(x+2, y+6, 10, 6);
         break;
-      case 'chest':
-        ctx.fillRect(x+3, y+3, 8, 8);
-        ctx.strokeRect(x+3, y+3, 8, 8);
+      case 'chest': {
+        const spr = SPRITES.chest_loot;
+        const frames = spr.frames;
+        const idx = frames.length ? Math.floor(performance.now()/100)%frames.length : 0;
+        ctx.drawImage(frames[idx]||spr.cv, x, y);
         break;
+      }
       case 'legs':
         ctx.fillRect(x+4, y+3, 3, 8);
         ctx.strokeRect(x+4, y+3, 3, 8);
