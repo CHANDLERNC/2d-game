@@ -300,39 +300,27 @@ function genSprites(){
   });
 
   // Slime idle animations 24x24
-  function loadSlimeSprite(key, src){
-    const blank = document.createElement('canvas');
-    blank.width = blank.height = 24;
-    SPRITES[key] = { cv: blank, frames: [] };
-    const img = new Image();
-    img.src = src;
-    img.onload = () => {
-      const fw = img.width / 2;
-      const fh = img.height / 2;
-      for(let row=0; row<2; row++){
-        for(let col=0; col<2; col++){
-          const c = document.createElement('canvas');
-          c.width = c.height = 24;
-          const g = c.getContext('2d');
-          g.imageSmoothingEnabled = false;
-          g.drawImage(img, col*fw, row*fh, fw, fh, 0, 0, 24, 24);
-          SPRITES[key].frames.push(c);
-        }
-      }
-      if(SPRITES[key].frames.length){
-        SPRITES[key].cv = SPRITES[key].frames[0];
-      }
-    };
+  function makeSlimeAnim(c1, c2, c3){
+    const frames = [];
+    for(let i=0;i<4;i++){
+      const c=document.createElement('canvas');
+      c.width=c.height=24;
+      const g=c.getContext('2d');
+      g.imageSmoothingEnabled=false;
+      const bob = (i%2===0)?0:1;
+      px(g,4,10+bob,16,10-bob,c1);
+      px(g,6,8+bob,12,10-bob,c2);
+      px(g,8,6+bob,8,8,c3);
+      px(g,9,11+bob,2,2,'#131340');
+      px(g,13,11+bob,2,2,'#131340');
+      outline(g,24);
+      frames.push(c);
+    }
+    return { cv: frames[0], frames };
   }
-  loadSlimeSprite('slime', 'slime_green_idle.png');
-  loadSlimeSprite('slime_red', 'slime_red_idle.png');
-  loadSlimeSprite('slime_yellow', 'slime_yellow_idle.png');
-  // Blue slime remains static
-  SPRITES.slime_blue = makeSprite(24,(g,S)=>{
-    px(g,4,10,16,10,'#6f7ed1'); px(g,6,8,12,10,'#7e8ee2'); px(g,8,6,8,8,'#9ba6f0');
-    px(g,9,11,2,2,'#131340'); px(g,13,11,2,2,'#131340');
-    outline(g,S);
-  });
+  SPRITES.slime = makeSlimeAnim('#5ca94a','#6bbd59','#8ed97b');
+  SPRITES.slime_red = makeSlimeAnim('#d35e5e','#e06e6e','#f18b8b');
+  SPRITES.slime_yellow = makeSlimeAnim('#d3c85e','#e0d56e','#f1e58b');
   // Bat 24x24
   SPRITES.bat = makeSprite(24,(g,S)=>{
     // wings
@@ -383,7 +371,31 @@ function genSprites(){
     outline(g,S);
   });
 
+  // Dragon boss idle animation 48x48
+  function makeDragonAnim(){
+    const frames=[];
+    for(let i=0;i<4;i++){
+      const c=document.createElement('canvas');
+      c.width=c.height=48;
+      const g=c.getContext('2d');
+      g.imageSmoothingEnabled=false;
+      const bob=(i%2===0)?0:1;
+      // wings/flames
+      px(g,4,16+bob,16,8,'#1e4aa8'); px(g,28,16+bob,16,8,'#1e4aa8');
+      // body
+      px(g,12,24+bob,24,16,'#8c6239');
+      // head
+      px(g,32,12+bob,12,12,'#8c6239');
+      // eye
+      px(g,38,18+bob,4,4,'#8a2be2');
+      outline(g,48);
+      frames.push(c);
+    }
+    return { cv: frames[0], frames };
+  }
+
   // Boss variants 48x48
+  SPRITES.dragon = makeDragonAnim();
   SPRITES.griffin = makeSprite(48,(g,S)=>{
     // wings
     px(g,6,18,36,12,'#b88f4a');
@@ -395,31 +407,6 @@ function genSprites(){
     px(g,18,40,4,8,'#8c6239'); px(g,26,40,4,8,'#8c6239');
     outline(g,S);
   });
-  // Dragon boss: load idle animation sheet and slice into frames
-  {
-    const blank = document.createElement('canvas');
-    blank.width = blank.height = 48;
-    SPRITES.dragon = { cv: blank, frames: [] };
-    const img = new Image();
-    img.src = 'dragon_idle.png';
-    img.onload = () => {
-      const fw = img.width / 2;
-      const fh = img.height / 2;
-      for (let row = 0; row < 2; row++) {
-        for (let col = 0; col < 2; col++) {
-          const c = document.createElement('canvas');
-          c.width = c.height = 48;
-          const g = c.getContext('2d');
-          g.imageSmoothingEnabled = false;
-          g.drawImage(img, col * fw, row * fh, fw, fh, 0, 0, 48, 48);
-          SPRITES.dragon.frames.push(c);
-        }
-      }
-      if (SPRITES.dragon.frames.length) {
-        SPRITES.dragon.cv = SPRITES.dragon.frames[0];
-      }
-    };
-  }
   SPRITES.snake = makeSprite(48,(g,S)=>{
     // body
     px(g,8,28,32,8,'#3a8');
@@ -784,7 +771,6 @@ function spawnMonster(type,x,y){
     const vars = [
       {key:'slime', hp:18, dmg:[2,4], atkCD:28, moveCD:[6,10]},
       {key:'slime_red', hp:16, dmg:[3,6], atkCD:28, moveCD:[6,10]},
-      {key:'slime_blue', hp:14, dmg:[2,4], atkCD:24, moveCD:[4,8]},
       {key:'slime_yellow', hp:24, dmg:[2,5], atkCD:32, moveCD:[8,12]},
     ];
     const v = vars[rng.int(0, vars.length-1)];

@@ -24,9 +24,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) with
 - Torches now cast light, revealing nearby tiles for increased visibility.
 - Subtle floor and wall color variations between floors for greater variety.
 - Griffin, dragon, and snake boss variants.
-- Red, blue, and yellow slime variants with unique stats, plus new mage and bat color schemes.
-- Animated dragon boss idle sprite sheet and generic frame-based monster animation.
-- Idle animation sprite sheets for red, yellow, and green slime variants.
+- Red and yellow slime variants with unique stats, plus new mage and bat color schemes.
+- Inline dragon boss idle animation and generic frame-based monster animation.
+- Inline idle animations for green, red, and yellow slime variants.
 
 ### Changed
 - Recombined CSS and JavaScript into `index.html` to maintain a single-file distribution.
@@ -49,7 +49,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) with
 
 - Weapon damage and armor/resistance values now scale with item level and rarity. Player base resistances increase slightly each level.
 
+### Removed
+- Blue slime enemy variant.
+
 ### Fixed
+- Slime and dragon idle animations now render without missing image assets.
 - Melee attacks now track the mouse and register hits within a 35° cone (2-tile reach by default).
 - Warrior class no longer registers as a mage.
 - Warrior skill menu now displays ability descriptions.
