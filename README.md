@@ -20,7 +20,7 @@ Then visit [http://localhost:8000](http://localhost:8000).
 - **K** – Toggle magic menu
 - **L** – Toggle warrior skills
 - **Q** – Use bound ability (spell or warrior skill)
-- **E** – Use stairs or the merchant
+- **E** – Use portal or the merchant
 - **1/2/3** – Quick-use potion from potion bag slot 1–3
 - **Esc** – Close open menus or open pause menu
 - **Click monsters** – Attack
