@@ -1304,7 +1304,7 @@ RNG.prototype.int=function(a,b){ return Math.floor(a + (b-a+1)*this.next()); }
 
 // ===== Map / Gen =====
 const T_EMPTY=0, T_FLOOR=1, T_WALL=2, T_TRAP=3, T_LAVA=4;
-const TRAP_CHANCE=0.03, LAVA_CHANCE=0.02;
+const TRAP_CHANCE=0.01, LAVA_CHANCE=0.02;
 
 function generateRooms(){
   // rooms
@@ -1573,7 +1573,7 @@ function placeHazards(){
 function checkHazard(x,y){
   const t=map[y*MAP_W+x];
   if(t===T_TRAP){
-    applyDamageToPlayer(5);
+    applyDamageToPlayer(20);
     addDamageText(x,y,'Trap!','#f55');
   } else if(t===T_LAVA){
     applyDamageToPlayer(8,'fire');
