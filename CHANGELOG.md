@@ -40,6 +40,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) with
 - Reduced wizard spawn chance on lower floors.
 - Increased potion drop rate to 40% (from 25%).
 - Mage enemies now fire 30% slower but hit 10% harder.
+- Mage enemies now use an animated skeleton sprite with purple energy.
 - Enemy elemental resistances now scale with floor level.
 - Mini bosses now always drop gold and may also drop gear or weapons.
 - Warrior abilities now unlock sequentially on the skill tree and bind to Q instead of using modifier keys.
