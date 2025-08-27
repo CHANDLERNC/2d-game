@@ -407,15 +407,31 @@ function genSprites(){
       }
     };
   }
-  SPRITES.snake = makeSprite(48,(g,S)=>{
-    // body
-    px(g,8,28,32,8,'#3a8');
-    // neck
-    px(g,20,16,8,12,'#3a8');
-    // head
-    px(g,16,12,16,8,'#3a8');
-    outline(g,S);
-  });
+  // Snake boss: load idle animation sheet and slice into frames
+  {
+    const blank = document.createElement('canvas');
+    blank.width = blank.height = 48;
+    SPRITES.snake = { cv: blank, frames: [] };
+    const img = new Image();
+    img.src = 'snake_idle.png';
+    img.onload = () => {
+      const fw = img.width / 2;
+      const fh = img.height / 2;
+      for (let row = 0; row < 2; row++) {
+        for (let col = 0; col < 2; col++) {
+          const c = document.createElement('canvas');
+          c.width = c.height = 48;
+          const g = c.getContext('2d');
+          g.imageSmoothingEnabled = false;
+          g.drawImage(img, col * fw, row * fh, fw, fh, 0, 0, 48, 48);
+          SPRITES.snake.frames.push(c);
+        }
+      }
+      if (SPRITES.snake.frames.length) {
+        SPRITES.snake.cv = SPRITES.snake.frames[0];
+      }
+    };
+  }
 
   // Stairs (down) 24x24
   SPRITES.stairs = makeSprite(24,(g,S)=>{
