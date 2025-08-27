@@ -567,7 +567,7 @@ let equip={helmet:null,chest:null,legs:null,hands:null,feet:null,weapon:null};
 const BAG_SIZE=12; let bag=new Array(BAG_SIZE).fill(null);
 const POTION_BAG_SIZE=3; let potionBag=new Array(POTION_BAG_SIZE).fill(null);
 let shopStock=[];
-let currentStats={dmgMin:0,dmgMax:0,crit:0,armor:0,resF:0,resI:0,resS:0,resM:0,hpMax:0,mpMax:0,spMax:0};
+let currentStats={dmgMin:0,dmgMax:0,crit:0,armor:0,resF:0,resI:0,resS:0,resM:0,resP:0,hpMax:0,mpMax:0,spMax:0};
 
 // HUD refs
 const hpFill=document.getElementById('hpFill'); const mpFill=document.getElementById('mpFill');
@@ -1015,6 +1015,33 @@ function generateWeaponName(base){
 }
 let lootMap=new Map();
 
+const WEAPON_AFFIX_POOL = [
+  {k:'crit', min:3, max:8},
+  {k:'ls', min:1, max:5},
+  {k:'mp', min:1, max:4},
+  {k:'status'},
+  {k:'kb', min:1, max:2},
+  {k:'atkSpd', min:5, max:15},
+  {k:'pierce', min:1, max:2},
+  {k:'hpMax', min:10, max:25},
+  {k:'speedPct', min:3, max:10},
+];
+
+const ARMOR_AFFIX_POOL = [
+  {k:'armor', min:2, max:6, lvl:true},
+  {k:'resFire', min:5, max:15, lvl:true},
+  {k:'resIce', min:5, max:15, lvl:true},
+  {k:'resShock', min:5, max:15, lvl:true},
+  {k:'resMagic', min:5, max:15, lvl:true},
+  {k:'resPoison', min:5, max:15, lvl:true},
+  {k:'hpMax', min:10, max:25},
+  {k:'mpMax', min:10, max:20},
+  {k:'speedPct', min:3, max:10},
+  {k:'ls', min:1, max:5},
+  {k:'mp', min:2, max:8},
+  {k:'crit', min:3, max:8},
+];
+
 function affixMods(slot, rarityIdx, lvl=1){
   const R={};
   const mult = RARITY[rarityIdx]?.m || 1;
@@ -1022,32 +1049,27 @@ function affixMods(slot, rarityIdx, lvl=1){
   if(slot==='weapon'){
     R.dmgMin=Math.floor(rng.int(1,3)*mult*lvlMult);
     R.dmgMax=Math.floor(rng.int(2,6)*mult*lvlMult);
-    if(rng.next()<0.35) R.crit=Math.floor(rng.int(3,8)*mult);
-    if(rng.next()<0.2) R.ls=Math.floor(rng.int(1,5)*mult);
-    if(rng.next()<0.2) R.mp=Math.floor(rng.int(1,4)*mult);
-    if(rng.next()<0.25){
-      const roll=rng.int(0,4);
-      if(roll===0)      R.status={k:'burn',  dur:2200,power:1.0, chance:rng.int(10,30)/100,elem:'fire'};
-      else if(roll===1) R.status={k:'bleed', dur:2000,power:1.0, chance:rng.int(10,30)/100,elem:'bleed'};
-      else if(roll===2) R.status={k:'poison',dur:2200,power:1.0, chance:rng.int(10,30)/100,elem:'poison'};
-      else if(roll===3) R.status={k:'freeze',dur:1800,power:0.4, chance:rng.int(10,30)/100,elem:'ice'};
-      else              R.status={k:'shock', dur:2000,power:0.25,chance:rng.int(10,30)/100,elem:'shock'};
-    }
-    if(rng.next()<0.2) R.kb=Math.floor(rng.int(1,2)*mult);
-    if(rng.next()<0.2) R.atkSpd=Math.floor(rng.int(5,15)*mult);
-    if(rng.next()<0.15) R.pierce=Math.floor(rng.int(1,2)*mult);
-  }else{
-    if(rng.next()<0.6) R.armor=Math.floor(rng.int(2,6)*mult*lvlMult);
-    if(rng.next()<0.35) R.resFire=Math.floor(rng.int(5,15)*mult*lvlMult);
-    if(rng.next()<0.35) R.resIce=Math.floor(rng.int(5,15)*mult*lvlMult);
-    if(rng.next()<0.35) R.resShock=Math.floor(rng.int(5,15)*mult*lvlMult);
   }
-  if(rng.next()<0.25) R.resMagic=Math.floor(rng.int(5,15)*mult*lvlMult);
-  if(rng.next()<0.35) R.hpMax=Math.floor(rng.int(10,25)*mult);
-  if(rng.next()<0.25) R.mpMax=Math.floor(rng.int(10,20)*mult);
-  if(rng.next()<0.25) R.speedPct=Math.floor(rng.int(3,10)*mult);
-  if(!R.ls && rng.next()<0.2) R.ls=Math.floor(rng.int(1,5)*mult);
-  if(!R.mp && rng.next()<0.2) R.mp=Math.floor(rng.int(2,8)*mult);
+  const pool = slot==='weapon'?WEAPON_AFFIX_POOL:ARMOR_AFFIX_POOL;
+  const maxAff = Math.min(4, 1 + rarityIdx);
+  const affCount = rng.int(1, maxAff);
+  const opts = pool.slice();
+  for(let i=0;i<affCount && opts.length>0;i++){
+    const idx=rng.int(0,opts.length-1);
+    const a=opts.splice(idx,1)[0];
+    if(a.k==='status'){
+      const roll=rng.int(0,4);
+      const chance=rng.int(10,30)/100;
+      if(roll===0)      R.status={k:'burn',  dur:2200,power:1.0,chance,elem:'fire'};
+      else if(roll===1) R.status={k:'bleed', dur:2000,power:1.0,chance,elem:'bleed'};
+      else if(roll===2) R.status={k:'poison',dur:2200,power:1.0,chance,elem:'poison'};
+      else if(roll===3) R.status={k:'freeze',dur:1800,power:0.4,chance,elem:'ice'};
+      else              R.status={k:'shock', dur:2000,power:0.25,chance,elem:'shock'};
+    }else{
+      const scale = (slot==='weapon' || !a.lvl)?1:lvlMult;
+      R[a.k]=Math.floor(rng.int(a.min,a.max)*mult*scale);
+    }
+  }
   return R;
 }
 
@@ -1137,7 +1159,7 @@ function redrawInventory(){
   html += `<div class="list-row"><div>ATK</div><div class="muted">${currentStats.dmgMin}-${currentStats.dmgMax}</div></div>`;
   html += `<div class="list-row"><div>CRIT</div><div class="muted">${currentStats.crit}%</div></div>`;
   html += `<div class="list-row"><div>Armor</div><div class="muted">${currentStats.armor}</div></div>`;
-  html += `<div class="list-row"><div>Res F/I/S/M</div><div class="muted">${currentStats.resF}/${currentStats.resI}/${currentStats.resS}/${currentStats.resM}</div></div>`;
+  html += `<div class="list-row"><div>Res F/I/S/M/P</div><div class="muted">${currentStats.resF}/${currentStats.resI}/${currentStats.resS}/${currentStats.resM}/${currentStats.resP}</div></div>`;
   html += '</div><div class="hr"></div>';
   html += '<div class="section-title">Equipped</div>';
   html += '<div>';
@@ -1233,8 +1255,8 @@ function shortMods(it){
   if(m.kb) bits.push(`KB ${m.kb}`);
   if(m.pierce) bits.push(`PRC ${m.pierce}`);
   if(m.status) bits.push(`${m.status.k.toUpperCase()} ${Math.round((m.status.chance||0)*100)}%`);
-  const rf=m.resFire||0, ri=m.resIce||0, rs=m.resShock||0, rm=m.resMagic||0;
-  if(rf||ri||rs||rm) bits.push(`RES F/I/S/M ${rf}/${ri}/${rs}/${rm}`);
+  const rf=m.resFire||0, ri=m.resIce||0, rs=m.resShock||0, rm=m.resMagic||0, rp=m.resPoison||0;
+  if(rf||ri||rs||rm||rp) bits.push(`RES F/I/S/M/P ${rf}/${ri}/${rs}/${rm}/${rp}`);
   return bits.join(' · ');
 }
 
@@ -1265,8 +1287,8 @@ function renderDetails(it, origin){
   if(m.kb) rows.push(`<div>Knockback: <span class="mono">${m.kb}</span></div>`);
   if(m.pierce) rows.push(`<div>Projectile Pierce: <span class="mono">${m.pierce}</span></div>`);
   if(m.status) rows.push(`<div>${m.status.k.toUpperCase()} Chance: <span class="mono">${Math.round((m.status.chance||0)*100)}%</span></div>`);
-  if(m.resFire||m.resIce||m.resShock||m.resMagic){
-    rows.push(`<div>Resists (F/I/S/M): <span class="mono">${m.resFire||0}/${m.resIce||0}/${m.resShock||0}/${m.resMagic||0}%</span></div>`);
+  if(m.resFire||m.resIce||m.resShock||m.resMagic||m.resPoison){
+    rows.push(`<div>Resists (F/I/S/M/P): <span class="mono">${m.resFire||0}/${m.resIce||0}/${m.resShock||0}/${m.resMagic||0}/${m.resPoison||0}%</span></div>`);
   }
   if(rows.length===0) rows.push('<div class="muted">No magical properties.</div>');
   lines.push(`<div style="margin:6px 0">${rows.join('')}</div>`);
@@ -1293,7 +1315,7 @@ function getItemValue(it){
   score+= (m.ls||0)*6 + (m.mp||0)*2;
   score+= (m.atkSpd||0)*4 + (m.kb||0)*8 + (m.pierce||0)*12;
   if(m.status) score+= Math.round((m.status.chance||0)*100) * 4;
-  score+= ((m.resFire||0)+(m.resIce||0)+(m.resShock||0))*1.2 + (m.resMagic||0)*1.8;
+  score+= ((m.resFire||0)+(m.resIce||0)+(m.resShock||0)+(m.resPoison||0))*1.2 + (m.resMagic||0)*1.8;
   const floorBonus = Math.max(0,floorNum-1)*4;
   return Math.max(5, Math.floor((rBase + score)*slotFactor + floorBonus));
 }
@@ -1504,7 +1526,13 @@ function currentAtk(){
   // why: single source-of-truth for attack numbers (incl. level & gear)
   let min=2,max=4,crit=5,ls=0;
   const lvlBonus = Math.floor((player.lvl-1)*0.6); min+=lvlBonus; max+=lvlBonus;
-  const w=equip.weapon?.mods||{}; min+=w.dmgMin||0; max+=w.dmgMax||0; crit += w.crit||0; ls=w.ls||0; return {min,max,crit,ls};
+  for(const slot of SLOTS){
+    const m=equip[slot]?.mods||{};
+    if(slot==='weapon'){ min+=m.dmgMin||0; max+=m.dmgMax||0; }
+    if(m.crit) crit+=m.crit;
+    if(m.ls) ls+=m.ls;
+  }
+  return {min,max,crit,ls};
 }
 
 function applyDamageToPlayer(dmg, type='physical'){
@@ -2558,8 +2586,8 @@ function recalcStats(){
   player.hpMax=hpMax; player.mpMax=mpMax; player.spMax=spMax; player.speedPct=speedPct; player.spellBonus=spellBonus; if(player.hp>hpMax) player.hp=hpMax; if(player.mp>mpMax) player.mp=mpMax; if(player.sp>spMax) player.sp=spMax;
   player.armor = armor;
   player.resFire=resF; player.resIce=resI; player.resShock=resS; player.resMagic=resM; player.resPoison=resP;
-  currentStats={dmgMin,dmgMax,crit,armor,resF,resI,resS,resM,hpMax,mpMax,spMax};
-  hudDmg.textContent = `ATK ${dmgMin}-${dmgMax} | CRIT ${crit}% | ARM ${armor} | RES F/I/S/M ${resF}/${resI}/${resS}/${resM}`;
+  currentStats={dmgMin,dmgMax,crit,armor,resF,resI,resS,resM,resP,hpMax,mpMax,spMax};
+  hudDmg.textContent = `ATK ${dmgMin}-${dmgMax} | CRIT ${crit}% | ARM ${armor} | RES F/I/S/M/P ${resF}/${resI}/${resS}/${resM}/${resP}`;
   hpFill.style.width = `${(player.hp/player.hpMax)*100}%`;
   updateResourceUI();
   hpLbl.textContent = `HP ${player.hp}/${player.hpMax}`;
