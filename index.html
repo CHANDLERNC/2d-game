@@ -208,6 +208,8 @@ function monsterCountForFloor(floor){
   const extra = rng.int(0, MONSTER_COUNT_VARIANCE + Math.floor(floor/2));
   return Math.max(MONSTER_MIN_COUNT, base + extra);
 }
+// Global multiplier for all XP gains
+const XP_GAIN_MULT = 1.1;
 // Higher values slow all enemy actions (movement frequency and speed)
 const ENEMY_SPEED_MULT = 1.5;
 let canvas=document.getElementById('gameCanvas'); let ctx=canvas.getContext('2d');
@@ -552,7 +554,7 @@ const skillTrees={
   ]}
 };
 // Monsters now have richer AI with per-type patterns and scaling
-// {x,y,rx,ry,type,hp,hpMax,dmgMin,dmgMax,atkCD,moveCD,state:{...},hitFlash,effects:[]}
+// {x,y,rx,ry,type,hp,hpMax,dmgMin,dmgMax,atkCD,moveCD,xp,state:{...},hitFlash,effects:[]}
 let monsters=[];
 // Simple projectile pool for ranged/magic attacks
 // {x,y,dx,dy,speed,damage,type,elem,owner,alive,maxDist,dist,ls,status}
@@ -873,9 +875,11 @@ function spawnMonster(type,x,y){
     dmgMax: Math.round(scaleStat(a.dmg[1], SCALE.DMG_PER_FLOOR) * diff),
     atkCD: rng.int(10, a.atkCD), // frames
     moveCD: Math.round(rng.int(a.moveCD[0], a.moveCD[1]) * ENEMY_SPEED_MULT),
+    xp: 0,
     state: {}, aggroT:0, hitFlash:0, moving:false, moveT:1, moveDur: Math.round(140 * ENEMY_SPEED_MULT), fromX:x, fromY:y, toX:x, toY:y, effects:[]
   };
   m.hp = m.hpMax;
+  m.xp = calcMonsterXP(m);
   const elemRes = Math.floor(SCALE.RES_PER_FLOOR * Math.max(0, floorNum-1));
   const magicRes = Math.floor(SCALE.RES_MAGIC_PER_FLOOR * Math.max(0, floorNum-1));
   m.resFire = elemRes;
@@ -1942,7 +1946,7 @@ function draw(dt){
         if(Math.random()<MONSTER_LOOT_CHANCE) dropLoot(m.x,m.y);
         if(Math.random()<0.55){ lootMap.set(`${m.x},${m.y}`,{color:'#ffd24a',type:'gold',amt:rng.int(3,12)}); }
       }
-      grantXP(Math.floor((10 + rng.int(0,6)) * 1.25));
+      grantXP(m.xp);
       const idx=monsters.indexOf(m); if(idx>=0) monsters.splice(idx,1);
     }
   }
@@ -2502,7 +2506,15 @@ function dropLoot(x,y){
 }
 
 // ===== XP / Leveling =====
-function grantXP(x){ player.xp+=x; while(player.xp>=player.xpToNext){ player.xp-=player.xpToNext; levelUp(); } }
+function calcMonsterXP(m){
+  const avgDmg = (m.dmgMin + m.dmgMax) / 2;
+  const difficulty = m.hpMax + avgDmg * 10;
+  return Math.round(difficulty * 0.25);
+}
+function grantXP(x){
+  player.xp += Math.round(x * XP_GAIN_MULT);
+  while(player.xp>=player.xpToNext){ player.xp-=player.xpToNext; levelUp(); }
+}
 function levelUp(){
   player.lvl++;
   player.baseAtkBonus += 1;
