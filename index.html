@@ -860,12 +860,13 @@ function generateWeaponName(base){
 }
 let lootMap=new Map();
 
-function affixMods(slot, rarityIdx){
+function affixMods(slot, rarityIdx, lvl=1){
   const R={};
   const mult = RARITY[rarityIdx]?.m || 1;
+  const lvlMult = 1 + (lvl-1) * 0.1; // scale stats with item level
   if(slot==='weapon'){
-    R.dmgMin=Math.floor(rng.int(1,3)*mult);
-    R.dmgMax=Math.floor(rng.int(2,6)*mult);
+    R.dmgMin=Math.floor(rng.int(1,3)*mult*lvlMult);
+    R.dmgMax=Math.floor(rng.int(2,6)*mult*lvlMult);
     if(rng.next()<0.35) R.crit=Math.floor(rng.int(3,8)*mult);
     if(rng.next()<0.2) R.ls=Math.floor(rng.int(1,5)*mult);
     if(rng.next()<0.2) R.mp=Math.floor(rng.int(1,4)*mult);
@@ -880,12 +881,12 @@ function affixMods(slot, rarityIdx){
     if(rng.next()<0.2) R.atkSpd=Math.floor(rng.int(5,15)*mult);
     if(rng.next()<0.15) R.pierce=Math.floor(rng.int(1,2)*mult);
   }else{
-    if(rng.next()<0.6) R.armor=Math.floor(rng.int(2,6)*mult);
-    if(rng.next()<0.35) R.resFire=Math.floor(rng.int(5,15)*mult);
-    if(rng.next()<0.35) R.resIce=Math.floor(rng.int(5,15)*mult);
-    if(rng.next()<0.35) R.resShock=Math.floor(rng.int(5,15)*mult);
+    if(rng.next()<0.6) R.armor=Math.floor(rng.int(2,6)*mult*lvlMult);
+    if(rng.next()<0.35) R.resFire=Math.floor(rng.int(5,15)*mult*lvlMult);
+    if(rng.next()<0.35) R.resIce=Math.floor(rng.int(5,15)*mult*lvlMult);
+    if(rng.next()<0.35) R.resShock=Math.floor(rng.int(5,15)*mult*lvlMult);
   }
-  if(rng.next()<0.25) R.resMagic=Math.floor(rng.int(5,15)*mult);
+  if(rng.next()<0.25) R.resMagic=Math.floor(rng.int(5,15)*mult*lvlMult);
   if(rng.next()<0.35) R.hpMax=Math.floor(rng.int(10,25)*mult);
   if(rng.next()<0.25) R.mpMax=Math.floor(rng.int(10,20)*mult);
   if(rng.next()<0.25) R.speedPct=Math.floor(rng.int(3,10)*mult);
@@ -1156,7 +1157,7 @@ function makeRandomGear(){
   let baseName = base;
   if(slot==='weapon') baseName = generateWeaponName(base);
   const name = `${RARITY[rarityIdx].n} ${baseName}`;
-  const item = { color: RARITY[rarityIdx].c, type:'gear', slot, name, rarity: rarityIdx, lvl: floorNum, mods: affixMods(slot, rarityIdx) };
+  const item = { color: RARITY[rarityIdx].c, type:'gear', slot, name, rarity: rarityIdx, lvl: floorNum, mods: affixMods(slot, rarityIdx, floorNum) };
   if(slot==='weapon'){ item.wclass = base.toLowerCase(); }
   return item;
 }
@@ -2301,6 +2302,8 @@ function recalcStats(){
   // level bonus
   const lvlBonus = Math.floor((player.lvl-1)*0.6) + (player.baseAtkBonus||0);
   dmgMin += lvlBonus; dmgMax += lvlBonus;
+  const baseRes = Math.floor((player.lvl-1)*1.5); // 1-2% base resist per level
+  resF += baseRes; resI += baseRes; resS += baseRes; resM += baseRes;
   for(const slot of SLOTS){
     const it=equip[slot]; if(!it) continue; const m=it.mods;
     if(m.dmgMin) dmgMin+=m.dmgMin; if(m.dmgMax) dmgMax+=m.dmgMax; if(m.crit) crit+=m.crit; if(m.armor) armor+=m.armor; if(m.hpMax) hpMax+=m.hpMax; if(m.mpMax){ mpMax+=m.mpMax; spMax+=m.mpMax; } if(m.speedPct) speedPct+=m.speedPct;
