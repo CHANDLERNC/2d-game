@@ -584,6 +584,55 @@ function genSprites(){
   // Merchant tile (purple marker) for visibility hint
   SPRITES.merchant_tile = makeSprite(24,(g,S)=>{ px(g,4,4,16,16,'#8a5cff'); outline(g,S); });
 
+  // Projectile sprites (8x8)
+  function makeBallAnim(c1, c2){
+    const frames=[];
+    for(let i=0;i<2;i++){
+      const c=document.createElement('canvas');
+      c.width=c.height=8;
+      const g=c.getContext('2d');
+      g.imageSmoothingEnabled=false;
+      g.fillStyle = i===0?c1:c2;
+      g.beginPath();
+      g.arc(4,4,3,0,Math.PI*2);
+      g.fill();
+      frames.push(c);
+    }
+    return { cv: frames[0], frames };
+  }
+  function makeArrowAnim(g1, g2){
+    const frames=[];
+    for(let i=0;i<2;i++){
+      const c=document.createElement('canvas');
+      c.width=c.height=8;
+      const g=c.getContext('2d');
+      g.imageSmoothingEnabled=false;
+      const glow = g1 ? (i===0?g1:(g2||g1)) : null;
+      if(glow){
+        g.fillStyle=glow;
+        g.globalAlpha=0.4 + 0.3*i;
+        g.fillRect(0,0,8,8);
+        g.globalAlpha=1;
+      }
+      // arrow pointing right
+      px(g,0,3,5,2,'#8b5e3c');
+      px(g,5,2,3,4,'#c0c0c0');
+      frames.push(c);
+    }
+    return { cv: frames[0], frames };
+  }
+  SPRITES.proj_fire   = makeBallAnim('#ff9b4a','#ff6b4a');
+  SPRITES.proj_poison = makeBallAnim('#9fe2a1','#76d38b');
+  SPRITES.proj_magic  = makeBallAnim('#b84aff','#d6a2ff');
+  SPRITES.proj_blast  = makeBallAnim('#ffd24a','#ffe68a');
+  SPRITES.proj_ice    = makeBallAnim('#7dd3fc','#bdeafe');
+  SPRITES.proj_shock  = makeBallAnim('#facc15','#fde047');
+  SPRITES.arrow       = makeArrowAnim();
+  SPRITES.arrow_fire  = makeArrowAnim('#ff6b4a','#ff9b4a');
+  SPRITES.arrow_shock = makeArrowAnim('#facc15','#fde047');
+  SPRITES.arrow_ice   = makeArrowAnim('#7dd3fc','#bdeafe');
+  SPRITES.arrow_poison= makeArrowAnim('#76d38b','#9fe2a1');
+
   // previews on start screen
   const prevWarrior=document.getElementById('prevWarrior');
   const prevMage=document.getElementById('prevMage');
@@ -2060,14 +2109,36 @@ function draw(dt){
   // projectiles
   for(const p of projectiles){
     if(!p.alive) continue;
-    const px = p.x*TILE - camX - 3, py = p.y*TILE - camY - 3;
-    // color by element
-    ctx.fillStyle = p.elem==='fire' ? '#ff6b4a' :
-                    p.elem==='ice'  ? '#7dd3fc' :
-                    p.elem==='shock'? '#facc15' :
-                    p.elem==='poison'? '#76d38b' :
-                    (p.type==='magic' ? '#b84aff' : '#ffd24a');
-    ctx.fillRect(px, py, 6, 6);
+    let key;
+    if(p.type==='ranged'){
+      if(p.elem==='fire') key='arrow_fire';
+      else if(p.elem==='shock') key='arrow_shock';
+      else if(p.elem==='ice') key='arrow_ice';
+      else if(p.elem==='poison') key='arrow_poison';
+      else key='arrow';
+    }else{
+      if(p.elem==='fire') key='proj_fire';
+      else if(p.elem==='poison') key='proj_poison';
+      else if(p.elem==='ice') key='proj_ice';
+      else if(p.elem==='shock') key='proj_shock';
+      else if(p.elem==='blast') key='proj_blast';
+      else key='proj_magic';
+    }
+    const spr = SPRITES[key];
+    const frame = spr.frames[Math.floor(now/150) % spr.frames.length];
+    const size = spr.cv.width;
+    const px = p.x*TILE - camX - size/2;
+    const py = p.y*TILE - camY - size/2;
+    if(p.type==='ranged'){
+      const ang = Math.atan2(p.dy, p.dx);
+      ctx.save();
+      ctx.translate(px+size/2, py+size/2);
+      ctx.rotate(ang);
+      ctx.drawImage(frame, -size/2, -size/2);
+      ctx.restore();
+    }else{
+      ctx.drawImage(frame, px, py);
+    }
   }
 
   // player (sprite)

@@ -32,6 +32,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) with
 - Animated bat idle sprite with flapping wings.
 - Fire and poison skeleton variants that inflict burn or poison damage.
 - Passive health regeneration when out of combat.
+- Animated projectile sprites for elemental arrows and magic bolts.
 
 ### Changed
 - Monster spawn counts are now randomized and increase on deeper floors.
