@@ -2736,6 +2736,23 @@ function draw(dt){
       const animIdx = Math.floor(now/200) % spr.frames.length;
       frame = spr.frames[animIdx];
     }
+    if(m.elite || m.miniBoss || m.bigBoss){
+      const pulse = 0.5 + 0.5*Math.sin(now*0.002);
+      const cx = mx + size/2;
+      const cy = my + size/2;
+      const inner = size/2;
+      const outer = inner + 8 + pulse*4;
+      const g = ctx.createRadialGradient(cx, cy, inner, cx, cy, outer);
+      g.addColorStop(0, 'rgba(255,0,0,0)');
+      g.addColorStop(1, `rgba(255,0,0,${0.4*pulse})`);
+      ctx.save();
+      ctx.globalCompositeOperation='lighter';
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.arc(cx, cy, outer, 0, Math.PI*2);
+      ctx.fill();
+      ctx.restore();
+    }
     ctx.drawImage(frame, mx, my);
     if(m.hitFlash>0){ ctx.globalAlpha=0.5; ctx.fillStyle='#ff6666'; ctx.fillRect(mx,my,size,size); ctx.globalAlpha=1; }
     // hp bar
