@@ -417,6 +417,27 @@ function genSprites(){
     return sprite;
   }
 
+  function makeBowAnim(svg){
+    const img = new Image();
+    const sprite = { cv: img, frames: [] };
+    img.onload = () => {
+      const steps = 16;
+      for(let i=0;i<steps;i++){
+        const c=document.createElement('canvas');
+        c.width=c.height=14;
+        const g=c.getContext('2d');
+        g.imageSmoothingEnabled=false;
+        g.translate(7,7);
+        g.rotate(i/steps*Math.PI*2);
+        g.drawImage(img,-6,-6);
+        sprite.frames.push(c);
+      }
+      sprite.cv=sprite.frames[0];
+    };
+    img.src='data:image/svg+xml;base64,'+btoa(svg);
+    return sprite;
+  }
+
   const hpPotionSVG = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12" shape-rendering="crispEdges">
   <!-- Palette -->
   <!-- O = outline #6b0018, B = body #d61a3c, H = highlight #ff9aaa, D = deep red #a10f28 -->
@@ -582,8 +603,34 @@ function genSprites(){
   <rect x="6" y="11" width="1" height="1" fill="#0d2a5f"/>
 </svg>`;
 
+  const bowLootSVG = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12">
+  <rect x="6" y="1" width="1" height="10" fill="#dcdcdc"/>
+  <rect x="4" y="1" width="1" height="1" fill="#3a1c0a"/>
+  <rect x="3" y="2" width="1" height="1" fill="#8b5a2b"/>
+  <rect x="2" y="3" width="1" height="1" fill="#8b5a2b"/>
+  <rect x="2" y="4" width="1" height="1" fill="#3a1c0a"/>
+  <rect x="2" y="7" width="1" height="1" fill="#3a1c0a"/>
+  <rect x="2" y="8" width="1" height="1" fill="#8b5a2b"/>
+  <rect x="3" y="9" width="1" height="1" fill="#8b5a2b"/>
+  <rect x="4" y="10" width="1" height="1" fill="#3a1c0a"/>
+  <rect x="3" y="3" width="1" height="1" fill="#c78549"/>
+  <rect x="3" y="8" width="1" height="1" fill="#c78549"/>
+  <rect x="4" y="6" width="1" height="1" fill="#c78549"/>
+  <rect x="7" y="1" width="1" height="1" fill="#3a1c0a"/>
+  <rect x="8" y="2" width="1" height="1" fill="#8b5a2b"/>
+  <rect x="9" y="3" width="1" height="1" fill="#8b5a2b"/>
+  <rect x="9" y="4" width="1" height="1" fill="#3a1c0a"/>
+  <rect x="9" y="7" width="1" height="1" fill="#3a1c0a"/>
+  <rect x="9" y="8" width="1" height="1" fill="#8b5a2b"/>
+  <rect x="8" y="9" width="1" height="1" fill="#8b5a2b"/>
+  <rect x="7" y="10" width="1" height="1" fill="#3a1c0a"/>
+  <rect x="8" y="3" width="1" height="1" fill="#c78549"/>
+  <rect x="8" y="8" width="1" height="1" fill="#c78549"/>
+  </svg>`;
+
   SPRITES.potion_hp = makePotionAnim(hpPotionSVG);
   SPRITES.potion_mp = makePotionAnim(mpPotionSVG);
+  SPRITES.bow_loot = makeBowAnim(bowLootSVG);
 
   // Bat idle animations 24x24
   function makeBatAnim(wing, body){
@@ -2290,9 +2337,9 @@ function monsterAI(m, dt){
 // ===== Drawing =====
 function drawLootIcon(it, x, y){
   ctx.save();
-  if(it.rarity>=3){
+  if(it.rarity>0){
     ctx.shadowColor = it.color;
-    ctx.shadowBlur = 8;
+    ctx.shadowBlur = 4 + it.rarity*2;
   }
   ctx.fillStyle = it.color;
   ctx.strokeStyle = '#000';
@@ -2309,10 +2356,17 @@ function drawLootIcon(it, x, y){
   }else{
     switch(it.slot){
       case 'weapon':
-        ctx.fillRect(x+6, y, 2, 10);
-        ctx.strokeRect(x+6, y, 2, 10);
-        ctx.fillRect(x+4, y+8, 6, 2);
-        ctx.strokeRect(x+4, y+8, 6, 2);
+        if(it.wclass === 'bow'){
+          const spr = SPRITES.bow_loot;
+          const frames = spr.frames;
+          const idx = frames.length ? Math.floor(performance.now()/100)%frames.length : 0;
+          ctx.drawImage(frames[idx]||spr.cv, x, y);
+        }else{
+          ctx.fillRect(x+6, y, 2, 10);
+          ctx.strokeRect(x+6, y, 2, 10);
+          ctx.fillRect(x+4, y+8, 6, 2);
+          ctx.strokeRect(x+4, y+8, 6, 2);
+        }
         break;
       case 'helmet':
         ctx.beginPath();
