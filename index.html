@@ -299,25 +299,38 @@ function genSprites(){
     outline(g,S);
   });
 
-  // Slime 24x24
-  SPRITES.slime = makeSprite(24,(g,S)=>{
-    px(g,4,10,16,10,'#6fd16f'); px(g,6,8,12,10,'#7ee27e'); px(g,8,6,8,8,'#9bf09b');
-    px(g,9,11,2,2,'#134013'); px(g,13,11,2,2,'#134013');
-    outline(g,S);
-  });
-  SPRITES.slime_red = makeSprite(24,(g,S)=>{
-    px(g,4,10,16,10,'#d16f6f'); px(g,6,8,12,10,'#e27e7e'); px(g,8,6,8,8,'#f09b9b');
-    px(g,9,11,2,2,'#401313'); px(g,13,11,2,2,'#401313');
-    outline(g,S);
-  });
+  // Slime idle animations 24x24
+  function loadSlimeSprite(key, src){
+    const blank = document.createElement('canvas');
+    blank.width = blank.height = 24;
+    SPRITES[key] = { cv: blank, frames: [] };
+    const img = new Image();
+    img.src = src;
+    img.onload = () => {
+      const fw = img.width / 2;
+      const fh = img.height / 2;
+      for(let row=0; row<2; row++){
+        for(let col=0; col<2; col++){
+          const c = document.createElement('canvas');
+          c.width = c.height = 24;
+          const g = c.getContext('2d');
+          g.imageSmoothingEnabled = false;
+          g.drawImage(img, col*fw, row*fh, fw, fh, 0, 0, 24, 24);
+          SPRITES[key].frames.push(c);
+        }
+      }
+      if(SPRITES[key].frames.length){
+        SPRITES[key].cv = SPRITES[key].frames[0];
+      }
+    };
+  }
+  loadSlimeSprite('slime', 'slime_green_idle.png');
+  loadSlimeSprite('slime_red', 'slime_red_idle.png');
+  loadSlimeSprite('slime_yellow', 'slime_yellow_idle.png');
+  // Blue slime remains static
   SPRITES.slime_blue = makeSprite(24,(g,S)=>{
     px(g,4,10,16,10,'#6f7ed1'); px(g,6,8,12,10,'#7e8ee2'); px(g,8,6,8,8,'#9ba6f0');
     px(g,9,11,2,2,'#131340'); px(g,13,11,2,2,'#131340');
-    outline(g,S);
-  });
-  SPRITES.slime_yellow = makeSprite(24,(g,S)=>{
-    px(g,4,10,16,10,'#d1d16f'); px(g,6,8,12,10,'#e2e27e'); px(g,8,6,8,8,'#f0f09b');
-    px(g,9,11,2,2,'#404013'); px(g,13,11,2,2,'#404013');
     outline(g,S);
   });
   // Bat 24x24
