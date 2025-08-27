@@ -446,25 +446,22 @@ function genSprites(){
     return { cv: frames[0], frames };
   }
   SPRITES.dragon = makeDragonAnim();
-  // Snake boss: load idle animation sheet and slice into frames
+  // Snake boss: image-based with simple bobbing animation
   {
     const blank = document.createElement('canvas');
     blank.width = blank.height = 48;
     SPRITES.snake = { cv: blank, frames: [] };
     const img = new Image();
-    img.src = 'snake_idle.png';
+    img.src = 'data:image/png;base64,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';
     img.onload = () => {
-      const fw = img.width / 2;
-      const fh = img.height / 2;
-      for (let row = 0; row < 2; row++) {
-        for (let col = 0; col < 2; col++) {
-          const c = document.createElement('canvas');
-          c.width = c.height = 48;
-          const g = c.getContext('2d');
-          g.imageSmoothingEnabled = false;
-          g.drawImage(img, col * fw, row * fh, fw, fh, 0, 0, 48, 48);
-          SPRITES.snake.frames.push(c);
-        }
+      const bob = [0, 1, 0, -1];
+      for (const y of bob) {
+        const c = document.createElement('canvas');
+        c.width = c.height = 48;
+        const g = c.getContext('2d');
+        g.imageSmoothingEnabled = false;
+        g.drawImage(img, 0, y, 48, 48);
+        SPRITES.snake.frames.push(c);
       }
       if (SPRITES.snake.frames.length) {
         SPRITES.snake.cv = SPRITES.snake.frames[0];
