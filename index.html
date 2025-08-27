@@ -1026,11 +1026,12 @@ function affixMods(slot, rarityIdx, lvl=1){
     if(rng.next()<0.2) R.ls=Math.floor(rng.int(1,5)*mult);
     if(rng.next()<0.2) R.mp=Math.floor(rng.int(1,4)*mult);
     if(rng.next()<0.25){
-      const roll=rng.int(0,3);
-      if(roll===0) R.status={k:'burn',dur:2200,power:1.0,chance:rng.int(10,30)/100,elem:'fire'};
-      else if(roll===1) R.status={k:'bleed',dur:2000,power:1.0,chance:rng.int(10,30)/100,elem:'bleed'};
-      else if(roll===2) R.status={k:'freeze',dur:1800,power:0.4,chance:rng.int(10,30)/100,elem:'ice'};
-      else R.status={k:'shock',dur:2000,power:0.25,chance:rng.int(10,30)/100,elem:'shock'};
+      const roll=rng.int(0,4);
+      if(roll===0)      R.status={k:'burn',  dur:2200,power:1.0, chance:rng.int(10,30)/100,elem:'fire'};
+      else if(roll===1) R.status={k:'bleed', dur:2000,power:1.0, chance:rng.int(10,30)/100,elem:'bleed'};
+      else if(roll===2) R.status={k:'poison',dur:2200,power:1.0, chance:rng.int(10,30)/100,elem:'poison'};
+      else if(roll===3) R.status={k:'freeze',dur:1800,power:0.4, chance:rng.int(10,30)/100,elem:'ice'};
+      else              R.status={k:'shock', dur:2000,power:0.25,chance:rng.int(10,30)/100,elem:'shock'};
     }
     if(rng.next()<0.2) R.kb=Math.floor(rng.int(1,2)*mult);
     if(rng.next()<0.2) R.atkSpd=Math.floor(rng.int(5,15)*mult);
@@ -1535,11 +1536,12 @@ function applyDamageToPlayer(dmg, type='physical'){
 // ===== Player weapon profiles & directional attacks =====
 const WEAPON_RULES = {
   sword: {kind:'melee', reach:2, cooldown:240, status:{k:'bleed', elem:'bleed', dur:2000, power:1.0, chance:0.3}},
-  axe:   {kind:'melee', reach:1, cooldown:300, status:{k:'bleed', elem:'bleed', dur:2200, power:1.2, chance:0.35}},
-  mace:  {kind:'melee', reach:1, cooldown:300, status:{k:'bleed', elem:'bleed', dur:2200, power:1.1, chance:0.3}},
+  axe:   {kind:'melee', reach:1, cooldown:300, status:{k:'bleed', elem:'bleed', dur:2200, power:1.2, chance:0.35}, kb:1},
+  mace:  {kind:'melee', reach:1, cooldown:300, status:{k:'bleed', elem:'bleed', dur:2200, power:1.1, chance:0.3}, kb:1},
   dagger:{kind:'melee', reach:1, cooldown:160, status:{k:'bleed', elem:'bleed', dur:1600, power:0.8, chance:0.4}},
   // speeds now in tiles/sec
-  bow:   {kind:'ranged', projSpeed:14, projRange:14, cooldown:320, dtype:'ranged'},
+  bow:   {kind:'ranged', projSpeed:14, projRange:14, cooldown:320, dtype:'ranged', status:{k:'poison', elem:'poison', dur:2200, power:1.0, chance:0.3}},
+  crossbow:{kind:'ranged', projSpeed:16, projRange:16, cooldown:360, dtype:'ranged', status:{k:'freeze', elem:'ice', dur:1800, power:0.4, chance:0.35}},
   wand:  {kind:'ranged', projSpeed:12, projRange:12, cooldown:260, dtype:'magic', elem:'fire',  status:{k:'burn',  dur:2200, power:1.0, chance:0.55}},
   staff: {kind:'ranged', projSpeed:10, projRange:12, cooldown:300, dtype:'magic', elem:'shock', status:{k:'shock', dur:2000, power:0.25, chance:0.60}},
   _default:{kind:'melee', reach:2, cooldown:260, status:{k:'bleed', elem:'bleed', dur:2000, power:1.0, chance:0.25}}
@@ -1570,7 +1572,7 @@ function performPlayerAttack(dx,dy,dmgMult=1){
   const wStatus = equip.weapon?.mods?.status || null;
   const atkStatus = wStatus || prof.status || null;
   const wmods = equip.weapon?.mods || {};
-  const kb = wmods.kb || 0;
+  const kb = (wmods.kb || 0) + (prof.kb || 0);
   const aspd = wmods.atkSpd || 0;
   const pierce = wmods.pierce || 0;
   if(prof.kind==='melee'){
