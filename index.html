@@ -394,6 +394,56 @@ function genSprites(){
   }
   SPRITES.coin = makeCoinAnim();
 
+  // 12x12 sword/katana loot sprite
+  function makeSwordIcon(){
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12">
+<rect x="5" y="0" width="1" height="1" fill="#7e8da0"/>
+<rect x="6" y="0" width="1" height="1" fill="#7e8da0"/>
+<rect x="4" y="1" width="1" height="1" fill="#2a2f3a"/>
+<rect x="5" y="1" width="1" height="1" fill="#b7c7d6"/>
+<rect x="6" y="1" width="1" height="1" fill="#e8f2ff"/>
+<rect x="7" y="1" width="1" height="1" fill="#2a2f3a"/>
+<rect x="4" y="2" width="1" height="1" fill="#2a2f3a"/>
+<rect x="5" y="2" width="1" height="1" fill="#b7c7d6"/>
+<rect x="6" y="2" width="1" height="1" fill="#e8f2ff"/>
+<rect x="7" y="2" width="1" height="1" fill="#2a2f3a"/>
+<rect x="4" y="3" width="1" height="1" fill="#2a2f3a"/>
+<rect x="5" y="3" width="1" height="1" fill="#b7c7d6"/>
+<rect x="6" y="3" width="1" height="1" fill="#e8f2ff"/>
+<rect x="7" y="3" width="1" height="1" fill="#2a2f3a"/>
+<rect x="4" y="4" width="1" height="1" fill="#2a2f3a"/>
+<rect x="5" y="4" width="1" height="1" fill="#b7c7d6"/>
+<rect x="6" y="4" width="1" height="1" fill="#e8f2ff"/>
+<rect x="7" y="4" width="1" height="1" fill="#2a2f3a"/>
+<rect x="4" y="5" width="1" height="1" fill="#2a2f3a"/>
+<rect x="5" y="5" width="1" height="1" fill="#b7c7d6"/>
+<rect x="6" y="5" width="1" height="1" fill="#e8f2ff"/>
+<rect x="7" y="5" width="1" height="1" fill="#2a2f3a"/>
+<rect x="3" y="6" width="1" height="1" fill="#8a6a20"/>
+<rect x="4" y="6" width="1" height="1" fill="#c8a03c"/>
+<rect x="5" y="6" width="1" height="1" fill="#b7c7d6"/>
+<rect x="6" y="6" width="1" height="1" fill="#e8f2ff"/>
+<rect x="7" y="6" width="1" height="1" fill="#c8a03c"/>
+<rect x="8" y="6" width="1" height="1" fill="#8a6a20"/>
+<rect x="4" y="7" width="1" height="1" fill="#8a6a20"/>
+<rect x="5" y="7" width="1" height="1" fill="#7b4a2b"/>
+<rect x="6" y="7" width="1" height="1" fill="#8f5a3a"/>
+<rect x="7" y="7" width="1" height="1" fill="#8a6a20"/>
+<rect x="5" y="8" width="1" height="1" fill="#7b4a2b"/>
+<rect x="6" y="8" width="1" height="1" fill="#8f5a3a"/>
+<rect x="5" y="9" width="1" height="1" fill="#4b2e19"/>
+<rect x="6" y="9" width="1" height="1" fill="#7b4a2b"/>
+<rect x="5" y="10" width="1" height="1" fill="#4b2e19"/>
+<rect x="6" y="10" width="1" height="1" fill="#7b4a2b"/>
+<rect x="5" y="11" width="1" height="1" fill="#2a2f3a"/>
+<rect x="6" y="11" width="1" height="1" fill="#b7c7d6"/>
+</svg>`;
+    const img = new Image();
+    img.src = 'data:image/svg+xml,' + encodeURIComponent(svg);
+    return { cv: img };
+  }
+  SPRITES.sword_loot = makeSwordIcon();
+
   // Potion sprites with simple rotation animation
   function makePotionAnim(svg){
     const img = new Image();
@@ -2290,6 +2340,18 @@ function monsterAI(m, dt){
 // ===== Drawing =====
 function drawLootIcon(it, x, y){
   ctx.save();
+  const wclass = it.wclass || wclassFromName(it.name);
+  if(it.slot==='weapon' && (wclass==='sword' || wclass==='katana')){
+    const cx = x + 7, cy = y + 7;
+    const rot = (performance.now()/600) * (1 + 0.1*(it.rarity||0));
+    ctx.translate(cx, cy);
+    ctx.rotate(rot);
+    ctx.shadowColor = it.color;
+    ctx.shadowBlur = 2 + (it.rarity||0)*2;
+    ctx.drawImage(SPRITES.sword_loot.cv, -6, -6, 12, 12);
+    ctx.restore();
+    return;
+  }
   if(it.rarity>=3){
     ctx.shadowColor = it.color;
     ctx.shadowBlur = 8;
