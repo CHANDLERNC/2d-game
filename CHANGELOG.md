@@ -13,6 +13,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) with
 - Stamina resource and Power Strike ability for the Warrior class.
 - Additional warrior stamina abilities: Whirlwind and Shield Bash.
 - Random weapon name generator for unique gear titles.
+- Gear now uses expanded name generators with more fantasy prefixes, suffixes, and unique weapon titles like "Shadow's Bane".
 - Weapon damage-over-time affix that can ignite foes.
 - Melee weapon classes now inflict bleed damage over time.
 - New weapon affixes: attack speed, knockback, and projectile pierce.

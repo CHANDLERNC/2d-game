@@ -1026,8 +1026,11 @@ const RARITY=[
   {n:'Legendary',c:'#f97316',m:1.6}
 ];
 const RARITY_WEIGHTS=[40,30,15,8,5,2];
-const WEAPON_PREFIXES=['Ancient','Flaming','Shadow','Swift','Vicious','Mystic'];
-const WEAPON_SUFFIXES=['of Power','of Doom','of the Fox','of Frost','of Flames','of Shadows'];
+const WEAPON_PREFIXES=['Ancient','Flaming','Shadow','Swift','Vicious','Mystic','Dragon','Stormforged','Ethereal','Gloom','Silver','Blood','Infernal','Eternal','Sacred','Dark'];
+const WEAPON_SUFFIXES=['of Power','of Doom','of the Fox','of Frost','of Flames','of Shadows','of the Dragon','of Vengeance','of Nightmares','of the Phoenix','of Destiny','of the Ancients','of the Depths','of Kings','of Ruin','of Glory'];
+const ITEM_PREFIXES=['Sturdy','Blessed','Cursed','Enchanted','Gleaming','Guardian','Eternal','Shadowed','Dragonhide','Stormforged','Silver','Ironbound','Silent'];
+const ITEM_SUFFIXES=['of Protection','of the Bear','of Fortitude','of Stealth','of the Lion','of Resilience','of Twilight','of the Wolf','of the Eagle','of the Serpent','of the Mountain','of Grace'];
+const WEAPON_UNIQUES=["Shadow's Bane","Dragon's Heart","The Cleaver","Nightfall","Sunseeker","Soulreaper","Stormcaller","Frostbite","Bloodletter","Kingslayer"];
 
 function rollRarity(){
   const total=RARITY_WEIGHTS.reduce((a,b)=>a+b,0);
@@ -1044,8 +1047,14 @@ const POTION_TYPES=[
   {k:'mp', base:'Mana Potion', vals:[25,35,60,100,150,250]}
 ];
 function generateWeaponName(base){
+  if(rng.next()<0.2) return WEAPON_UNIQUES[rng.int(0,WEAPON_UNIQUES.length-1)];
   const pre=rng.next()<0.5?WEAPON_PREFIXES[rng.int(0,WEAPON_PREFIXES.length-1)]+' ':'';
   const suf=rng.next()<0.5?' '+WEAPON_SUFFIXES[rng.int(0,WEAPON_SUFFIXES.length-1)]:'';
+  return pre+base+suf;
+}
+function generateItemName(base){
+  const pre=rng.next()<0.5?ITEM_PREFIXES[rng.int(0,ITEM_PREFIXES.length-1)]+' ':'';
+  const suf=rng.next()<0.5?' '+ITEM_SUFFIXES[rng.int(0,ITEM_SUFFIXES.length-1)]:'';
   return pre+base+suf;
 }
 let lootMap=new Map();
@@ -1373,6 +1382,7 @@ function makeRandomGear(){
   const base = bases[rng.int(0, bases.length-1)];
   let baseName = base;
   if(slot==='weapon') baseName = generateWeaponName(base);
+  else baseName = generateItemName(base);
   const name = `${RARITY[rarityIdx].n} ${baseName}`;
   const item = { color: RARITY[rarityIdx].c, type:'gear', slot, name, rarity: rarityIdx, lvl: floorNum, mods: affixMods(slot, rarityIdx, floorNum) };
   if(slot==='weapon'){ item.wclass = base.toLowerCase(); }
