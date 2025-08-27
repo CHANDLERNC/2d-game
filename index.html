@@ -322,6 +322,37 @@ function genSprites(){
   SPRITES.slime_blue = makeSlimeAnim('#5e6ed3','#6e7ce0','#8b9bf1');
   SPRITES.slime_purple = makeSlimeAnim('#a45ed3','#b06ee0','#c68bf1');
   SPRITES.slime_shadow = makeSlimeAnim('#1a1f2f','#2f1a1a','#3a2a2a');
+
+  // Coin loot 14x14 rotating animation
+  function makeCoinAnim(){
+    const frames = [];
+    const steps = 8;
+    for(let i=0;i<steps;i++){
+      const c=document.createElement('canvas');
+      c.width=c.height=14;
+      const g=c.getContext('2d');
+      g.imageSmoothingEnabled=false;
+      const t=i/steps*Math.PI*2;
+      const rx=5*Math.abs(Math.cos(t))+1; // horizontal radius varies to simulate rotation
+      const grad=g.createLinearGradient(7-rx,7,7+rx,7);
+      grad.addColorStop(0,'#fff6b7');
+      grad.addColorStop(0.5,'#ffd24a');
+      grad.addColorStop(1,'#cc9a2b');
+      g.fillStyle=grad;
+      g.beginPath();
+      g.ellipse(7,7,rx,6,0,0,Math.PI*2);
+      g.fill();
+      g.strokeStyle='#996515';
+      g.lineWidth=1;
+      g.beginPath();
+      g.ellipse(7,7,rx,6,0,0,Math.PI*2);
+      g.stroke();
+      frames.push(c);
+    }
+    return { cv: frames[0], frames };
+  }
+  SPRITES.coin = makeCoinAnim();
+
   // Bat idle animations 24x24
   function makeBatAnim(wing, body){
     const frames = [];
@@ -1800,10 +1831,9 @@ function drawLootIcon(it, x, y){
   ctx.strokeStyle = '#000';
   ctx.lineWidth = 1;
   if(it.type==='gold'){
-    ctx.beginPath();
-    ctx.arc(x+7, y+7, 6, 0, Math.PI*2);
-    ctx.fill();
-    ctx.stroke();
+    const frames = SPRITES.coin.frames;
+    const idx = Math.floor(performance.now()/100) % frames.length;
+    ctx.drawImage(frames[idx], x, y);
   }else if(it.type==='potion'){
     ctx.fillRect(x+5, y, 4, 4);
     ctx.strokeRect(x+5, y, 4, 4);
