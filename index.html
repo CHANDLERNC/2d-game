@@ -353,13 +353,18 @@ function genSprites(){
   }
   SPRITES.bat = makeBatAnim('#20222b','#2e3240');
   SPRITES.bat_brown = makeBatAnim('#3b2b1a','#4c3524');
-  // Skeleton 24x24
-  SPRITES.skeleton = makeSprite(24,(g,S)=>{
-    px(g,7,2,10,6,'#e9edf1'); px(g,9,4,2,2,'#000'); px(g,13,4,2,2,'#000');
-    px(g,8,10,8,6,'#dde3ea'); px(g,6,10,2,4,'#dde3ea'); px(g,16,10,2,4,'#dde3ea');
-    px(g,8,18,3,3,'#dde3ea'); px(g,13,18,3,3,'#dde3ea');
-    outline(g,S);
-  });
+  // Skeleton 24x24 (allows simple recolors)
+  function makeSkeleton(skull='#e9edf1', bone='#dde3ea'){
+    return makeSprite(24,(g,S)=>{
+      px(g,7,2,10,6,skull); px(g,9,4,2,2,'#000'); px(g,13,4,2,2,'#000');
+      px(g,8,10,8,6,bone); px(g,6,10,2,4,bone); px(g,16,10,2,4,bone);
+      px(g,8,18,3,3,bone); px(g,13,18,3,3,bone);
+      outline(g,S);
+    });
+  }
+  SPRITES.skeleton = makeSkeleton();
+  SPRITES.skeleton_red = makeSkeleton('#ff8b8b','#ff6b6b');
+  SPRITES.skeleton_green = makeSkeleton('#9fe2a1','#76d38b');
 
   // Skeleton Mage 24x24 (caster enemy)
   function makeMageAnim(){
@@ -849,6 +854,9 @@ function spawnMonster(type,x,y){
   } else if(type===1){ // bat variants
     const vars = ['bat','bat_brown'];
     spriteKey = vars[rng.int(0, vars.length-1)];
+  } else if(type===2){ // skeleton variants
+    const vars = ['skeleton','skeleton_red','skeleton_green'];
+    spriteKey = vars[rng.int(0, vars.length-1)];
   } else if(type===3){ // mage variants
     const vars = ['mage','mage_red','mage_green'];
     spriteKey = vars[rng.int(0, vars.length-1)];
@@ -872,6 +880,7 @@ function spawnMonster(type,x,y){
   m.resFire = elemRes;
   m.resIce = elemRes;
   m.resShock = elemRes;
+  m.resPoison = elemRes;
   m.resMagic = magicRes;
   if(spriteKey) m.spriteKey = spriteKey;
   return m;
@@ -1371,25 +1380,28 @@ function dealDamageToMonster(m, base, elem=null, crit=false){
   const res = elem==='fire' ? clamp(0,cap,m.resFire||0)
             : elem==='ice'  ? clamp(0,cap,m.resIce||0)
             : elem==='shock'? clamp(0,cap,m.resShock||0)
-            : elem==='magic'? clamp(0,cap,m.resMagic||0) : 0;
+            : elem==='magic'? clamp(0,cap,m.resMagic||0)
+            : elem==='poison'? clamp(0,cap,m.resPoison||0) : 0;
   const dmg = Math.max(1, Math.floor(dmgBase * (1 - res/100)));
   m.hp -= dmg; m.hitFlash = 4; playHit();
   m.aggroT = 10000; // leash to player for at least 10s after taking damage
   const col = elem==='fire' ? '#ff6b4a'
             : elem==='ice'  ? '#7dd3fc'
             : elem==='shock'? '#facc15'
+            : elem==='poison'? '#76d38b'
             : elem==='bleed'? '#dc2626'
             : (crit?'#ffe066':'#ffd24a');
   addDamageText(m.x,m.y,`-${dmg}`, col);
 }
 
-// ======== Status Effects (burn / freeze / shock / bleed) ========
+// ======== Status Effects (burn / freeze / shock / poison / bleed) ========
 function getEffect(entity, k){ return (entity.effects||[]).find(e=>e.k===k); }
 function getEffectPower(entity, k){
   const e=getEffect(entity,k); if(!e) return 0;
   if(k==='shock') return e.power||0;
   if(k==='freeze') return e.power||0;
   if(k==='burn') return e.power||0;
+  if(k==='poison') return e.power||0;
   if(k==='bleed') return e.power||0;
   return 0;
 }
@@ -1403,7 +1415,8 @@ function resistAdjusted(target, elem, obj){
   const res = elem==='fire' ? clamp(0,cap,player.resFire||0)
             : elem==='ice' ? clamp(0,cap,player.resIce||0)
             : elem==='shock'? clamp(0,cap,player.resShock||0)
-            : elem==='magic'? clamp(0,cap,player.resMagic||0) : 0;
+            : elem==='magic'? clamp(0,cap,player.resMagic||0)
+            : elem==='poison'? clamp(0,cap,player.resPoison||0) : 0;
   const dur = Math.max(200, Math.floor(obj.dur * (1 - res/150)));
   const power = Math.max(0, obj.power * (1 - res/100));
   return { ...obj, dur, power };
@@ -1422,6 +1435,7 @@ function tryApplyStatus(target, status, elem){
   const col = elem==='fire'?'#ff6b4a'
              : elem==='ice'?'#7dd3fc'
              : elem==='shock'?'#facc15'
+             : elem==='poison'?'#76d38b'
              : elem==='bleed'?'#dc2626'
              : '#b84aff';
   addDamageText(target.x, target.y, status.k.toUpperCase(), col);
@@ -1437,6 +1451,13 @@ function tickEffects(entity, dt){
         else{ dealDamageToMonster(entity, Math.max(1, Math.floor(base * (e.power||1))), 'fire', false); }
       }
     }
+    if(e.k==='poison'){
+      e.acc=(e.acc||0)+dt; if(e.acc>=450){ e.acc=0;
+        const base = 2 + Math.floor(floorNum*0.6);
+        if(entity===player){ applyDamageToPlayer(Math.max(1, Math.floor(base * (e.power||1))), 'poison'); }
+        else{ dealDamageToMonster(entity, Math.max(1, Math.floor(base * (e.power||1))), 'poison', false); }
+      }
+    }
     if(e.k==='bleed'){
       e.acc=(e.acc||0)+dt; if(e.acc>=450){ e.acc=0;
         const base = 2 + Math.floor(floorNum*0.5);
@@ -1449,7 +1470,11 @@ function tickEffects(entity, dt){
 }
 function drawStatusPips(ctx, entity, cx, cy){
   if(!entity.effects||entity.effects.length===0) return;
-  const mapColor = (k)=> k==='burn'?'#ff6b4a':k==='freeze'?'#7dd3fc':k==='shock'?'#facc15':k==='bleed'?'#dc2626':'#b84aff';
+  const mapColor = (k)=> k==='burn'?'#ff6b4a'
+                         :k==='freeze'?'#7dd3fc'
+                         :k==='shock'?'#facc15'
+                         :k==='poison'?'#76d38b'
+                         :k==='bleed'?'#dc2626':'#b84aff';
   let i=0; for(const e of entity.effects){
     const x = cx - 8 + i*8, y = cy;
     ctx.fillStyle = mapColor(e.k); ctx.beginPath(); ctx.arc(x, y, 2.5, 0, Math.PI*2); ctx.fill(); i++;
@@ -1492,12 +1517,14 @@ function applyDamageToPlayer(dmg, type='physical'){
   const rI = clamp(0, cap, player.resIce||0);
   const rS = clamp(0, cap, player.resShock||0);
   const rM = clamp(0, cap, player.resMagic||0);
-  const resPct = (type==='fire')?rF : (type==='ice')?rI : (type==='shock')?rS : (type==='magic')?rM : 0;
+  const rP = clamp(0, cap, player.resPoison||0);
+  const resPct = (type==='fire')?rF : (type==='ice')?rI : (type==='shock')?rS : (type==='magic')?rM : (type==='poison')?rP : 0;
   const sv = getEffectPower(player,'shock') || 0; // percent
   const eff = Math.max(1, Math.floor(afterArmor * (1 - resPct/100) * (1 + sv)));
 
   player.hp = Math.max(0, player.hp - eff);
-  damageTexts.push({ tx:player.x, ty:player.y, text:`-${eff}`, color:(type==='magic'?'#b84aff':'#ff6b6b'), age:0, ttl:900 });
+  const dmgCol = type==='magic'?'#b84aff' : type==='poison'?'#76d38b' : '#ff6b6b';
+  damageTexts.push({ tx:player.x, ty:player.y, text:`-${eff}`, color:dmgCol, age:0, ttl:900 });
   playHit();
   if(player.hp===0){ showRespawn(); }
 }
@@ -1688,9 +1715,12 @@ function monsterAI(m, dt){
     }
   } else if(m.type===2) { // Skeleton — ranged: shoot if LoS, otherwise shuffle toward
     if(manhattan<=7 && clearPathCardinal(m.x,m.y,player.x,player.y) && m.atkCD===0){
-      // fire arrow
+      // elemental arrows based on variant
       const adx = sign(player.x - m.x), ady = sign(player.y - m.y);
-      projectiles.push({ x:m.x+0.5, y:m.y+0.5, dx:adx, dy:ady, speed:12, damage:rng.int(m.dmgMin,m.dmgMax), type:'ranged', elem:'ranged', owner:'enemy', alive:true, maxDist:12, dist:0, status:null });
+      let elem='ranged', status=null;
+      if(m.spriteKey==='skeleton_red'){ elem='fire'; status={k:'burn',  dur:2200, power:1.0, chance:0.9}; }
+      else if(m.spriteKey==='skeleton_green'){ elem='poison'; status={k:'poison',dur:2200, power:1.0, chance:0.9}; }
+      projectiles.push({ x:m.x+0.5, y:m.y+0.5, dx:adx, dy:ady, speed:12, damage:rng.int(m.dmgMin,m.dmgMax), type:'ranged', elem, owner:'enemy', alive:true, maxDist:12, dist:0, status });
       m.atkCD = rng.int(26, 40);
       return;
     }
@@ -1890,6 +1920,7 @@ function draw(dt){
     ctx.fillStyle = p.elem==='fire' ? '#ff6b4a' :
                     p.elem==='ice'  ? '#7dd3fc' :
                     p.elem==='shock'? '#facc15' :
+                    p.elem==='poison'? '#76d38b' :
                     (p.type==='magic' ? '#b84aff' : '#ffd24a');
     ctx.fillRect(px, py, 6, 6);
   }
@@ -2489,7 +2520,7 @@ function recalcStats(){
   let mpMax = 60 + (player.lvl-1)*mpGainPerLevel;
   let spMax = 60 + (player.lvl-1)*mpGainPerLevel;
   let speedPct=0;
-  let resF=0,resI=0,resS=0,resM=0;
+  let resF=0,resI=0,resS=0,resM=0,resP=0;
   let spellBonus=0;
   // class bonuses
   if(player.class==='warrior'){
@@ -2501,11 +2532,11 @@ function recalcStats(){
   const lvlBonus = Math.floor((player.lvl-1)*0.6) + (player.baseAtkBonus||0);
   dmgMin += lvlBonus; dmgMax += lvlBonus;
   const baseRes = Math.floor((player.lvl-1)*1.5); // 1-2% base resist per level
-  resF += baseRes; resI += baseRes; resS += baseRes; resM += baseRes;
+  resF += baseRes; resI += baseRes; resS += baseRes; resM += baseRes; resP += baseRes;
   for(const slot of SLOTS){
     const it=equip[slot]; if(!it) continue; const m=it.mods;
     if(m.dmgMin) dmgMin+=m.dmgMin; if(m.dmgMax) dmgMax+=m.dmgMax; if(m.crit) crit+=m.crit; if(m.armor) armor+=m.armor; if(m.hpMax) hpMax+=m.hpMax; if(m.mpMax){ mpMax+=m.mpMax; spMax+=m.mpMax; } if(m.speedPct) speedPct+=m.speedPct;
-    resF += m.resFire||0; resI += m.resIce||0; resS += m.resShock||0; resM += m.resMagic||0;
+    resF += m.resFire||0; resI += m.resIce||0; resS += m.resShock||0; resM += m.resMagic||0; resP += m.resPoison||0;
   }
   for(const treeName in skillTrees){
     const arr=player.skills[treeName]||[];
@@ -2521,7 +2552,7 @@ function recalcStats(){
   }
   player.hpMax=hpMax; player.mpMax=mpMax; player.spMax=spMax; player.speedPct=speedPct; player.spellBonus=spellBonus; if(player.hp>hpMax) player.hp=hpMax; if(player.mp>mpMax) player.mp=mpMax; if(player.sp>spMax) player.sp=spMax;
   player.armor = armor;
-  player.resFire=resF; player.resIce=resI; player.resShock=resS; player.resMagic=resM;
+  player.resFire=resF; player.resIce=resI; player.resShock=resS; player.resMagic=resM; player.resPoison=resP;
   currentStats={dmgMin,dmgMax,crit,armor,resF,resI,resS,resM,hpMax,mpMax,spMax};
   hudDmg.textContent = `ATK ${dmgMin}-${dmgMax} | CRIT ${crit}% | ARM ${armor} | RES F/I/S/M ${resF}/${resI}/${resS}/${resM}`;
   hpFill.style.width = `${(player.hp/player.hpMax)*100}%`;

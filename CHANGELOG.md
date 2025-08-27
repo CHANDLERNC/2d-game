@@ -28,6 +28,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) with
 - Added blue, purple, and shadow slime variants; the shadow slime teleports near players before attacking.
 - Animated dragon boss idle sprite sheet and generic frame-based monster animation.
 - Animated bat idle sprite with flapping wings.
+- Fire and poison skeleton variants that inflict burn or poison damage.
 
 
 ### Changed
