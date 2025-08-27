@@ -392,31 +392,35 @@ function genSprites(){
     px(g,18,40,4,8,'#8c6239'); px(g,26,40,4,8,'#8c6239');
     outline(g,S);
   });
-  // Dragon boss: load idle animation sheet and slice into frames
-  {
-    const blank = document.createElement('canvas');
-    blank.width = blank.height = 48;
-    SPRITES.dragon = { cv: blank, frames: [] };
-    const img = new Image();
-    img.src = 'dragon_idle.png';
-    img.onload = () => {
-      const fw = img.width / 2;
-      const fh = img.height / 2;
-      for (let row = 0; row < 2; row++) {
-        for (let col = 0; col < 2; col++) {
-          const c = document.createElement('canvas');
-          c.width = c.height = 48;
-          const g = c.getContext('2d');
-          g.imageSmoothingEnabled = false;
-          g.drawImage(img, col * fw, row * fh, fw, fh, 0, 0, 48, 48);
-          SPRITES.dragon.frames.push(c);
-        }
-      }
-      if (SPRITES.dragon.frames.length) {
-        SPRITES.dragon.cv = SPRITES.dragon.frames[0];
-      }
-    };
+  // Dragon boss: simple idle animation generated in code
+  function makeDragonAnim(){
+    const frames = [];
+    const bob = [0,1,0,-1];
+    const aura = ['#0e53bf','#0d4cb2','#0c45a5','#0d4cb2'];
+    for(let i=0;i<4;i++){
+      const c = document.createElement('canvas');
+      c.width = c.height = 48;
+      const g = c.getContext('2d');
+      g.imageSmoothingEnabled = false;
+      const y = bob[i];
+      // aura background
+      px(g,0,0,48,48,'#021529');
+      px(g,2,2+y,44,44,aura[i]);
+      // dragon body and features
+      const body = '#b8731f';
+      px(g,14,20+y,20,14,body); // torso
+      px(g,28,14+y,10,8,body); // head
+      px(g,24,18+y,8,4,body);  // neck
+      px(g,20,10+y,12,4,'#d89b41'); // horn/crest
+      px(g,10,24+y,8,8,body); // tail base
+      px(g,8,26+y,6,6,body); // tail tip
+      px(g,35,17+y,2,2,'#b84aff'); // eye
+      outline(g,48);
+      frames.push(c);
+    }
+    return { cv: frames[0], frames };
   }
+  SPRITES.dragon = makeDragonAnim();
   // Snake boss: load idle animation sheet and slice into frames
   {
     const blank = document.createElement('canvas');
