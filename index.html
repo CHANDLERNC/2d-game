@@ -191,7 +191,7 @@
 // ===== Config / Globals =====
 let VIEW_W=window.innerWidth, VIEW_H=window.innerHeight;
 const TILE=32, MAP_W=48, MAP_H=48;
-const MONSTER_BASE_COUNT=24, MONSTER_MIN_COUNT=6, MONSTER_COUNT_DECAY=2;
+const MONSTER_BASE_COUNT=6, MONSTER_MIN_COUNT=6, MONSTER_COUNT_GROWTH=2, MONSTER_COUNT_VARIANCE=3;
 const FOV_RADIUS=8; const LOOT_CHANCE=0.18;
 const MONSTER_LOOT_CHANCE=0.5; const AGGRO_RANGE=6;
 const TORCH_CHANCE=0.06;
@@ -204,11 +204,9 @@ const SCORE_PER_FLOOR_REACHED = 50;
 const BOSS_VARIANTS=['griffin','dragon','snake'];
 function randomBossVariant(){ return BOSS_VARIANTS[rng.int(0,BOSS_VARIANTS.length-1)]; }
 function monsterCountForFloor(floor){
-  const dec=(floor-1)*MONSTER_COUNT_DECAY;
-  let count = MONSTER_BASE_COUNT - dec;
-  // Reduce monster density on early floors
-  if(floor <= 3){ count = Math.floor(count * 0.75); }
-  return Math.max(MONSTER_MIN_COUNT, count);
+  const base = MONSTER_BASE_COUNT + (floor-1)*MONSTER_COUNT_GROWTH;
+  const extra = rng.int(0, MONSTER_COUNT_VARIANCE + Math.floor(floor/2));
+  return Math.max(MONSTER_MIN_COUNT, base + extra);
 }
 // Higher values slow all enemy actions (movement frequency and speed)
 const ENEMY_SPEED_MULT = 1.5;

@@ -32,6 +32,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) with
 
 
 ### Changed
+- Monster spawn counts are now randomized and increase on deeper floors.
 - Recombined CSS and JavaScript into `index.html` to maintain a single-file distribution.
 - Expanded spell and projectile aiming to support more precise directions.
 - Increased player starting health by 50 points.
