@@ -1210,23 +1210,25 @@ function affixMods(slot, rarityIdx, lvl=1){
   }
   const pool = slot==='weapon'?WEAPON_AFFIX_POOL:ARMOR_AFFIX_POOL;
   const maxAff = Math.min(4, 1 + rarityIdx);
-  const affCount = rng.int(1, maxAff);
-  const opts = pool.slice();
-  for(let i=0;i<affCount && opts.length>0;i++){
-    const idx=rng.int(0,opts.length-1);
-    const a=opts.splice(idx,1)[0];
+  const minAff = rarityIdx > 0 ? 2 : 1;
+  const affCount = rng.int(minAff, maxAff);
+  for(let i=0;i<affCount;i++){
+    const a = pool[rng.int(0, pool.length-1)];
     if(a.k==='status'){
       const roll=rng.int(0,4);
       const chance=rng.int(10,30)/100;
-      if(roll===0)      R.status={k:'burn',  dur:2200,power:1.0,chance,elem:'fire'};
-      else if(roll===1) R.status={k:'bleed', dur:2000,power:1.0,chance,elem:'bleed'};
-      else if(roll===2) R.status={k:'poison',dur:2200,power:1.0,chance,elem:'poison'};
-      else if(roll===3) R.status={k:'freeze',dur:1800,power:0.4,chance,elem:'ice'};
-      else              R.status={k:'shock', dur:2000,power:0.25,chance,elem:'shock'};
+      let status;
+      if(roll===0)      status={k:'burn',  dur:2200,power:1.0,chance,elem:'fire'};
+      else if(roll===1) status={k:'bleed', dur:2000,power:1.0,chance,elem:'bleed'};
+      else if(roll===2) status={k:'poison',dur:2200,power:1.0,chance,elem:'poison'};
+      else if(roll===3) status={k:'freeze',dur:1800,power:0.4,chance,elem:'ice'};
+      else              status={k:'shock', dur:2000,power:0.25,chance,elem:'shock'};
+      if(!R.status) R.status=[];
+      R.status.push(status);
     }else{
       const factor = typeof a.lvl === 'number' ? a.lvl : (a.lvl ? 1 : 0);
       const val = rng.int(a.min,a.max) * mult;
-      R[a.k]=Math.floor(val*levelMult(lvl, factor));
+      R[a.k]=(R[a.k]||0)+Math.floor(val*levelMult(lvl, factor));
     }
   }
   return R;
@@ -1413,7 +1415,12 @@ function shortMods(it){
   if(m.atkSpd) bits.push(`AS+${m.atkSpd}%`);
   if(m.kb) bits.push(`KB ${m.kb}`);
   if(m.pierce) bits.push(`PRC ${m.pierce}`);
-  if(m.status) bits.push(`${m.status.k.toUpperCase()} ${Math.round((m.status.chance||0)*100)}%`);
+  if(m.status){
+    const sts = Array.isArray(m.status) ? m.status : [m.status];
+    for(const st of sts){
+      bits.push(`${st.k.toUpperCase()} ${Math.round((st.chance||0)*100)}%`);
+    }
+  }
   const rf=m.resFire||0, ri=m.resIce||0, rs=m.resShock||0, rm=m.resMagic||0, rp=m.resPoison||0;
   if(rf||ri||rs||rm||rp) bits.push(`RES F/I/S/M/P ${rf}/${ri}/${rs}/${rm}/${rp}`);
   return bits.join(' · ');
@@ -1445,7 +1452,12 @@ function renderDetails(it, origin){
   if(m.atkSpd) rows.push(`<div>Attack Speed: <span class="mono">+${m.atkSpd}%</span></div>`);
   if(m.kb) rows.push(`<div>Knockback: <span class="mono">${m.kb}</span></div>`);
   if(m.pierce) rows.push(`<div>Projectile Pierce: <span class="mono">${m.pierce}</span></div>`);
-  if(m.status) rows.push(`<div>${m.status.k.toUpperCase()} Chance: <span class="mono">${Math.round((m.status.chance||0)*100)}%</span></div>`);
+  if(m.status){
+    const sts = Array.isArray(m.status) ? m.status : [m.status];
+    for(const st of sts){
+      rows.push(`<div>${st.k.toUpperCase()} Chance: <span class="mono">${Math.round((st.chance||0)*100)}%</span></div>`);
+    }
+  }
   if(m.resFire||m.resIce||m.resShock||m.resMagic||m.resPoison){
     rows.push(`<div>Resists (F/I/S/M/P): <span class="mono">${m.resFire||0}/${m.resIce||0}/${m.resShock||0}/${m.resMagic||0}/${m.resPoison||0}%</span></div>`);
   }
@@ -1473,7 +1485,12 @@ function getItemValue(it){
   score+= (m.hpMax||0)*0.8 + (m.mpMax||0)*0.6 + (m.speedPct||0)*4;
   score+= (m.ls||0)*6 + (m.mp||0)*2;
   score+= (m.atkSpd||0)*4 + (m.kb||0)*8 + (m.pierce||0)*12;
-  if(m.status) score+= Math.round((m.status.chance||0)*100) * 4;
+  if(m.status){
+    const sts = Array.isArray(m.status) ? m.status : [m.status];
+    for(const st of sts){
+      score+= Math.round((st.chance||0)*100) * 4;
+    }
+  }
   score+= ((m.resFire||0)+(m.resIce||0)+(m.resShock||0)+(m.resPoison||0))*1.2 + (m.resMagic||0)*1.8;
   const floorBonus = Math.max(0,floorNum-1)*4;
   return Math.max(5, Math.floor((rBase + score)*slotFactor + floorBonus));
@@ -1759,8 +1776,13 @@ function performPlayerAttack(dx,dy,dmgMult=1){
   let dmg=rng.int(min,max);
   const wasCrit=(Math.random()*100<crit); if(wasCrit) dmg=Math.floor(dmg*1.5);
   dmg=Math.max(1,Math.floor(dmg*dmgMult));
-  const wStatus = equip.weapon?.mods?.status || null;
-  const atkStatus = wStatus || prof.status || null;
+  const wStatus = equip.weapon?.mods?.status;
+  const atkStatuses = [];
+  if(wStatus){
+    const ws = Array.isArray(wStatus) ? wStatus : [wStatus];
+    atkStatuses.push(...ws);
+  }
+  if(prof.status) atkStatuses.push(prof.status);
   const wmods = equip.weapon?.mods || {};
   const kb = (wmods.kb || 0) + (prof.kb || 0);
   const aspd = wmods.atkSpd || 0;
@@ -1780,7 +1802,9 @@ function performPlayerAttack(dx,dy,dmgMult=1){
     }
     if(target){
       dealDamageToMonster(target, dmg, null, wasCrit);
-      if(atkStatus) tryApplyStatus(target, atkStatus, atkStatus.elem);
+      for(const st of atkStatuses){
+        tryApplyStatus(target, st, st.elem);
+      }
       if(ls>0){ const heal=Math.max(1,Math.floor(dmg*ls/100)); player.hp=Math.min(player.hpMax, player.hp+heal); addDamageText(player.x,player.y,`+${heal}`,'#76d38b'); }
       if(kb>0){
         const kdx=Math.sign(ndx), kdy=Math.sign(ndy);
@@ -1794,9 +1818,9 @@ function performPlayerAttack(dx,dy,dmgMult=1){
     // ranged projectile
     projectiles.push({
       x: player.x+0.5, y: player.y+0.5, dx: ndx, dy: ndy,
-      speed: prof.projSpeed, damage:dmg, type: prof.dtype||'ranged', elem: atkStatus?.elem || prof.elem || null,
+      speed: prof.projSpeed, damage:dmg, type: prof.dtype||'ranged', elem: (atkStatuses[0]?.elem || prof.elem || null),
       owner:'player', alive:true, maxDist: prof.projRange, dist:0, ls,
-      status: atkStatus, kb, pierce
+      status: atkStatuses, kb, pierce
     });
     let cd = prof.cooldown;
     if(aspd>0) cd = Math.max(60, Math.floor(cd * (1 - aspd/100)));
@@ -2262,7 +2286,10 @@ function update(dt){
     // hit player if sharing tile
     if(p.owner!=='player' && tx===player.x && ty===player.y){
       applyDamageToPlayer(p.damage, p.elem || p.type || 'ranged');
-      if(p.status) tryApplyStatus(player, p.status, p.elem);
+      if(p.status){
+        const sts = Array.isArray(p.status) ? p.status : [p.status];
+        for(const st of sts){ tryApplyStatus(player, st, st.elem); }
+      }
       p.alive=false;
     }
     // hit monster if player-owned
@@ -2270,7 +2297,10 @@ function update(dt){
       const m = monsters.find(mm=>mm.x===tx && mm.y===ty);
       if(m){
         dealDamageToMonster(m, p.damage, p.elem||null, false);
-        if(p.status) tryApplyStatus(m, p.status, p.elem);
+        if(p.status){
+          const sts = Array.isArray(p.status) ? p.status : [p.status];
+          for(const st of sts){ tryApplyStatus(m, st, st.elem); }
+        }
         if(p.ls>0){ const heal=Math.max(1,Math.floor(p.damage*p.ls/100)); player.hp=Math.min(player.hpMax, player.hp+heal); addDamageText(player.x,player.y,`+${heal}`,'#76d38b'); }
         if(p.kb>0){
           const kdx=Math.sign(p.dx), kdy=Math.sign(p.dy);
