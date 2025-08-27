@@ -205,6 +205,8 @@ window.addEventListener('resize', resizeCanvas); resizeCanvas();
 let camX=0, camY=0; let floorLayer=null, wallLayer=null;
 let floorTint='#ffffff', wallTint='#ffffff';
 let torches=[];
+let lavaTiles=[];
+let spikeTraps=[];
 let gameOver=false;
 let paused=false;
 let actionLog=[];
@@ -393,6 +395,58 @@ function genSprites(){
     return { cv: frames[0], frames };
   }
   SPRITES.coin = makeCoinAnim();
+
+  // Lava tile animation 32x32
+  function makeLavaAnim(){
+    const frames=[];
+    for(let i=0;i<4;i++){
+      const c=document.createElement('canvas');
+      c.width=c.height=32;
+      const g=c.getContext('2d'); g.imageSmoothingEnabled=false;
+      for(let y=0;y<32;y++){
+        for(let x=0;x<32;x++){
+          const v=Math.sin((x+i*2)/4)+Math.cos((y+i*2)/4);
+          let col='#8b0000';
+          if(v>1) col='#ffd700';
+          else if(v>0.5) col='#ff8c00';
+          else if(v>0) col='#d04000';
+          g.fillStyle=col; g.fillRect(x,y,1,1);
+        }
+      }
+      frames.push(c);
+    }
+    return { cv: frames[0], frames };
+  }
+  SPRITES.lava = makeLavaAnim();
+
+  // Spike trap animation 32x32
+  function makeSpikeTrapAnim(){
+    const frames=[]; const heights=[4,12,20,12];
+    for(let i=0;i<heights.length;i++){
+      const c=document.createElement('canvas');
+      c.width=c.height=32;
+      const g=c.getContext('2d'); g.imageSmoothingEnabled=false;
+      g.clearRect(0,0,32,32);
+      g.fillStyle='#222';
+      g.fillRect(0,24,32,8);
+      g.fillStyle='#bbb';
+      g.strokeStyle='#555';
+      const h=heights[i];
+      for(let s=0;s<4;s++){
+        const bx=4+s*8;
+        g.beginPath();
+        g.moveTo(bx,24);
+        g.lineTo(bx+4,24);
+        g.lineTo(bx+2,24-h);
+        g.closePath();
+        g.fill();
+        g.stroke();
+      }
+      frames.push(c);
+    }
+    return { cv: frames[0], frames };
+  }
+  SPRITES.spike = makeSpikeTrapAnim();
 
   // Potion sprites with simple rotation animation
   function makePotionAnim(svg){
@@ -1485,8 +1539,13 @@ function placeHazards(){
       if((x===player.x && y===player.y) || (x===stairs.x && y===stairs.y) || (x===merchant.x && y===merchant.y)) continue;
       if(monsters.some(m=>m.x===x && m.y===y)) continue;
       const r=rng.next();
-      if(r<LAVA_CHANCE) map[idx]=T_LAVA;
-      else if(r<LAVA_CHANCE+TRAP_CHANCE) map[idx]=T_TRAP;
+      if(r<LAVA_CHANCE){
+        map[idx]=T_LAVA;
+        lavaTiles.push({x,y});
+      } else if(r<LAVA_CHANCE+TRAP_CHANCE){
+        map[idx]=T_TRAP;
+        spikeTraps.push({x,y});
+      }
     }
   }
 }
@@ -1507,7 +1566,7 @@ function generate(){
   fog=new Array(MAP_W*MAP_H).fill(0);
   vis=new Array(MAP_W*MAP_H).fill(0);
   rooms=[]; monsters=[]; projectiles=[]; lootMap.clear(); player.effects = [];
-  torches=[];
+  torches=[]; lavaTiles=[]; spikeTraps=[];
   const hue=rng.int(0,360);
   const sat=8+rng.int(0,8);
   const baseLight=35+rng.int(-5,5);
@@ -1677,27 +1736,6 @@ function buildLayers(){
   w.fillStyle=wallTint;
   w.fillRect(0,0,wallLayer.width,wallLayer.height);
   w.globalCompositeOperation='source-over';
-  // hazards overlay
-  f.lineWidth=2;
-  for(let y=0;y<MAP_H;y++){
-    for(let x=0;x<MAP_W;x++){
-      const t=map[y*MAP_W+x];
-      if(t===T_TRAP){
-        f.fillStyle='#555';
-        f.fillRect(x*TILE,y*TILE,TILE,TILE);
-        f.strokeStyle='#999';
-        f.beginPath();
-        f.moveTo(x*TILE+4,y*TILE+4); f.lineTo(x*TILE+TILE-4,y*TILE+TILE-4);
-        f.moveTo(x*TILE+TILE-4,y*TILE+4); f.lineTo(x*TILE+4,y*TILE+TILE-4);
-        f.stroke();
-      } else if(t===T_LAVA){
-        f.fillStyle='#a00';
-        f.fillRect(x*TILE,y*TILE,TILE,TILE);
-        f.fillStyle='#f80';
-        f.fillRect(x*TILE+2,y*TILE+2,TILE-4,TILE-4);
-      }
-    }
-  }
 }
 
 // ===== FOV =====
@@ -2729,8 +2767,26 @@ function draw(dt){
   ctx.drawImage(floorLayer, -camX, -camY);
   ctx.drawImage(wallLayer, -camX, -camY);
 
-  // torches
+  // hazards
   const now = performance.now();
+  if(SPRITES.lava){
+    const lframes = SPRITES.lava.frames;
+    const lidx = Math.floor(now/200)%lframes.length;
+    for(const h of lavaTiles){
+      const idx=h.y*MAP_W + h.x; if(!vis[idx]) continue;
+      ctx.drawImage(lframes[lidx], h.x*TILE - camX, h.y*TILE - camY);
+    }
+  }
+  if(SPRITES.spike){
+    const sframes = SPRITES.spike.frames;
+    const sidx = Math.floor(now/200)%sframes.length;
+    for(const h of spikeTraps){
+      const idx=h.y*MAP_W + h.x; if(!vis[idx]) continue;
+      ctx.drawImage(sframes[sidx], h.x*TILE - camX, h.y*TILE - camY);
+    }
+  }
+
+  // torches
   for(const t of torches){
     const idx = t.y*MAP_W + t.x;
     if(!vis[idx]) continue;
