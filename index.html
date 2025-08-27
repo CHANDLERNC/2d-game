@@ -72,9 +72,11 @@
       <div id="xpFill" class="fill xp" style="width:0%"></div>
       <div class="label" id="xpLbl">XP 0/50</div>
     </div>
-    <div class="hud-kv"><b>Gold:</b> <span id="hudGold">0</span></div>
-    <div class="hud-kv"><b>Lvl:</b> <span id="hudLvl">1</span></div>
-    <div class="hud-kv"><b id="hudAbilityLabel">Spell:</b> <span id="hudSpell">None</span></div>
+      <div class="hud-kv"><b>Gold:</b> <span id="hudGold">0</span></div>
+      <div class="hud-kv"><b>Lvl:</b> <span id="hudLvl">1</span></div>
+      <div class="hud-kv"><b>Score:</b> <span id="hudScore">0</span></div>
+      <div class="hud-kv"><b>Kills:</b> <span id="hudKills">0</span></div>
+      <div class="hud-kv"><b id="hudAbilityLabel">Spell:</b> <span id="hudSpell">None</span></div>
     <div class="hud-kv" id="hudDmg" style="opacity:.85;margin-left:auto">ATK 2-4 | CRIT 5% | ARM 0</div>
     <div class="hud-kv" style="margin-left:8px; pointer-events:auto">
       <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
@@ -163,12 +165,16 @@
   </div>
 </div>
 
-<div id="respawn" class="stone" style="position:fixed;inset:0;display:none;place-items:center">
-  <div class="panel" style="padding:18px 22px;text-align:center">
-    <h2 style="margin:6px 0 12px 0">You suck, try again</h2>
-    <button id="respawnBtn" class="btn">Respawn</button>
+  <div id="respawn" class="stone" style="position:fixed;inset:0;display:none;place-items:center">
+    <div class="panel" style="padding:18px 22px;text-align:center">
+      <h2 style="margin:6px 0 12px 0">You suck, try again</h2>
+      <p>Score: <span id="finalScore">0</span></p>
+      <p>Floors Cleared: <span id="finalFloors">0</span></p>
+      <p>Time Survived: <span id="finalTime">0</span>s</p>
+      <p>Kills: <span id="finalKills">0</span></p>
+      <button id="respawnBtn" class="btn">Respawn</button>
+    </div>
   </div>
-</div>
 
 <div id="escMenu" class="stone" style="position:fixed;inset:0;display:none;place-items:center">
   <div class="panel" style="padding:18px 22px;text-align:center">
@@ -191,6 +197,10 @@ const MONSTER_LOOT_CHANCE=0.3; const AGGRO_RANGE=6;
 const TORCH_CHANCE=0.06;
 const TORCH_LIGHT_RADIUS=4;
 const FOV_RAYS=360;
+const SCORE_PER_SECOND = 1;
+const SCORE_PER_KILL = 10;
+const SCORE_PER_FLOOR_CLEAR = 100;
+const SCORE_PER_FLOOR_REACHED = 50;
 function monsterCountForFloor(floor){
   const dec=(floor-1)*MONSTER_COUNT_DECAY;
   let count = MONSTER_BASE_COUNT - dec;
@@ -211,6 +221,7 @@ let torches=[];
 let gameOver=false;
 let paused=false;
 let actionLog=[];
+let scoreUpdateTimer=0;
 // floor tile from provided image (scaled to 64×64 PNG for smaller payload)
 const FLOOR_DATA =
   "data:image/png;base64," +
@@ -373,7 +384,7 @@ genSprites();
 let seed=(Math.random()*1e9)|0, floorNum=1, rng=new RNG(seed);
 let map=[], fog=[], vis=[]; let rooms=[]; let stairs={x:0,y:0};
 let merchant={x:0,y:0}; let merchantStyle = Math.random()<0.5 ? 'goblin' : 'stall';
-let player={x:0,y:0,hp:150,hpMax:150,mp:60,mpMax:60,sp:60,spMax:60,gold:0,stepCD:0,stepDelay:140,speedPct:0,lvl:1,xp:0,xpToNext:50,baseAtkBonus:0, gender:'m', class:'warrior', atkCD:0, faceDx:1, faceDy:0, effects:[], magicPoints:0, skillPoints:0, magic:{healing:[false,false,false,false,false,false],damage:[false,false,false,false,false,false],dot:[false,false,false,false,false,false]}, skills:{offense:[false,false,false,false,false,false],defense:[false,false,false,false,false,false],techniques:[false,false,false]}, boundSpell:null, boundSkill:null};
+let player={x:0,y:0,hp:150,hpMax:150,mp:60,mpMax:60,sp:60,spMax:60,gold:0,stepCD:0,stepDelay:140,speedPct:0,lvl:1,xp:0,xpToNext:50,baseAtkBonus:0, gender:'m', class:'warrior', atkCD:0, faceDx:1, faceDy:0, effects:[], magicPoints:0, skillPoints:0, score:0, kills:0, timeSurvived:0, floorsCleared:0, magic:{healing:[false,false,false,false,false,false],damage:[false,false,false,false,false,false],dot:[false,false,false,false,false,false]}, skills:{offense:[false,false,false,false,false,false],defense:[false,false,false,false,false,false],techniques:[false,false,false]}, boundSpell:null, boundSkill:null};
 let playerSpriteKey = 'player_m';
 const magicTrees={
   healing:{display:'Healing',abilities:[
@@ -444,6 +455,7 @@ let currentStats={dmgMin:0,dmgMax:0,crit:0,armor:0,resF:0,resI:0,resS:0,resM:0,h
 const hpFill=document.getElementById('hpFill'); const mpFill=document.getElementById('mpFill');
 const hpLbl=document.getElementById('hpLbl'); const mpLbl=document.getElementById('mpLbl');
 const hudFloor=document.getElementById('hudFloor'); const hudSeed=document.getElementById('hudSeed'); const hudGold=document.getElementById('hudGold'); const hudDmg=document.getElementById('hudDmg');
+const hudScore=document.getElementById('hudScore'); const hudKills=document.getElementById('hudKills');
 const xpFill=document.getElementById('xpFill'); const xpLbl=document.getElementById('xpLbl'); const hudLvl=document.getElementById('hudLvl'); const hudSpell=document.getElementById('hudSpell'); const hudAbilityLabel=document.getElementById('hudAbilityLabel');
 
 function updateResourceUI(){
@@ -454,6 +466,11 @@ function updateResourceUI(){
     mpFill.style.width=`${(player.sp/player.spMax)*100}%`;
     mpLbl.textContent=`Stamina ${player.sp}/${player.spMax}`;
   }
+}
+
+function updateScoreUI(){
+  if(hudScore) hudScore.textContent = Math.floor(player.score);
+  if(hudKills) hudKills.textContent = player.kills;
 }
 
 // ===== Audio =====
@@ -1636,6 +1653,7 @@ function draw(dt){
     drawStatusPips(ctx, m, mx+12, my-9);
     if(m.hitFlash>0) m.hitFlash--;
     if(m.hp<=0){
+      player.kills++; player.score += SCORE_PER_KILL; updateScoreUI();
       if(Math.random()<MONSTER_LOOT_CHANCE) dropLoot(m.x,m.y);
       if(Math.random()<0.55){ lootMap.set(`${m.x},${m.y}`,{color:'#ffd24a',type:'gold',amt:rng.int(3,12)}); }
       grantXP(Math.floor((10 + rng.int(0,6)) * 1.25));
@@ -1691,6 +1709,10 @@ function draw(dt){
 // ===== Update (smooth tween + 8-dir) =====
 function update(dt){
   if(gameOver || paused) return;
+  player.timeSurvived += dt;
+  player.score += SCORE_PER_SECOND * (dt/1000);
+  scoreUpdateTimer += dt;
+  if(scoreUpdateTimer >= 1000){ updateScoreUI(); scoreUpdateTimer = 0; }
   // init render state
   if(player.rx===undefined){
     player.rx=player.x; player.ry=player.y; player.fromX=player.x; player.fromY=player.y; player.toX=player.x; player.toY=player.y; player.moving=false; player.moveT=1; player.moveDur=player.stepDelay; baseStepDelay = player.stepDelay || baseStepDelay;
@@ -1805,8 +1827,11 @@ window.addEventListener('keydown',e=>{
   if(key==='/') toggleActionLog();
   if(key==='e' && !e.repeat){
     if(player.x===stairs.x && player.y===stairs.y){
-      floorNum++; seed=(seed*1664525+1013904223)|0; rng=new RNG(seed);
+      player.floorsCleared++; player.score += SCORE_PER_FLOOR_CLEAR;
+      floorNum++; player.score += SCORE_PER_FLOOR_REACHED * floorNum;
+      seed=(seed*1664525+1013904223)|0; rng=new RNG(seed);
       generate(); hudFloor.textContent=floorNum; hudSeed.textContent=seed>>>0; showToast('Down we go'); toggleShop(false);
+      updateScoreUI();
     } else if(player.x===merchant.x && player.y===merchant.y){
       toggleShop(document.getElementById('shop').style.display!=='block'); renderShop();
     }
@@ -2134,6 +2159,10 @@ function loadGame(){
   if(!player.class) player.class = 'warrior';
   if(player.sp===undefined) player.sp = player.spMax||60;
   if(player.skillPoints===undefined) player.skillPoints=0;
+  if(player.score===undefined) player.score=0;
+  if(player.kills===undefined) player.kills=0;
+  if(player.timeSurvived===undefined) player.timeSurvived=0;
+  if(player.floorsCleared===undefined) player.floorsCleared=0;
   for(const t of ['healing','damage','dot']){
     player.magic[t] = player.magic[t] || [];
     while(player.magic[t].length < magicTrees[t].abilities.length) player.magic[t].push(false);
@@ -2155,6 +2184,7 @@ function loadGame(){
     ? (player.boundSkill ? skillTrees[player.boundSkill.tree].abilities[player.boundSkill.idx].name : 'None')
     : (player.boundSpell ? magicTrees[player.boundSpell.tree].abilities[player.boundSpell.idx].name : 'None');
   updateResourceUI();
+  updateScoreUI();
   toggleEscMenu(false); showToast('Game loaded');
 }
 
@@ -2201,7 +2231,18 @@ function showBossAlert(){
   document.body.appendChild(d);
   setTimeout(()=>d.remove(),4000);
 }
-function showRespawn(){ gameOver=true; const d=document.getElementById('respawn'); if(d) d.style.display='grid'; }
+function showRespawn(){
+  gameOver=true;
+  const d=document.getElementById('respawn');
+  if(d){
+    updateScoreUI();
+    const fs=document.getElementById('finalScore'); if(fs) fs.textContent=Math.floor(player.score);
+    const fk=document.getElementById('finalKills'); if(fk) fk.textContent=player.kills;
+    const ff=document.getElementById('finalFloors'); if(ff) ff.textContent=player.floorsCleared;
+    const ft=document.getElementById('finalTime'); if(ft) ft.textContent=Math.floor(player.timeSurvived/1000);
+    d.style.display='grid';
+  }
+}
 
 // ===== Stats =====
 function recalcStats(){
@@ -2265,6 +2306,7 @@ function startGame(){
   const cSel = document.querySelector('input[name="class"]:checked');
   player.class = (cSel?.value==='mage')?'mage':'warrior';
   player.boundSpell=null; player.boundSkill=null;
+  player.score=0; player.kills=0; player.timeSurvived=0; player.floorsCleared=0; scoreUpdateTimer=0; updateScoreUI();
   hudAbilityLabel.textContent = player.class==='mage'?'Spell:':'Skill:';
   hudFloor.textContent=floorNum; hudSeed.textContent=seed>>>0; hudGold.textContent=player.gold; hudLvl.textContent=player.lvl;
   generate(); recalcStats();
