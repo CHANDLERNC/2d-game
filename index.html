@@ -2592,10 +2592,11 @@ function showRespawn(){
 // ===== Stats =====
 function recalcStats(){
   let dmgMin=2,dmgMax=4,crit=5,armor=0;
-  const hpGainPerLevel = 12, mpGainPerLevel = 6;
+  let hpGainPerLevel = 12, mpGainPerLevel = 6, spGainPerLevel = 6;
+  if(player.class==='mage') mpGainPerLevel = 10;
   let hpMax = 150 + (player.lvl-1)*hpGainPerLevel;
   let mpMax = 60 + (player.lvl-1)*mpGainPerLevel;
-  let spMax = 60 + (player.lvl-1)*mpGainPerLevel;
+  let spMax = 60 + (player.lvl-1)*spGainPerLevel;
   let speedPct=0;
   let resF=0,resI=0,resS=0,resM=0,resP=0;
   let spellBonus=0;
@@ -2603,7 +2604,7 @@ function recalcStats(){
   if(player.class==='warrior'){
     hpMax += 40; spMax += 40; dmgMin += 2; dmgMax += 2;
   }else if(player.class==='mage'){
-    mpMax += 40; spellBonus = 0.2;
+    mpMax += 40; hpMax += 20; spellBonus = 0.2;
   }
   // level bonus
   const lvlBonus = Math.floor((player.lvl-1)*0.6) + (player.baseAtkBonus||0);
