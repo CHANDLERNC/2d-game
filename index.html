@@ -625,8 +625,10 @@ function generate(){
   let rr=rooms[rng.int(0,rooms.length-1)]; stairs.x=rr.x+((rr.w/2)|0); stairs.y=rr.y+((rr.h/2)|0);
   let rm=rooms[rng.int(0,rooms.length-1)];
   merchant.x=rm.x+((rm.w/2)|0); merchant.y=rm.y+((rm.h/2)|0);
-  if(merchant.x===player.x && merchant.y===player.y){ merchant.x=rng.int(rm.x+1,rm.x+rm.w-2); merchant.y=rng.int(rm.y+1,rm.y+rm.h-2); }
-  if(merchant.x===stairs.x && merchant.y===stairs.y){ merchant.x=rng.int(rm.x+1,rm.x+rm.w-2); merchant.y=rng.int(rm.y+1,rm.y+rm.h-2); }
+  while((merchant.x===player.x && merchant.y===player.y) || (merchant.x===stairs.x && merchant.y===stairs.y)){
+    merchant.x=rng.int(rm.x+1,rm.x+rm.w-2);
+    merchant.y=rng.int(rm.y+1,rm.y+rm.h-2);
+  }
 
   // monsters
   const spawnCount = monsterCountForFloor(floorNum);
