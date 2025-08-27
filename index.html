@@ -417,36 +417,29 @@ function genSprites(){
       }
     };
   }
-  // Dragon boss: simple idle animation generated in code
-  function makeDragonAnim(){
-    const frames = [];
-    const bob = [0,1,0,-1];
-    const aura = ['#0e53bf','#0d4cb2','#0c45a5','#0d4cb2'];
-    for(let i=0;i<4;i++){
-      const c = document.createElement('canvas');
-      c.width = c.height = 48;
-      const g = c.getContext('2d');
-      g.imageSmoothingEnabled = false;
-      const y = bob[i];
-      // aura background
-      px(g,0,0,48,48,'#021529');
-      px(g,2,2+y,44,44,aura[i]);
-      // dragon body and features
-      const body = '#b8731f';
-      px(g,14,20+y,20,14,body); // torso
-      px(g,28,14+y,10,8,body); // head
-      px(g,24,18+y,8,4,body);  // neck
-      px(g,20,10+y,12,4,'#d89b41'); // horn/crest
-      px(g,10,24+y,8,8,body); // tail base
-      px(g,8,26+y,6,6,body); // tail tip
-      px(g,35,17+y,2,2,'#b84aff'); // eye
-      outline(g,48);
-      frames.push(c);
-    }
-    return { cv: frames[0], frames };
+  // Dragon boss: image-based with simple bobbing animation
+  {
+    const blank = document.createElement('canvas');
+    blank.width = blank.height = 48;
+    SPRITES.dragon = { cv: blank, frames: [] };
+    const img = new Image();
+    img.src = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAIAAADYYG7QAAATB0lEQVR4nFWZeazd13HfvzNzzu9373333reRj6soUiRF2dZmW1tk2ZIM2aYVK46TakkKZJURb3GbBkiMtq6gFm2DFA1iBEnqOi7iAoplq4hsywtNS67tyJEsy9pISRRpivvySD6+x7fce3/nnJnpH1RbZf44mD8/mDOYOef7JbwRBPgbiQTEmmMlVRRpxc4Yxyh1N7RbVHelriV2PQaOwZwBs+xGSlkNhd2KM1QJ2RpzK/BGc4ZmT6mkQR6NShqiGVrTIDfQDFe8KcL/TS7SMEQgzCFAAqTidm0hcF1RXaNqcxUltKVVWexYiGRqDoogzSbuqu7OlAnw0mZK8EQlUmysyYWJDFKZu2pRqtW9wA36JiD6/0AAEVggBKk8BK6qULcotELdDrEjscOdTohdao1pZwJ1i8FmELhDvRTJap6hECG4u5mXBMtuKqMRSUOpKjQEGAC5pkEBFUSFM8z+X1neBOQCMqBCiCy1VDXCWKzHpB7jTiu0u9Iep7Gx0O6n/iVaj0leRkoGNhisQc6kRqbEgQkwN8vIjXriOpMmHq1QXCEKPoSah4xihuQIhpJhb9zSm4AYQE0hSKylbnE1Fjpd7vW47oVWh9odbvWp0/Pu9Gh83YXQX5XnKGViVjX2TCVRkwhqVdtDgClr8pRCGbkmKUnby3FlxSkag9xGakAmc4dBHSj/tIc4QAKCcGxJ1ZF2L4z1pTtRjU2h3eF2V+q21x3UfVRjUXwCqVT9+RicAsShmMrzJEvsjqpztppiwVRZcR1yGVIqTqBmieoFiZVHzkYhG0y9mGpBBIzg6SIQAQIwonCsuVVzuxM7XR4bj/1V0p2kzgRaNaSNum2xRmyTowgvWyj7XpDLr3EnBhlX4FoJRDyO0SK1z4YeQn+yWkHHFqQ31ZyX0BFiVQvZoNkt52KkhuwuCgswDSAHE4cIrjhU0upQpxO6E6E3EfurMb2GOtOFKw/BpS6mTIFMompfG1u9bn7/S0TsW6+4QLGcWeqt6wdTmPa0WfIApwuh1SMFeD5M9vqxZgqlFE0hN5obL8WsKSiAITuImCiA2SRCKqlqqdqtVl/a/dCZovE11t90anLHIo8PumtOd9eeW+FzK1hwMTV29eC9ySkn+JED7ggb1xNVlGnhwlBTAnmZPQEnJ/Qr1SoutvtzG69Fb0K6U9Tphm43tDtodTi2KESECBZ2FnAITFxFClHqDlctqcZofBzd8dO9jRCyVAJhtSce7xssLQ/nV/L5EQsHgoFgoOqqNSSyeOhgM1ik4dKFI4c6129wL2bqOaFkO3GEuuM6GHLVl6or7b5U3Vh1Qqw4REjrYh8HEIMJIiwsrY7EFldt6rRZOia1VJxfe9mGo26/Q5GnK5xfO+OIgGNxkVAtLZ6Ec7z+2tCusH06v+Y+XKoe/lfmRL/+Yr1lY/P8iwvifPVNrZuvSgfn2Arq2sa6lHo8WtH2MqeOlOymsErdmcglMIGZgjtICLGCB3cy9fyzZ8O6zTy5auGlF8pw6E3CT57zfS9TxTO/fd2FKnioOx/9pW2/uG3tpjEIwb0sLpX/fozJlu68PL59M1wJYs/8kILYz572l36cY4frrtRj1OrE2OK6DWmFGMHMITBYyCKLILAwMQUmYgnOYinRWBum6I7n1RsllzwclcmutQLVgeYGsm4CzPracV1JCrQCQT3Fyvc+xSqx3WHPQHIW9CcpAKGizhqt2qPeKmr3QtWmqh04SGDiKoQKIgF+sRxgJ3AEHERgdzUrF89CEjA5kYbn5+fmSWpuVXG6qoOvefvG2ZZA6Og7NoMdjtbX5kb/4/PcG4uPvjC4++rhr1zTUm/+6Ot++CAng5HnhurWBe60W7MUWlK1PAThymWEwNGYuDPOMXLVqts97nalu7o1OcOTa729WlsTSboL3QkDx0tn8hNPANS7586rjnzv04f/qB3D9uu3UUru8vO9r3/xifzd/WwAOdrf2sdMi88clgd33rFVHz8AB/d2H2jmRzzWGTx9aEqXq/njdu4I5k8150/npYUyvOCjZU+ZQmeC6iixDmO9qtML/Zk4uQr9DeitKrF/ZuhkbsPUuv3do13ffmjVA08e8NdOYXaF989TYLai1230z39mm7rd+KnD917vswv44SFXo87X9i382X9r/+gvvnQ//d2P83f3cX12kH90unnuKEpaM7cfc8d9/niZP5cHZ8rKQEfLqk0gNgexCIHBAmbnIIEd4kQg4Us2Q0eJ8PCaB+577tdAhinGFLCxyeRI9Ny+r/2LPz3wW7dUEHr4Z8TuO99iv/me6t6PXIFbPgGzv95dPvHBajRKu7pjkEH87JNEEGT3xgAXJSeGgQAiZgoMB0hAIiEEYaoYwUM4MxS4e0Rs1X/7wnX37f01RMFb3oVtN+Gy64EApfjqN9xpVRe/+7CDqHnnPzfL33mN/uYHzd9/Mn7z6i8o8VOH4xe/V/7sj7dtrgYfvy3Sf73TUpbBIqVlKgPODTSTqamSGtW9cYQqttrS7lW9qTixSvpreXq99tfO2iqfWvXIsVunVtvtz37a3LDhbWH95rL3ScydhOV77CuP0D2/VB757qtCxMMP/VsggAReWt984I7L7aO3hcuuvOwzf3HgkztbW962ARnbbh8fu/J5Bl96x2+UvFyWL+jKhWawqKNlbXLxFEDMBBAHIYYxEJgJcIMKKIRSU9/EXIHALA4nwE0BdrAzV+5OZAQUhxCYQUwgAhkRoL1amQ0KRPZ2ZIaby9wxwKkkKyOyQuROBWqByEBMgBkDYk7uBUYgo2LkfveJBxAE7YQd14Ncf7ILOoL7R/Qrj4S74fyL18Vv7sfwlk8Rk+z+zyEtu/F7tunuA6GU9C/rE5/95OXk2P/SkRvee9XyK/rn9+inv8qdpUEOnmyUSuLSaFYyE0eAC7kRnMmJTYRAxFTIsaajs+dO8/g0HT/Ue++dg/Vr8pGzCGG6WXiPff3R6j5sfjsdf/XHryoQMDzv/cmy8zNqVn3rwR8dot+5wSrBhz/XgA6a47m/2vr4I89MrR3rVPGGwftFB0OMSsmxNOpQsuCWzYO7EUUQOcidXJ1VAYenINBYzWy8jDdvX65ry+aH9mI0mEPn0e1/ChgMbvoL2/E/n3VQAHn12L8H2Rd+3Q301Wd03QST4Z1554Pr3/+Oj//h8sP9116Xh78/cJSYSpLEcHenksmKEQBnIgLBcPGZ4MSAMNwCkwAb+8K9FrXbbG5nFxFa2HItNr8TEogYh59vPf8VYwasfuZLUEt3/Rs2vv9h/72HcN+N4dYr2AIU9u9O7WKnP/nS6GOfO/eH92/aeN3ufzj+VCpL0BXSBFICBMpkDHciRCcmZmI3o4s9CQRSJj5v8dwwwZVyWbtq1bp+vboTpyohMDZf7W6P77Ev/AYLE06+TBRHt/9BMGH2+x/yv3zcP3+fbLh213PV/zbx+2+Vj+1s73n+2Gd+69KPXKmvnPy5WREUhwJqBXBjELvBzQVmMCZAhJ2cybiiSARYJmfHS09Faqqy0tIL1Cza8X0wb7bd8eiLUHVVk72Pe1UBVtxu267s/OIsf+qh8s09/F/uHf2nu8rzJ/KN2+tPfCm98JPDBmKFeyqu5GauIHcvAW5KEBEQMwmCEIOieAwUY4ljishjPK7N5FXbq4UzSPMYLgZH3LTuTBKrxyxEt0RBoi9pnAKfY6Lg4eJfqJAgWi/GXrCFReptT6GuKVoruooXK27ualw8uTqImTmAid2ZXYiZmQwUA0cK8WwJM21eVSk1DaUUhhfi8mmaP+SnDvDZ170K2H5DgD72In77OrtpfWk/fD+lJcAnar9qvRLTh95a4Px7X/aPf5l2XuOL5+nt6xqJdHTBQVAlg5vBycnBbtQenwp1S+o6jk3E3mQ1PhMnZ7BqPfXXD8bXzVp3fExCMxqlsjjyHYe+ZSdfO7/vxaXlc1ZYmNzhomT0q1e7qX19ryiMSa6c8RD0hWMCwNg/cIXtfjUCPmrsw1ejrumxvb5mchIiGaZFS/LiSc3Zwe7kRGAjArGDGYUL8ZlcO7OprZSyWOSy2X+k88dff/qJpYXzKHTDJWW47X1wa7bfSSR//xIPCu18izLEgD2z2LGKPnyNIaB537/evS++7/IyaqiuafdBPnTWzMmrymMkFgUZOcBqzAQjK+ROSkTmAIrB1FPWs+e9KJfUScMtZ5+X4/sO/fAbt2/3926327bqfdeH+uB3d+7Q+pVdTgXmH3kHHvzolt/5BcANjlvfhruuCeaoH/8TIvveAa7a2jTDzVu37TlLl2zZxHWHqFJEgI1EDYQSClFggkPVSraYi3qRopYa0ybkZmFU6tmT3dkXjv7o0Q/sMALvOeFHVsL0WIHJL7+Ddu0nVrlpc/nOi+i3T/zuP7vk/rvpxj848rEv069emf/yvvCph4tRWLf9qjg5I2N9bwabJtZ7TpRSahofXfASnJILw5kFbu4OZzeoFzMrlixpTuOi+eBeOEkenHr8q8ZolN5/tayfJFL6O//lu96qT+33Wy7LxdEUnF3yH76a9jx31JiYSIjvvDa0It63jRjm49NHb/79k2/9lbzhSlq9jSc2eGea6zGLHQ8tUICTWQhwN4IbklPNfnEbkMLVIjVABBFFNUKz4r0WprvII02JMb5uulDJNNlRJhtvOzHGWrJ2UlZPt9wNzpM9NIU6FdxJ2uPcnR4dPLY8dXlXjkEqd4YalyblTClCjDwFNQ/qFsFkWrw4xECuMB8GRhn5cKnhPtxu3mZff1myl3Vrwr0z+Wv/+MW/Nb5hiz19MASy7x8UM75ybXnsGf3pz18BpMn2D3v0xKLsOeuwUnUnZs4+v3jppjOnzo96WyYUnkppRj7qkKQSE3tWDYHMFSrqcBDI3MkhSg5eGRJv3Br++h4r2LYaa3vkwHdellHWu6/1u3akx/bx/BLdtMV/clTguHlLWRzi4Hn8zU+FhD54ub18ms4O9fDZsOHmnTq+hkML6s681JnojWYxHKO641Wb8pBSlZGcjZ1AxgDczT1BlTS7ZwPY4acOM9wyNk7jO/vk9q1WDDHIY3urd10OZvr5HP/0KG+dNnbbPuXPHvMnXxd3u21L3j/HB+f4pWNBncPUWoyvLnUP3X5Yu97PnVavnINLxRxBAorEARLY1MiteHEt+eKQsmxeCMUiV9/44ytW48rN9uRBMsMPDrAwcrEPXFG+/RLcMHrrnQAOz9G7t/qzx/2FU9HMAfrBQTkyh8MLKEwbb7lDZ7YMJjecsv78kVOeC5WszJBoQh4YEGIShjCCuakbG6w4W9E0opyRsqfMFVPBK7NM5O6AOBW8e7u9eBS79jGBRlfsjC9/G2QPfNB/8Jrvm41EOjMxXsjn55fBpOYz23aguyZNbpyVVe33bnKzle8fmJ4at2YpS80uBaLCBlIRy5ld1VS1JNeseeg52WhFhyveLPtgyQVbpn3TVBEBAbduxff3y4VMRBhd/WG0Okx0ad8+u0uuu1Ru2JTFYQwCwH7ZtDvIJVjdPhnWdq5d701prRnHiQNgmq9mIEE5MkAGA0FhMEKMFIJIjbojdTu2u6E7LmNTaE+7hOGTD3nRpvC1l9grs0zwd23V/bNyZsXd2d3yjjvigSc29uzkPP7DXf4fd8lQnYnIWaHXbsgvnYgmqP/Xi+zhwuceok2XsLrVdWx3J+b3+7nX7cLpcv5cM1yg4UrJDUPNSymunhtKo9IMbbisgwVfPiMLJ8Y3XQ7mqvZ9s/Tuy7KTP304nL1Qbt2cGX7dBqsPPJG333FqSVjop8fw4IeKiNywUZ2Vmfecrm/eoqI0uvfGla/uDjfdJJMzPr0q1t3O4JynoeeMpqg2VIqp2kVZD2Ck4oGMQUMkoCpa6kHFYHVn90yg1BKHi2argkVic+/XCkRwDRCANa0cWhLJx9vuzgRX83atRpWUpCAZJucI8wKtBrO+cs5HyzkNPDclJysJmugNW4EYMVJoBxZqtWJoUQhCVEnmlIOPxmKpvJiB2aMIBSqFC3iIiriqKPVCmuzReEtWkq8MbTlRU2AcTFqpnijdtT61UXszVLVNOacBL8/p8kJenNPBfF6+YM2Q8qCkHN6wFdyRDT7KIqHxXFSiECRBAxWBjswbsWDM7gklGLt5dndkYjXW5FgceGqSFR6qZWVVKc5GpKqWhr54zkwRWlbAo2HOSzpYstGypgFyYzlZybDyJq/DsheFxlIQopGyEpwAhiNXICY3zgQWRubiRu6sbMQwIiru8IbZzZK7FipeMgegFGTiZQM0Z9Rddy3NyAdDS8s2XLHRQMvIygglI+ublHwAZuACVSVzZ2OKzJ7NKDtEyCEaWZNeXMLsbhBjsBMsljIKgU3hbq6GBKLQWCJF4hKMRM2tZHJ3bTQ3PhrlNHRLKBlaoAb8E6CLDpUBQLkorkYNRubEnOEFRTI5A1zIGaxuBHMlQyAuBFJlmLMaKalTKMmIjdlyLo4RnK2YQyxnbRq3xptUSoIVqMEzVP8PM+m1mxsZp3oAAAAASUVORK5CYII=';
+    img.onload = () => {
+      const bob = [0,1,0,-1];
+      for (const y of bob) {
+        const c = document.createElement('canvas');
+        c.width = c.height = 48;
+        const g = c.getContext('2d');
+        g.imageSmoothingEnabled = false;
+        g.drawImage(img, 0, y, 48, 48);
+        SPRITES.dragon.frames.push(c);
+      }
+      if (SPRITES.dragon.frames.length) {
+        SPRITES.dragon.cv = SPRITES.dragon.frames[0];
+      }
+    };
   }
-  SPRITES.dragon = makeDragonAnim();
-  // Snake boss: image-based with simple bobbing animation
+
   {
     const blank = document.createElement('canvas');
     blank.width = blank.height = 48;
