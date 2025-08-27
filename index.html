@@ -344,31 +344,41 @@ function genSprites(){
     outline(g,S);
   });
 
-  // Mage/Cultist 24x24 (caster enemy)
-  function makeMageAnim(robe, trim, staff, glow){
+  // Skeleton Mage 24x24 (caster enemy)
+  function makeMageAnim(){
     const frames = [];
+    const orbYOffset = [0,-1,0,1];
     for(let i=0;i<4;i++){
       const c=document.createElement('canvas');
       c.width=c.height=24;
       const g=c.getContext('2d');
       g.imageSmoothingEnabled=false;
       const bob = (i%2===0)?0:1;
-      // robe
-      px(g,6,8+bob,12,10,robe); px(g,8,6+bob,8,3,robe);
-      // trim
-      px(g,6,16+bob,12,2,trim);
-      // head
-      px(g,8,2+bob,8,4,'#e6c9a6'); px(g,9,3+bob,2,2,'#000'); px(g,13,3+bob,2,2,'#000');
-      // staff/glow
-      px(g,3,6+bob,2,14,staff); px(g,2,6+bob,4,2,glow);
+      // skull
+      px(g,7,2+bob,10,6,'#e9edf1');
+      px(g,9,4+bob,2,2,'#7e4ab8');
+      px(g,13,4+bob,2,2,'#7e4ab8');
+      // body
+      px(g,8,10+bob,8,6,'#dde3ea');
+      px(g,6,10+bob,2,4,'#dde3ea');
+      px(g,16,10+bob,2,4,'#dde3ea');
+      px(g,8,18+bob,3,3,'#dde3ea');
+      px(g,13,18+bob,3,3,'#dde3ea');
+      // casting arm
+      px(g,18,10+bob,4,2,'#dde3ea');
+      // purple orb
+      const oy = 5 + orbYOffset[i];
+      px(g,21,oy+bob,2,2,'#b84aff');
+      px(g,22,oy-1+bob,1,1,'#d9a3ff');
+      px(g,23,oy-2+bob,1,1,'#d9a3ff');
       outline(g,24);
       frames.push(c);
     }
     return { cv: frames[0], frames };
   }
-  SPRITES.mage = makeMageAnim('#4a3a7e','#b84aff','#7a5cff','#b84aff');
-  SPRITES.mage_red = makeMageAnim('#7e3a3a','#ff4a4a','#ff5c5c','#ffb84a');
-  SPRITES.mage_green = makeMageAnim('#3a7e4a','#4aff5c','#5cff7a','#4aff5c');
+  SPRITES.mage = makeMageAnim();
+  SPRITES.mage_red = makeMageAnim();
+  SPRITES.mage_green = makeMageAnim();
 
   // Boss variants 48x48
   SPRITES.griffin = makeSprite(48,(g,S)=>{
