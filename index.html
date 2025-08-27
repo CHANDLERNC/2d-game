@@ -193,7 +193,7 @@ let VIEW_W=window.innerWidth, VIEW_H=window.innerHeight;
 const TILE=32, MAP_W=48, MAP_H=48;
 const MONSTER_BASE_COUNT=24, MONSTER_MIN_COUNT=6, MONSTER_COUNT_DECAY=2;
 const FOV_RADIUS=8; const LOOT_CHANCE=0.18;
-const MONSTER_LOOT_CHANCE=0.3; const AGGRO_RANGE=6;
+const MONSTER_LOOT_CHANCE=0.5; const AGGRO_RANGE=6;
 const TORCH_CHANCE=0.06;
 const TORCH_LIGHT_RADIUS=4;
 const FOV_RAYS=360;
@@ -1150,7 +1150,7 @@ function genShopStock(){
 
 function makeRandomGear(){
   const nonWeaponSlots = SLOTS.filter(s=>s!=='weapon');
-  const slot = rng.next()<0.4 ? 'weapon' : nonWeaponSlots[rng.int(0, nonWeaponSlots.length-1)];
+  const slot = rng.next()<0.6 ? 'weapon' : nonWeaponSlots[rng.int(0, nonWeaponSlots.length-1)];
   const rarityIdx = rollRarity();
   const bases = ITEM_BASES[slot];
   const base = bases[rng.int(0, bases.length-1)];
@@ -2229,7 +2229,7 @@ function loadGame(){
 
 // ===== Loot helpers =====
 function dropLoot(x,y){
-  if(rng.next()<0.4){
+  if(rng.next()<0.25){
     lootMap.set(`${x},${y}`, makeRandomPotion());
     return;
   }
