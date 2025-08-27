@@ -3033,6 +3033,14 @@ function update(dt){
 
   // attack cooldown
   player.atkCD = Math.max(0, player.atkCD - dt);
+  // standing in lava adds burn duration equal to time spent
+  const tileUnder = map[player.y * MAP_W + player.x];
+  if(tileUnder === T_LAVA){
+    const cur = getEffect(player, 'burn');
+    const dur = (cur ? cur.t : 0) + dt * 2;
+    const pow = cur ? cur.power : 1.0;
+    applyStatus(player, 'burn', dur, pow);
+  }
   // status tick
   tickEffects(player, dt);
 
