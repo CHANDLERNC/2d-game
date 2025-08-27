@@ -117,31 +117,11 @@
       </ul>
     </div>
 
-    <div class="section-title" style="margin-top:10px">Choose your character</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;pointer-events:auto">
-      <label class="gender-card">
-        <input type="radio" name="gender" value="m" checked>
-        <div class="gender-preview"><img id="prevMale" alt="male" /></div>
-        <div>
-          <div><b>Male</b></div>
-          <div class="muted" style="font-size:12px">Balanced adventurer</div>
-        </div>
-      </label>
-      <label class="gender-card">
-        <input type="radio" name="gender" value="f">
-        <div class="gender-preview"><img id="prevFemale" alt="female" /></div>
-        <div>
-          <div><b>Female</b></div>
-          <div class="muted" style="font-size:12px">Swift adventurer</div>
-        </div>
-      </label>
-    </div>
-
     <div class="section-title" style="margin-top:10px">Choose your class</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;pointer-events:auto">
       <label class="gender-card">
         <input type="radio" name="class" value="warrior" checked>
-        <div class="gender-preview" style="font-size:20px">⚔️</div>
+        <div class="gender-preview"><img id="prevWarrior" alt="warrior" /></div>
         <div>
           <div><b>Warrior</b></div>
           <div class="muted" style="font-size:12px">High HP and damage</div>
@@ -149,7 +129,7 @@
       </label>
       <label class="gender-card">
         <input type="radio" name="class" value="mage">
-        <div class="gender-preview" style="font-size:20px">✨</div>
+        <div class="gender-preview"><img id="prevMage" alt="mage" /></div>
         <div>
           <div><b>Mage</b></div>
           <div class="muted" style="font-size:12px">Extra mana, stronger spells</div>
@@ -271,35 +251,89 @@ function makeSprite(size, draw){ const c=document.createElement('canvas'); c.wid
 function px(g,x,y,w,h,col){ g.fillStyle=col; g.fillRect(x,y,w,h); }
 function outline(g,size){ /* no outline to avoid black boxes */ }
 function genSprites(){
-  // Player male 24x24
-  SPRITES.player_m = makeSprite(24,(g,S)=>{
-    // boots & pants
-    px(g,5,18,14,3,'#2b2f3a'); px(g,6,16,12,3,'#3a4060');
-    // tunic
-    px(g,6,10,12,6,'#7a9cff'); px(g,8,8,8,2,'#7a9cff');
-    // arms
-    px(g,5,12,2,4,'#d8bb9a'); px(g,17,12,2,4,'#d8bb9a');
-    // head
-    px(g,8,2,8,6,'#e3c6a6'); px(g,9,4,2,2,'#000'); px(g,13,4,2,2,'#000');
-    // hair
-    px(g,7,1,10,2,'#3c2c1a'); px(g,7,2,2,3,'#3c2c1a'); px(g,15,2,2,3,'#3c2c1a');
-    outline(g,S);
-  });
+  // Warrior animation 24x24
+  function makePlayerWarriorAnim(){
+    function drawFrame(g, oy, step){
+      // boots
+      px(g,5,18+oy,14,3,'#4b3621');
+      // legs
+      px(g,6+step,14+oy,4,4,'#6b6b7d');
+      px(g,14-step,14+oy,4,4,'#6b6b7d');
+      // torso armor
+      px(g,6,8+oy,12,6,'#8c8d9f');
+      // shoulders
+      px(g,5,8+oy,2,6,'#7a7b8c');
+      px(g,17,8+oy,2,6,'#7a7b8c');
+      // arms
+      px(g,4-step,12+oy,2,4,'#c0c0c0');
+      px(g,18+step,12+oy,2,4,'#c0c0c0');
+      // head & helmet
+      px(g,8,2+oy,8,6,'#e3c6a6');
+      px(g,9,4+oy,2,2,'#000'); px(g,13,4+oy,2,2,'#000');
+      px(g,7,1+oy,10,2,'#8c8d9f');
+      px(g,7,2+oy,2,3,'#8c8d9f'); px(g,15,2+oy,2,3,'#8c8d9f');
+      // sword
+      px(g,20+step,8+oy,2,10,'#c0c0c0');
+      px(g,19+step,17+oy,4,2,'#3a2d1a');
+      outline(g,24);
+    }
+    const idle=[], move=[];
+    for(let i=0;i<2;i++){
+      const c=document.createElement('canvas'); c.width=c.height=24;
+      const g=c.getContext('2d'); g.imageSmoothingEnabled=false;
+      drawFrame(g,i%2,0);
+      idle.push(c);
+    }
+    for(let i=0;i<4;i++){
+      const c=document.createElement('canvas'); c.width=c.height=24;
+      const g=c.getContext('2d'); g.imageSmoothingEnabled=false;
+      const step=(i<2?-1:1);
+      drawFrame(g,i%2,step);
+      move.push(c);
+    }
+    return { url: idle[0].toDataURL('image/png'), idle, move };
+  }
+  SPRITES.player_warrior = makePlayerWarriorAnim();
 
-  // Player female 24x24
-  SPRITES.player_f = makeSprite(24,(g,S)=>{
-    // boots & leggings
-    px(g,5,18,14,3,'#303446'); px(g,6,16,12,3,'#c65f92');
-    // dress/armor
-    px(g,6,10,12,6,'#ff7ab3'); px(g,8,8,8,2,'#ff7ab3');
-    // arms
-    px(g,5,12,2,4,'#f1d3b1'); px(g,17,12,2,4,'#f1d3b1');
-    // head
-    px(g,8,2,8,6,'#f1d3b1'); px(g,9,4,2,2,'#000'); px(g,13,4,2,2,'#000');
-    // hair (long)
-    px(g,7,1,10,2,'#6b3a2d'); px(g,6,3,2,6,'#6b3a2d'); px(g,16,3,2,6,'#6b3a2d');
-    outline(g,S);
-  });
+  // Mage animation 24x24
+  function makePlayerMageAnim(){
+    function drawFrame(g, oy, step){
+      // staff
+      px(g,20+step,6+oy,2,12,'#8b5e3c');
+      px(g,19+step,4+oy,4,4,'#b84aff');
+      // boots
+      px(g,7,18+oy,10,3,'#3a2d1a');
+      // robe
+      px(g,6,8+oy,12,10,'#4a3a8a');
+      px(g,5,10+oy,2,8,'#4a3a8a');
+      px(g,17,10+oy,2,8,'#4a3a8a');
+      // arms
+      px(g,4-step,10+oy,2,6,'#4a3a8a');
+      px(g,18+step,10+oy,2,6,'#4a3a8a');
+      // head & hood
+      px(g,8,2+oy,8,6,'#e3c6a6');
+      px(g,9,4+oy,2,2,'#000'); px(g,13,4+oy,2,2,'#000');
+      px(g,7,1+oy,10,2,'#4a3a8a');
+      px(g,6,2+oy,12,2,'#4a3a8a');
+      outline(g,24);
+    }
+    const idle=[], move=[];
+    for(let i=0;i<2;i++){
+      const c=document.createElement('canvas'); c.width=c.height=24;
+      const g=c.getContext('2d'); g.imageSmoothingEnabled=false;
+      drawFrame(g,i%2,0);
+      idle.push(c);
+    }
+    for(let i=0;i<4;i++){
+      const c=document.createElement('canvas'); c.width=c.height=24;
+      const g=c.getContext('2d'); g.imageSmoothingEnabled=false;
+      const step=(i<2?-1:1);
+      drawFrame(g,i%2,step);
+      move.push(c);
+    }
+    return { url: idle[0].toDataURL('image/png'), idle, move };
+  }
+  SPRITES.player_mage = makePlayerMageAnim();
 
   // Slime idle animations 24x24
   function makeSlimeAnim(c1, c2, c3){
@@ -551,8 +585,10 @@ function genSprites(){
   SPRITES.merchant_tile = makeSprite(24,(g,S)=>{ px(g,4,4,16,16,'#8a5cff'); outline(g,S); });
 
   // previews on start screen
-  const prevMale=document.getElementById('prevMale'); const prevFemale=document.getElementById('prevFemale');
-  if(prevMale) prevMale.src = SPRITES.player_m.url; if(prevFemale) prevFemale.src = SPRITES.player_f.url;
+  const prevWarrior=document.getElementById('prevWarrior');
+  const prevMage=document.getElementById('prevMage');
+  if(prevWarrior) prevWarrior.src = SPRITES.player_warrior.url;
+  if(prevMage) prevMage.src = SPRITES.player_mage.url;
 }
 
 // generate immediately so previews show on start
@@ -561,8 +597,8 @@ genSprites();
 let seed=(Math.random()*1e9)|0, floorNum=1, rng=new RNG(seed);
 let map=[], fog=[], vis=[]; let rooms=[]; let stairs={x:0,y:0};
 let merchant={x:0,y:0}; let merchantStyle = Math.random()<0.5 ? 'goblin' : 'stall';
-let player={x:0,y:0,hp:150,hpMax:150,mp:60,mpMax:60,sp:60,spMax:60,gold:0,stepCD:0,stepDelay:140,speedPct:0,lvl:1,xp:0,xpToNext:50,baseAtkBonus:0, gender:'m', class:'warrior', atkCD:0, combatTimer:0, healAcc:0, faceDx:1, faceDy:0, effects:[], magicPoints:0, skillPoints:0, score:0, kills:0, timeSurvived:0, floorsCleared:0, magic:{healing:[false,false,false,false,false,false],damage:[false,false,false,false,false,false],dot:[false,false,false,false,false,false]}, skills:{offense:[false,false,false,false,false,false],defense:[false,false,false,false,false,false],techniques:[false,false,false]}, boundSpell:null, boundSkill:null};
-let playerSpriteKey = 'player_m';
+let player={x:0,y:0,hp:150,hpMax:150,mp:60,mpMax:60,sp:60,spMax:60,gold:0,stepCD:0,stepDelay:140,speedPct:0,lvl:1,xp:0,xpToNext:50,baseAtkBonus:0,class:'warrior', atkCD:0, combatTimer:0, healAcc:0, faceDx:1, faceDy:0, effects:[], magicPoints:0, skillPoints:0, score:0, kills:0, timeSurvived:0, floorsCleared:0, magic:{healing:[false,false,false,false,false,false],damage:[false,false,false,false,false,false],dot:[false,false,false,false,false,false]}, skills:{offense:[false,false,false,false,false,false],defense:[false,false,false,false,false,false],techniques:[false,false,false]}, boundSpell:null, boundSkill:null};
+let playerSpriteKey = 'player_warrior';
 const magicTrees={
   healing:{display:'Healing',abilities:[
     {name:'Heal I',type:'heal',value:30,mp:10,cost:1},
@@ -2038,7 +2074,10 @@ function draw(dt){
   const ptx = (smoothEnabled && player.rx!==undefined ? player.rx : player.x);
   const pty = (smoothEnabled && player.ry!==undefined ? player.ry : player.y);
   const px = ptx*TILE - camX + (TILE-24)/2; const py = pty*TILE - camY + (TILE-24)/2;
-  ctx.drawImage(SPRITES[playerSpriteKey].cv, px, py);
+  const pspr = SPRITES[playerSpriteKey];
+  const anim = player.moving ? pspr.move : pspr.idle;
+  const frame = anim[Math.floor(now/200) % anim.length];
+  ctx.drawImage(frame, px, py);
   // player status pips
   drawStatusPips(ctx, player, px+12, py-9);
 
@@ -2694,14 +2733,10 @@ function loop(now){ const dt = Math.min(50, now - __last); __last = now; update(
 // ===== Start =====
 function startGame(){
   initAudio();
-  // gender pick -> sprite
-  const gSel = document.querySelector('input[name="gender"]:checked');
-  player.gender = (gSel?.value==='f')?'f':'m';
-  playerSpriteKey = player.gender==='f' ? 'player_f' : 'player_m';
-
-  // class pick -> stats
+  // class pick -> sprite & stats
   const cSel = document.querySelector('input[name="class"]:checked');
   player.class = (cSel?.value==='mage')?'mage':'warrior';
+  playerSpriteKey = player.class==='mage' ? 'player_mage' : 'player_warrior';
   player.boundSpell=null; player.boundSkill=null;
   player.score=0; player.kills=0; player.timeSurvived=0; player.floorsCleared=0; scoreUpdateTimer=0; updateScoreUI();
   hudAbilityLabel.textContent = player.class==='mage'?'Spell:':'Skill:';
