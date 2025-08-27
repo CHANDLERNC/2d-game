@@ -43,6 +43,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) with
 - Rebalanced loot rarity distribution to favor common and uncommon gear and increased bonuses on rare items.
 - Mini bosses and bosses now appear at twice the size of normal monsters.
 
+- Weapon damage and armor/resistance values now scale with item level and rarity. Player base resistances increase slightly each level.
+
 ### Fixed
 - Melee attacks now track the mouse and register hits within a 35° cone (2-tile reach by default).
 - Warrior class no longer registers as a mage.
