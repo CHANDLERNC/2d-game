@@ -321,21 +321,35 @@ function genSprites(){
   SPRITES.slime = makeSlimeAnim('#5ca94a','#6bbd59','#8ed97b');
   SPRITES.slime_red = makeSlimeAnim('#d35e5e','#e06e6e','#f18b8b');
   SPRITES.slime_yellow = makeSlimeAnim('#d3c85e','#e0d56e','#f1e58b');
-  // Bat 24x24
-  SPRITES.bat = makeSprite(24,(g,S)=>{
-    // wings
-    px(g,2,12,8,6,'#20222b'); px(g,14,12,8,6,'#20222b');
-    // body
-    px(g,9,10,6,8,'#2e3240'); px(g,10,8,4,3,'#2e3240');
-    px(g,10,12,1,2,'#9b0000'); px(g,13,12,1,2,'#9b0000');
-    outline(g,S);
-  });
-  SPRITES.bat_brown = makeSprite(24,(g,S)=>{
-    px(g,2,12,8,6,'#3b2b1a'); px(g,14,12,8,6,'#3b2b1a');
-    px(g,9,10,6,8,'#4c3524'); px(g,10,8,4,3,'#4c3524');
-    px(g,10,12,1,2,'#9b0000'); px(g,13,12,1,2,'#9b0000');
-    outline(g,S);
-  });
+  // Bat idle animations 24x24
+  function makeBatAnim(wing, body){
+    const frames = [];
+    const wingPos = [
+      {x:2,y:12,w:8,h:6},
+      {x:4,y:8,w:6,h:6},
+      {x:2,y:12,w:8,h:6},
+      {x:0,y:14,w:10,h:6}
+    ];
+    const bob = [0,-1,0,1];
+    for(let i=0;i<4;i++){
+      const c=document.createElement('canvas');
+      c.width=c.height=24;
+      const g=c.getContext('2d');
+      g.imageSmoothingEnabled=false;
+      const w=wingPos[i];
+      const oy=bob[i];
+      px(g,w.x,w.y+oy,w.w,w.h,wing);
+      px(g,24-w.x-w.w,w.y+oy,w.w,w.h,wing);
+      px(g,9,10+oy,6,8,body);
+      px(g,10,8+oy,4,3,body);
+      px(g,10,12+oy,1,2,'#9b0000'); px(g,13,12+oy,1,2,'#9b0000');
+      outline(g,24);
+      frames.push(c);
+    }
+    return { cv: frames[0], frames };
+  }
+  SPRITES.bat = makeBatAnim('#20222b','#2e3240');
+  SPRITES.bat_brown = makeBatAnim('#3b2b1a','#4c3524');
   // Skeleton 24x24
   SPRITES.skeleton = makeSprite(24,(g,S)=>{
     px(g,7,2,10,6,'#e9edf1'); px(g,9,4,2,2,'#000'); px(g,13,4,2,2,'#000');
