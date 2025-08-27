@@ -1320,6 +1320,26 @@ function generateRooms(){
     for(let x=Math.min(a.x,b.x); x<=Math.max(a.x,b.x); x++) map[(a.y+((a.h/2)|0))*MAP_W+x]=T_FLOOR;
     for(let y=Math.min(a.y,b.y); y<=Math.max(a.y,b.y); y++) map[y*MAP_W+(b.x+((b.w/2)|0))]=T_FLOOR;
   }
+  // ensure connectivity by removing unreachable floors
+  if(rooms.length){
+    const start=rooms[0];
+    const sx=start.x+((start.w/2)|0), sy=start.y+((start.h/2)|0);
+    const q=[[sx,sy]];
+    const seen=new Set([sy*MAP_W+sx]);
+    while(q.length){
+      const [x,y]=q.pop();
+      for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){
+        const nx=x+dx, ny=y+dy; if(nx<0||ny<0||nx>=MAP_W||ny>=MAP_H) continue;
+        const idx=ny*MAP_W+nx; if(map[idx]!==T_FLOOR || seen.has(idx)) continue;
+        seen.add(idx); q.push([nx,ny]);
+      }
+    }
+    for(let i=0;i<map.length;i++) if(map[i]===T_FLOOR && !seen.has(i)) map[i]=T_WALL;
+    rooms=rooms.filter(r=>{
+      const cx=r.x+((r.w/2)|0), cy=r.y+((r.h/2)|0);
+      return seen.has(cy*MAP_W+cx);
+    });
+  }
   // walls
   for(let y=0;y<MAP_H;y++) for(let x=0;x<MAP_W;x++) if(map[y*MAP_W+x]===T_FLOOR){ for(const d of [[1,0],[-1,0],[0,1],[0,-1]]){ const nx=x+d[0], ny=y+d[1]; if(nx>=0&&ny>=0&&nx<MAP_W&&ny<MAP_H && map[ny*MAP_W+nx]===T_EMPTY) map[ny*MAP_W+nx]=T_WALL; } }
   // torches along walls facing floors
