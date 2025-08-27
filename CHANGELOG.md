@@ -38,6 +38,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) with
 - Increased potion drop rate to 40% (from 25%).
 - Mage enemies now fire 30% slower but hit 10% harder.
 - Enemy elemental resistances now scale with floor level.
+- Mini bosses now always drop gold and may also drop gear or weapons.
 - Warrior abilities now unlock sequentially on the skill tree and bind to Q instead of using modifier keys.
 - Adjusted special ability damage scaling for Mage and Warrior classes, weakening early skills and strengthening later unlocks.
 - Rebalanced loot rarity distribution to favor common and uncommon gear and increased bonuses on rare items.

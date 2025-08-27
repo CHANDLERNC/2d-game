@@ -1693,8 +1693,13 @@ function draw(dt){
     if(m.hitFlash>0) m.hitFlash--;
     if(m.hp<=0){
       player.kills++; player.score += SCORE_PER_KILL; updateScoreUI();
-      if(Math.random()<MONSTER_LOOT_CHANCE) dropLoot(m.x,m.y);
-      if(Math.random()<0.55){ lootMap.set(`${m.x},${m.y}`,{color:'#ffd24a',type:'gold',amt:rng.int(3,12)}); }
+      if(m.miniBoss){
+        if(Math.random()<MONSTER_LOOT_CHANCE){ dropGearNear(m.x,m.y); }
+        lootMap.set(`${m.x},${m.y}`,{color:'#ffd24a',type:'gold',amt:rng.int(8,20)});
+      } else {
+        if(Math.random()<MONSTER_LOOT_CHANCE) dropLoot(m.x,m.y);
+        if(Math.random()<0.55){ lootMap.set(`${m.x},${m.y}`,{color:'#ffd24a',type:'gold',amt:rng.int(3,12)}); }
+      }
       grantXP(Math.floor((10 + rng.int(0,6)) * 1.25));
       const idx=monsters.indexOf(m); if(idx>=0) monsters.splice(idx,1);
     }
@@ -2228,6 +2233,22 @@ function loadGame(){
 }
 
 // ===== Loot helpers =====
+function dropGearNear(x,y){
+  const dirs=[[1,0],[-1,0],[0,1],[0,-1]];
+  for(const [dx,dy] of dirs){
+    const nx=x+dx, ny=y+dy;
+    if(!walkable(nx,ny)) continue;
+    const key=`${nx},${ny}`;
+    if(lootMap.has(key)) continue;
+    if(monsters.some(mm=>mm.x===nx && mm.y===ny)) continue;
+    if(nx===player.x && ny===player.y) continue;
+    if(nx===merchant.x && ny===merchant.y) continue;
+    lootMap.set(key, makeRandomGear());
+    return true;
+  }
+  return false;
+}
+
 function dropLoot(x,y){
   if(rng.next()<0.25){
     lootMap.set(`${x},${y}`, makeRandomPotion());
