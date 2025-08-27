@@ -345,31 +345,30 @@ function genSprites(){
   });
 
   // Mage/Cultist 24x24 (caster enemy)
-  SPRITES.mage = makeSprite(24,(g,S)=>{
-    // robe
-    px(g,6,8,12,10,'#4a3a7e'); px(g,8,6,8,3,'#4a3a7e');
-    // trim
-    px(g,6,16,12,2,'#b84aff');
-    // head
-    px(g,8,2,8,4,'#e6c9a6'); px(g,9,3,2,2,'#000'); px(g,13,3,2,2,'#000');
-    // staff/glow
-    px(g,3,6,2,14,'#7a5cff'); px(g,2,6,4,2,'#b84aff');
-    outline(g,S);
-  });
-  SPRITES.mage_red = makeSprite(24,(g,S)=>{
-    px(g,6,8,12,10,'#7e3a3a'); px(g,8,6,8,3,'#7e3a3a');
-    px(g,6,16,12,2,'#ff4a4a');
-    px(g,8,2,8,4,'#e6c9a6'); px(g,9,3,2,2,'#000'); px(g,13,3,2,2,'#000');
-    px(g,3,6,2,14,'#ff5c5c'); px(g,2,6,4,2,'#ffb84a');
-    outline(g,S);
-  });
-  SPRITES.mage_green = makeSprite(24,(g,S)=>{
-    px(g,6,8,12,10,'#3a7e4a'); px(g,8,6,8,3,'#3a7e4a');
-    px(g,6,16,12,2,'#4aff5c');
-    px(g,8,2,8,4,'#e6c9a6'); px(g,9,3,2,2,'#000'); px(g,13,3,2,2,'#000');
-    px(g,3,6,2,14,'#5cff7a'); px(g,2,6,4,2,'#4aff5c');
-    outline(g,S);
-  });
+  function makeMageAnim(robe, trim, staff, glow){
+    const frames = [];
+    for(let i=0;i<4;i++){
+      const c=document.createElement('canvas');
+      c.width=c.height=24;
+      const g=c.getContext('2d');
+      g.imageSmoothingEnabled=false;
+      const bob = (i%2===0)?0:1;
+      // robe
+      px(g,6,8+bob,12,10,robe); px(g,8,6+bob,8,3,robe);
+      // trim
+      px(g,6,16+bob,12,2,trim);
+      // head
+      px(g,8,2+bob,8,4,'#e6c9a6'); px(g,9,3+bob,2,2,'#000'); px(g,13,3+bob,2,2,'#000');
+      // staff/glow
+      px(g,3,6+bob,2,14,staff); px(g,2,6+bob,4,2,glow);
+      outline(g,24);
+      frames.push(c);
+    }
+    return { cv: frames[0], frames };
+  }
+  SPRITES.mage = makeMageAnim('#4a3a7e','#b84aff','#7a5cff','#b84aff');
+  SPRITES.mage_red = makeMageAnim('#7e3a3a','#ff4a4a','#ff5c5c','#ffb84a');
+  SPRITES.mage_green = makeMageAnim('#3a7e4a','#4aff5c','#5cff7a','#4aff5c');
 
   // Dragon boss idle animation 48x48
   function makeDragonAnim(){

@@ -26,7 +26,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) with
 - Griffin, dragon, and snake boss variants.
 - Red and yellow slime variants with unique stats, plus new mage and bat color schemes.
 - Inline dragon boss idle animation and generic frame-based monster animation.
-- Inline idle animations for green, red, and yellow slime variants.
+- Inline idle animations for green, red, and yellow slime variants, plus animated mage enemy.
 
 ### Changed
 - Recombined CSS and JavaScript into `index.html` to maintain a single-file distribution.
