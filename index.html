@@ -321,6 +321,9 @@ function genSprites(){
   SPRITES.slime = makeSlimeAnim('#5ca94a','#6bbd59','#8ed97b');
   SPRITES.slime_red = makeSlimeAnim('#d35e5e','#e06e6e','#f18b8b');
   SPRITES.slime_yellow = makeSlimeAnim('#d3c85e','#e0d56e','#f1e58b');
+  SPRITES.slime_blue = makeSlimeAnim('#5e6ed3','#6e7ce0','#8b9bf1');
+  SPRITES.slime_purple = makeSlimeAnim('#a45ed3','#b06ee0','#c68bf1');
+  SPRITES.slime_shadow = makeSlimeAnim('#1a1f2f','#2f1a1a','#3a2a2a');
   // Bat idle animations 24x24
   function makeBatAnim(wing, body){
     const frames = [];
@@ -836,6 +839,9 @@ function spawnMonster(type,x,y){
       {key:'slime', hp:18, dmg:[2,4], atkCD:28, moveCD:[6,10]},
       {key:'slime_red', hp:16, dmg:[3,6], atkCD:28, moveCD:[6,10]},
       {key:'slime_yellow', hp:24, dmg:[2,5], atkCD:32, moveCD:[8,12]},
+      {key:'slime_blue', hp:20, dmg:[2,5], atkCD:28, moveCD:[6,10]},
+      {key:'slime_purple', hp:22, dmg:[3,5], atkCD:30, moveCD:[6,10]},
+      {key:'slime_shadow', hp:18, dmg:[4,7], atkCD:35, moveCD:[6,10]},
     ];
     const v = vars[rng.int(0, vars.length-1)];
     a = {hp:v.hp, dmg:v.dmg, atkCD:v.atkCD, moveCD:v.moveCD};
@@ -1612,6 +1618,34 @@ function monsterAI(m, dt){
   if(manhattan>AGGRO_RANGE && (m.aggroT||0)<=0) return;
 
   if(m.type===0){ // Slime — slow chase, occasional 2-tile charge
+    if(m.spriteKey==='slime_shadow'){
+      if(m.atkCD===0 && manhattan<=6){
+        const spots=[];
+        for(let tx=player.x-1; tx<=player.x+1; tx++){
+          for(let ty=player.y-1; ty<=player.y+1; ty++){
+            if(tx===player.x && ty===player.y) continue;
+            if(!walkable(tx,ty)) continue;
+            if(firstMonsterAt(tx,ty)) continue;
+            spots.push({x:tx,y:ty});
+          }
+        }
+        if(spots.length>0){
+          const s=spots[rng.int(0,spots.length-1)];
+          m.x=s.x; m.y=s.y;
+          m.rx=m.x; m.ry=m.y; m.fromX=m.x; m.fromY=m.y; m.toX=m.x; m.toY=m.y; m.moving=false; m.moveT=1;
+          const dmg=rng.int(m.dmgMin,m.dmgMax);
+          applyDamageToPlayer(dmg);
+          m.atkCD=rng.int(40,60);
+          m.moveCD=Math.round(rng.int(6,10)*ENEMY_SPEED_MULT);
+        }
+      }
+      if(m.moveCD===0){
+        const stepX=tryMoveMonster(m, dx, 0, 150);
+        if(!stepX) tryMoveMonster(m, 0, dy, 150);
+        m.moveCD=Math.round(rng.int(6,10)*ENEMY_SPEED_MULT);
+      }
+      return;
+    }
     if(m.state.chargeSteps>0){
       if(tryMoveMonster(m, m.state.cdx, m.state.cdy, 110)) m.state.chargeSteps--;
       else m.state.chargeSteps=0;
