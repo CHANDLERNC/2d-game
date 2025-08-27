@@ -198,6 +198,8 @@ const TORCH_CHANCE=0.06;
 const TORCH_LIGHT_RADIUS=4;
 const FOV_RAYS=360;
 const SCORE_PER_SECOND = 1;
+const OUT_OF_COMBAT_HEAL_DELAY = 3000;
+const OUT_OF_COMBAT_HEAL_RATE = 1;
 const SCORE_PER_KILL = 10;
 const SCORE_PER_FLOOR_CLEAR = 100;
 const SCORE_PER_FLOOR_REACHED = 50;
@@ -533,7 +535,7 @@ genSprites();
 let seed=(Math.random()*1e9)|0, floorNum=1, rng=new RNG(seed);
 let map=[], fog=[], vis=[]; let rooms=[]; let stairs={x:0,y:0};
 let merchant={x:0,y:0}; let merchantStyle = Math.random()<0.5 ? 'goblin' : 'stall';
-let player={x:0,y:0,hp:150,hpMax:150,mp:60,mpMax:60,sp:60,spMax:60,gold:0,stepCD:0,stepDelay:140,speedPct:0,lvl:1,xp:0,xpToNext:50,baseAtkBonus:0, gender:'m', class:'warrior', atkCD:0, faceDx:1, faceDy:0, effects:[], magicPoints:0, skillPoints:0, score:0, kills:0, timeSurvived:0, floorsCleared:0, magic:{healing:[false,false,false,false,false,false],damage:[false,false,false,false,false,false],dot:[false,false,false,false,false,false]}, skills:{offense:[false,false,false,false,false,false],defense:[false,false,false,false,false,false],techniques:[false,false,false]}, boundSpell:null, boundSkill:null};
+let player={x:0,y:0,hp:150,hpMax:150,mp:60,mpMax:60,sp:60,spMax:60,gold:0,stepCD:0,stepDelay:140,speedPct:0,lvl:1,xp:0,xpToNext:50,baseAtkBonus:0, gender:'m', class:'warrior', atkCD:0, combatTimer:0, healAcc:0, faceDx:1, faceDy:0, effects:[], magicPoints:0, skillPoints:0, score:0, kills:0, timeSurvived:0, floorsCleared:0, magic:{healing:[false,false,false,false,false,false],damage:[false,false,false,false,false,false],dot:[false,false,false,false,false,false]}, skills:{offense:[false,false,false,false,false,false],defense:[false,false,false,false,false,false],techniques:[false,false,false]}, boundSpell:null, boundSkill:null};
 let playerSpriteKey = 'player_m';
 const magicTrees={
   healing:{display:'Healing',abilities:[
@@ -1448,6 +1450,7 @@ function dealDamageToMonster(m, base, elem=null, crit=false){
   const dmg = Math.max(1, Math.floor(dmgBase * (1 - res/100)));
   m.hp -= dmg; m.hitFlash = 4; playHit();
   m.aggroT = 10000; // leash to player for at least 10s after taking damage
+  player.combatTimer = 0; player.healAcc = 0;
   const col = elem==='fire' ? '#ff6b4a'
             : elem==='ice'  ? '#7dd3fc'
             : elem==='shock'? '#facc15'
@@ -1573,6 +1576,7 @@ function currentAtk(){
 }
 
 function applyDamageToPlayer(dmg, type='physical'){
+  player.combatTimer = 0; player.healAcc = 0;
   // Armor DR (applies to physical/ranged only)
   const armor = player.armor||0;
   const K = 50 + 10 * Math.max(0, floorNum-1);
@@ -2033,6 +2037,15 @@ function update(dt){
   player.timeSurvived += dt;
   player.score += SCORE_PER_SECOND * (dt/1000);
   scoreUpdateTimer += dt;
+  player.combatTimer += dt;
+  if(player.combatTimer > OUT_OF_COMBAT_HEAL_DELAY && player.hp < player.hpMax){
+    player.healAcc += OUT_OF_COMBAT_HEAL_RATE * dt/1000;
+    const heal = Math.floor(player.healAcc);
+    if(heal > 0){
+      player.hp = Math.min(player.hpMax, player.hp + heal);
+      player.healAcc -= heal;
+    }
+  }
   if(scoreUpdateTimer >= 1000){ updateScoreUI(); scoreUpdateTimer = 0; }
   // init render state
   if(player.rx===undefined){
