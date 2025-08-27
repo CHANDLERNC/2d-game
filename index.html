@@ -1115,7 +1115,7 @@ genSprites();
 let seed=(Math.random()*1e9)|0, floorNum=1, rng=new RNG(seed);
 let map=[], fog=[], vis=[]; let rooms=[]; let stairs={x:0,y:0};
 let merchant={x:0,y:0}; let merchantStyle = Math.random()<0.5 ? 'goblin' : 'stall';
-let player={x:0,y:0,hp:150,hpMax:150,mp:60,mpMax:60,sp:60,spMax:60,gold:0,stepCD:0,stepDelay:140,speedPct:0,lvl:1,xp:0,xpToNext:50,baseAtkBonus:0,class:'warrior', atkCD:0, combatTimer:0, healAcc:0, faceDx:1, faceDy:0, effects:[], magicPoints:0, skillPoints:0, score:0, kills:0, timeSurvived:0, floorsCleared:0, magic:{healing:[false,false,false,false,false,false],damage:[false,false,false,false,false,false],dot:[false,false,false,false,false,false]}, skills:{offense:[false,false,false,false,false,false],defense:[false,false,false,false,false,false],techniques:[false,false,false]}, boundSpell:null, boundSkill:null};
+let player={x:0,y:0,hp:150,hpMax:150,mp:60,mpMax:60,sp:60,spMax:60,gold:0,stepCD:0,stepDelay:140,speedPct:0,lvl:1,xp:0,xpToNext:50,baseAtkBonus:0,class:'warrior', atkCD:0, combatTimer:0, healAcc:0, lavaAcc:0, faceDx:1, faceDy:0, effects:[], magicPoints:0, skillPoints:0, score:0, kills:0, timeSurvived:0, floorsCleared:0, magic:{healing:[false,false,false,false,false,false],damage:[false,false,false,false,false,false],dot:[false,false,false,false,false,false]}, skills:{offense:[false,false,false,false,false,false],defense:[false,false,false,false,false,false],techniques:[false,false,false]}, boundSpell:null, boundSkill:null};
 let playerSpriteKey = 'player_warrior';
 const magicTrees={
   healing:{display:'Healing',abilities:[
@@ -1304,7 +1304,7 @@ RNG.prototype.int=function(a,b){ return Math.floor(a + (b-a+1)*this.next()); }
 
 // ===== Map / Gen =====
 const T_EMPTY=0, T_FLOOR=1, T_WALL=2, T_TRAP=3, T_LAVA=4;
-const TRAP_CHANCE=0.03, LAVA_CHANCE=0.02;
+const TRAP_CHANCE=0.03, LAVA_SOURCE_CHANCE=0.001;
 
 function generateRooms(){
   // rooms
@@ -1551,6 +1551,26 @@ function generateCave(){
   }
 }
 
+function createLavaCluster(x,y,size,river){
+  let cells=[{x,y}];
+  map[y*MAP_W+x]=T_LAVA;
+  lavaTiles.push({x,y});
+  let dir = river ? [[1,0],[-1,0],[0,1],[0,-1]][rng.int(0,3)] : null;
+  for(let i=1;i<size;i++){
+    const base = river ? cells[cells.length-1] : cells[rng.int(0,cells.length-1)];
+    const dirs=[[1,0],[-1,0],[0,1],[0,-1]];
+    if(river && rng.next()<0.3) dir = dirs[rng.int(0,3)];
+    const step = river ? dir : dirs[rng.int(0,3)];
+    const nx=base.x+step[0], ny=base.y+step[1];
+    if(nx<1||ny<1||nx>=MAP_W-1||ny>=MAP_H-1) continue;
+    const idx=ny*MAP_W+nx;
+    if(map[idx]!==T_FLOOR) continue;
+    map[idx]=T_LAVA;
+    lavaTiles.push({x:nx,y:ny});
+    cells.push({x:nx,y:ny});
+  }
+}
+
 function placeHazards(){
   for(let y=1;y<MAP_H-1;y++){
     for(let x=1;x<MAP_W-1;x++){
@@ -1559,10 +1579,11 @@ function placeHazards(){
       if((x===player.x && y===player.y) || (x===stairs.x && y===stairs.y) || (x===merchant.x && y===merchant.y)) continue;
       if(monsters.some(m=>m.x===x && m.y===y)) continue;
       const r=rng.next();
-      if(r<LAVA_CHANCE){
-        map[idx]=T_LAVA;
-        lavaTiles.push({x,y});
-      } else if(r<LAVA_CHANCE+TRAP_CHANCE){
+      if(r<LAVA_SOURCE_CHANCE){
+        const river = rng.next()<0.5;
+        const size = river ? rng.int(3,8) : rng.int(4,10);
+        createLavaCluster(x,y,size,river);
+      } else if(r<LAVA_SOURCE_CHANCE+TRAP_CHANCE){
         map[idx]=T_TRAP;
         spikeTraps.push({x,y});
       }
@@ -1576,8 +1597,10 @@ function checkHazard(x,y){
     applyDamageToPlayer(5);
     addDamageText(x,y,'Trap!','#f55');
   } else if(t===T_LAVA){
-    applyDamageToPlayer(8,'fire');
+    applyDamageToPlayer(24,'fire');
     addDamageText(x,y,'Lava!','#f80');
+    applyStatus(player,'burn',4000,1);
+    player.lavaAcc = 0;
   }
 }
 
@@ -3030,6 +3053,17 @@ function update(dt){
     player.rx=lerp(player.fromX,player.toX,t); player.ry=lerp(player.fromY,player.toY,t);
     if(player.moveT>=1){ player.moving=false; player.rx=player.toX; player.ry=player.toY; }
   }else{ player.rx=player.x; player.ry=player.y; }
+
+  // apply lava burn over time while standing in lava
+  if(map[player.y*MAP_W + player.x] === T_LAVA){
+    player.lavaAcc = (player.lavaAcc || 0) + dt;
+    if(player.lavaAcc >= 1000){
+      player.lavaAcc -= 1000;
+      applyStatus(player,'burn',4000,1);
+    }
+  } else {
+    player.lavaAcc = 0;
+  }
 
   // attack cooldown
   player.atkCD = Math.max(0, player.atkCD - dt);
