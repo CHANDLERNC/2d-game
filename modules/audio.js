@@ -1,4 +1,4 @@
-let audioCtx, musicTimer, musicOsc, currentMusic = null;
+let audioCtx, masterGain, musicGain, sfxGain, musicTimer, musicOsc, musicOscGain, currentMusic = null;
 
 // Simple oscillator "tracks" for different gameplay states. Each pack
 // defines an oscillator type, a set of notes to loop through and the
@@ -10,7 +10,18 @@ const musicPacks = {
 };
 
 function initAudio() {
-  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (!audioCtx) {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    masterGain = audioCtx.createGain();
+    masterGain.gain.value = 1;
+    masterGain.connect(audioCtx.destination);
+    musicGain = audioCtx.createGain();
+    musicGain.gain.value = 1;
+    musicGain.connect(masterGain);
+    sfxGain = audioCtx.createGain();
+    sfxGain.gain.value = 1;
+    sfxGain.connect(masterGain);
+  }
   if (audioCtx.state === 'suspended') audioCtx.resume();
 }
 
@@ -24,7 +35,7 @@ function playTone(type, freq, { attack = 0.01, decay = 0.3, volume = 0.2 } = {})
   gain.gain.setValueAtTime(0.001, audioCtx.currentTime);
   gain.gain.linearRampToValueAtTime(volume, audioCtx.currentTime + attack);
   gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + decay);
-  osc.connect(gain).connect(audioCtx.destination);
+  osc.connect(gain).connect(sfxGain);
   osc.start();
   osc.stop(audioCtx.currentTime + decay);
 }
@@ -60,20 +71,16 @@ function startMusic(mode) {
   initAudio();
   if (!audioCtx) return;
   if (musicTimer) clearInterval(musicTimer);
-  if (musicOsc) {
-    try {
-      musicOsc.stop();
-    } catch (e) {
-      /* noop */
-    }
-  }
   const pack = musicPacks[mode];
   if (!pack) return;
+
   const osc = audioCtx.createOscillator();
   const gain = audioCtx.createGain();
-  gain.gain.value = 0.04;
+  gain.gain.setValueAtTime(0, audioCtx.currentTime);
+  gain.gain.linearRampToValueAtTime(0.04, audioCtx.currentTime + 0.5);
   osc.type = pack.type;
-  osc.connect(gain).connect(audioCtx.destination);
+  osc.connect(gain).connect(musicGain);
+
   let i = 0;
   function next() {
     osc.frequency.setValueAtTime(pack.notes[i % pack.notes.length], audioCtx.currentTime);
@@ -82,7 +89,20 @@ function startMusic(mode) {
   next();
   musicTimer = setInterval(next, pack.tempo);
   osc.start();
+
+  if (musicOsc) {
+    const oldOsc = musicOsc;
+    const oldGain = musicOscGain;
+    oldGain.gain.cancelScheduledValues(audioCtx.currentTime);
+    oldGain.gain.setValueAtTime(oldGain.gain.value, audioCtx.currentTime);
+    oldGain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.5);
+    setTimeout(() => {
+      try { oldOsc.stop(); } catch (e) { /* noop */ }
+    }, 600);
+  }
+
   musicOsc = osc;
+  musicOscGain = gain;
   currentMusic = mode;
 }
 
@@ -91,4 +111,7 @@ function playCalmMusic()   { if (currentMusic !== 'calm')   startMusic('calm'); 
 function playCombatMusic() { if (currentMusic !== 'combat') startMusic('combat'); }
 function playBossMusic()   { if (currentMusic !== 'boss')   startMusic('boss'); }
 
-export { initAudio, playFootstep, playAttack, playHit, playCalmMusic, playCombatMusic, playBossMusic };
+function setMusicVolume(v){ initAudio(); musicGain.gain.value = v; }
+function setSfxVolume(v){ initAudio(); sfxGain.gain.value = v; }
+
+export { initAudio, playFootstep, playAttack, playHit, playCalmMusic, playCombatMusic, playBossMusic, setMusicVolume, setSfxVolume };

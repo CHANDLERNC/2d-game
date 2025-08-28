@@ -7,6 +7,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) with
 ### Changed
 - Split single-file build into modular assets for GitHub Pages.
 - Replace floor and wall textures with procedurally generated patterns to drop binary images.
+- Reworked audio system with crossfading music and separate SFX volume control.
 
 ### Added
 - Optional cellular‑automata cave floors with secret rooms and environmental hazards like spike traps and lava.
