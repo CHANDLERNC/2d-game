@@ -670,22 +670,28 @@ function affixMods(slot, rarityIdx, lvl=1){
     R.dmgMax=Math.floor(rng.int(2,6)*mult*levelMult(lvl));
   }
   const pool = slot==='weapon'?WEAPON_AFFIX_POOL:ARMOR_AFFIX_POOL;
-  const maxAff = Math.min(4, 1 + rarityIdx);
+  const maxAff = Math.min(slot==='weapon'?4:5, 1 + rarityIdx);
   const minAff = rarityIdx > 0 ? 2 : 1;
   const affCount = rng.int(minAff, maxAff);
   for(let i=0;i<affCount;i++){
     const a = pool[rng.int(0, pool.length-1)];
     if(a.k==='status'){
-      const roll=rng.int(0,4);
-      const chance=rng.int(10,30)/100;
-      let status;
-      if(roll===0)      status={k:'burn',  dur:2200,power:1.0,chance,elem:'fire'};
-      else if(roll===1) status={k:'bleed', dur:2000,power:1.0,chance,elem:'bleed'};
-      else if(roll===2) status={k:'poison',dur:2200,power:1.0,chance,elem:'poison'};
-      else if(roll===3) status={k:'freeze',dur:1800,power:0.4,chance,elem:'ice'};
-      else              status={k:'shock', dur:2000,power:0.25,chance,elem:'shock'};
       if(!R.status) R.status=[];
-      R.status.push(status);
+      if(R.status.length < 4){
+        let stacks = 1;
+        while(stacks < 4 && rng.next() < 0.25) stacks++;
+        for(let s=0; s<stacks && R.status.length < 4; s++){
+          const roll=rng.int(0,4);
+          const chance=rng.int(10,30)/100;
+          let status;
+          if(roll===0)      status={k:'burn',  dur:2200,power:1.0,chance,elem:'fire'};
+          else if(roll===1) status={k:'bleed', dur:2000,power:1.0,chance,elem:'bleed'};
+          else if(roll===2) status={k:'poison',dur:2200,power:1.0,chance,elem:'poison'};
+          else if(roll===3) status={k:'freeze',dur:1800,power:0.4,chance,elem:'ice'};
+          else              status={k:'shock', dur:2000,power:0.25,chance,elem:'shock'};
+          R.status.push(status);
+        }
+      }
     }else{
       const factor = typeof a.lvl === 'number' ? a.lvl : (a.lvl ? 1 : 0);
       const val = rng.int(a.min,a.max) * mult;
