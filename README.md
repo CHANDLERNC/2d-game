@@ -4,6 +4,8 @@ An offline HTML5 dungeon crawler with inline sprites, now featuring warrior, mag
 
 Recent updates add varied combat sound effects and multiple music tracks that rotate every floor.
 
+The game now auto-saves your current floor and equipped gear to local storage when you leave the page. Use the pause menu to manually save or load this progress.
+
 ## Play the Game
 Open `index.html` in your browser.  
 For full functionality, serve the directory with a local server:
