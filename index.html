@@ -71,7 +71,7 @@
     </div>
 
     <div class="section-title" style="margin-top:10px">Choose your class</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;pointer-events:auto">
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;pointer-events:auto">
       <label class="gender-card">
         <input type="radio" name="class" value="warrior" checked>
         <div class="gender-preview"><canvas id="prevWarrior"></canvas></div>
@@ -79,16 +79,24 @@
           <div><b>Warrior</b></div>
           <div class="muted" style="font-size:12px">High HP and damage</div>
         </div>
-      </label>
-      <label class="gender-card">
-        <input type="radio" name="class" value="mage">
-        <div class="gender-preview"><canvas id="prevMage"></canvas></div>
-        <div>
-          <div><b>Mage</b></div>
-          <div class="muted" style="font-size:12px">Extra mana, stronger spells</div>
-        </div>
-      </label>
-    </div>
+        </label>
+        <label class="gender-card">
+          <input type="radio" name="class" value="mage">
+          <div class="gender-preview"><canvas id="prevMage"></canvas></div>
+          <div>
+            <div><b>Mage</b></div>
+            <div class="muted" style="font-size:12px">Extra mana, stronger spells</div>
+          </div>
+        </label>
+        <label class="gender-card">
+          <input type="radio" name="class" value="rogue">
+          <div class="gender-preview"><canvas id="prevRogue"></canvas></div>
+          <div>
+            <div><b>Rogue</b></div>
+            <div class="muted" style="font-size:12px">Fast, high crit chance</div>
+          </div>
+        </label>
+      </div>
 
     <p class="hint" style="margin-top:10px">All sprites (player, monsters, portal, shop) are generated at runtime.</p>
       <div style="display:flex;gap:8px;margin-top:8px">
