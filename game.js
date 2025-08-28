@@ -96,6 +96,18 @@ const skillTrees={
     {name:'Shield Bash',desc:'Bash an enemy for 80% more damage and shock them (15 stamina).',cost:3,cast:'shieldBash'}
   ]}
 };
+
+function updateMageSprite(){
+  if(player.class!=='mage'){ playerSpriteKey='player_warrior'; return; }
+  let elem='magic';
+  if(player.boundSpell){
+    const ab=magicTrees[player.boundSpell.tree].abilities[player.boundSpell.idx];
+    elem = ab.elem || 'magic';
+  }
+  const key = elem==='magic' ? 'player_mage' : `player_mage_${elem}`;
+  playerSpriteKey = ASSETS.sprites[key] ? key : 'player_mage';
+}
+
 // Monsters now have richer AI with per-type patterns and scaling
 // {x,y,rx,ry,type,hp,hpMax,dmgMin,dmgMax,atkCD,moveCD,xp,state:{...},hitFlash,effects:[]}
 let monsters=[];
@@ -2279,6 +2291,7 @@ function bindSpell(treeName, idx){
   player.boundSpell={tree:treeName, idx};
   const ab=magicTrees[treeName].abilities[idx];
   hudSpell.textContent=ab.name;
+  updateMageSprite();
   showToast(`Bound ${ab.name} to Q`);
 }
 
@@ -2568,8 +2581,8 @@ function startGame(){
   // class pick -> sprite & stats
   const cSel = document.querySelector('input[name="class"]:checked');
   player.class = (cSel?.value==='mage')?'mage':'warrior';
-  playerSpriteKey = player.class==='mage' ? 'player_mage' : 'player_warrior';
   player.boundSpell=null; player.boundSkill=null;
+  updateMageSprite();
   player.score=0; player.kills=0; player.timeSurvived=0; player.floorsCleared=0; scoreUpdateTimer=0; updateScoreUI();
   hudAbilityLabel.textContent = player.class==='mage'?'Spell:':'Skill:';
   hudFloor.textContent=floorNum; hudSeed.textContent=seed>>>0; hudGold.textContent=player.gold; hudLvl.textContent=player.lvl;
