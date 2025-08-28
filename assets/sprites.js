@@ -93,25 +93,25 @@ function genSprites(){
   SPRITES.player_warrior = makePlayerWarriorAnim();
 
   // Mage animation 24x24
-  function makePlayerMageAnim(){
+  function makePlayerMageAnim(robeCol, orbCol){
     function drawFrame(g, oy, step){
       // staff
       px(g,20+step,6+oy,2,12,'#8b5e3c');
-      px(g,19+step,4+oy,4,4,'#b84aff');
+      px(g,19+step,4+oy,4,4,orbCol);
       // boots
       px(g,7,18+oy,10,3,'#3a2d1a');
       // robe
-      px(g,6,8+oy,12,10,'#4a3a8a');
-      px(g,5,10+oy,2,8,'#4a3a8a');
-      px(g,17,10+oy,2,8,'#4a3a8a');
+      px(g,6,8+oy,12,10,robeCol);
+      px(g,5,10+oy,2,8,robeCol);
+      px(g,17,10+oy,2,8,robeCol);
       // arms
-      px(g,4-step,10+oy,2,6,'#4a3a8a');
-      px(g,18+step,10+oy,2,6,'#4a3a8a');
+      px(g,4-step,10+oy,2,6,robeCol);
+      px(g,18+step,10+oy,2,6,robeCol);
       // head & hood
       px(g,8,2+oy,8,6,'#e3c6a6');
       px(g,9,4+oy,2,2,'#000'); px(g,13,4+oy,2,2,'#000');
-      px(g,7,1+oy,10,2,'#4a3a8a');
-      px(g,6,2+oy,12,2,'#4a3a8a');
+      px(g,7,1+oy,10,2,robeCol);
+      px(g,6,2+oy,12,2,robeCol);
       outline(g,24);
     }
     const idle=[], move=[];
@@ -130,7 +130,11 @@ function genSprites(){
     }
     return { idle, move };
   }
-  SPRITES.player_mage = makePlayerMageAnim();
+  SPRITES.player_mage = makePlayerMageAnim('#4a3a8a','#b84aff');
+  SPRITES.player_mage_fire = makePlayerMageAnim('#ff6b4a','#ff9b4a');
+  SPRITES.player_mage_ice = makePlayerMageAnim('#7dd3fc','#bdeafe');
+  SPRITES.player_mage_shock = makePlayerMageAnim('#facc15','#fde047');
+  SPRITES.player_mage_poison = makePlayerMageAnim('#76d38b','#9fe2a1');
 
   // Slime idle animations 24x24
   function makeSlimeAnim(c1, c2, c3){
