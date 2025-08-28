@@ -40,6 +40,7 @@ canvas.addEventListener('mousemove', e=>{ const r=canvas.getBoundingClientRect()
 function resizeCanvas(){ canvas.width = VIEW_W = window.innerWidth; canvas.height = VIEW_H = window.innerHeight; }
 window.addEventListener('resize', resizeCanvas); resizeCanvas();
 let camX=0, camY=0; let floorLayer=null, wallLayer=null;
+let zoom=1;
 let floorTint='#ffffff', wallTint='#ffffff';
 let gameOver=false;
 let paused=false;
@@ -1160,9 +1161,11 @@ function drawStatusPips(ctx, entity, cx, cy){
 canvas.addEventListener('mousedown', (e)=>{
   if(e.button !== 0) return; // ensure left-click
   e.preventDefault();
-  const rect=canvas.getBoundingClientRect(); const mx=(e.clientX-rect.left); const my=(e.clientY-rect.top);
+  const rect=canvas.getBoundingClientRect();
+  const mx=(e.clientX-rect.left)/zoom + camX;
+  const my=(e.clientY-rect.top)/zoom + camY;
   const px = player.rx!==undefined?player.rx:player.x, py = player.ry!==undefined?player.ry:player.y;
-  const cx = px*TILE - camX + TILE/2, cy = py*TILE - camY + TILE/2;
+  const cx = px*TILE + TILE/2, cy = py*TILE + TILE/2;
   if(mx===cx && my===cy) return;
   const ang=Math.atan2(my-cy,mx-cx);
   const dx=Math.cos(ang), dy=Math.sin(ang);
@@ -1550,13 +1553,14 @@ function drawLootIcon(it, x, y){
 }
 
 function draw(dt){
-  const maxX=MAP_W*TILE - VIEW_W, maxY=MAP_H*TILE - VIEW_H;
   const camTileX = (smoothEnabled && player.rx!==undefined ? player.rx : player.x);
   const camTileY = (smoothEnabled && player.ry!==undefined ? player.ry : player.y);
-  camX = Math.max(0, Math.min(camTileX*TILE - VIEW_W/2, maxX));
-  camY = Math.max(0, Math.min(camTileY*TILE - VIEW_H/2, maxY));
+  camX = camTileX*TILE - (VIEW_W/2)/zoom;
+  camY = camTileY*TILE - (VIEW_H/2)/zoom;
 
   ctx.clearRect(0,0,VIEW_W,VIEW_H);
+  ctx.save();
+  ctx.scale(zoom, zoom);
   ctx.drawImage(floorLayer, -camX, -camY);
   ctx.drawImage(wallLayer, -camX, -camY);
 
@@ -1741,6 +1745,7 @@ function draw(dt){
   ctx.fillStyle='rgba(0,0,0,0.6)';
   for(let y=0;y<MAP_H;y++)for(let x=0;x<MAP_W;x++){ const idx=y*MAP_W+x; const v=fog[idx]; const vv=vis[idx]; if(v && !vv) ctx.fillRect(x*TILE - camX, y*TILE - camY, TILE, TILE); }
 
+  ctx.restore();
   // HUD
   hpFill.style.width=(100*player.hp/player.hpMax).toFixed(0)+'%';
   updateResourceUI();
@@ -1923,6 +1928,12 @@ function handleKeyAction(key, e){
       }
     }
   }
+  if(key==='-'){
+    zoom = Math.max(0.5, zoom - 0.1);
+  }
+  if(key==='=' || key==='+'){
+    zoom = Math.min(2, zoom + 0.1);
+  }
   if(e.code==='Space'){
     performPlayerAttack(player.faceDx, player.faceDy);
   }
@@ -2102,8 +2113,9 @@ function castSelectedSpell(){
     return;
   }
   const px = player.rx!==undefined?player.rx:player.x, py = player.ry!==undefined?player.ry:player.y;
-  const cx = px*TILE - camX + TILE/2, cy = py*TILE - camY + TILE/2;
-  let dx = mouseX - cx, dy = mouseY - cy;
+  const mx = mouseX/zoom + camX;
+  const my = mouseY/zoom + camY;
+  let dx = mx - (px*TILE + TILE/2), dy = my - (py*TILE + TILE/2);
   if(dx===0 && dy===0){ dx = player.faceDx; dy = player.faceDy; }
   const mag = Math.hypot(dx, dy);
   if(mag===0){ showToast('Face a direction'); return; }
