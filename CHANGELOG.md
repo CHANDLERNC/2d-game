@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) with date-based entries.
 
 ## [Unreleased]
+### Changed
+- Split single-file build into modular assets for GitHub Pages.
+- Replace floor and wall textures with procedurally generated patterns to drop binary images.
+
 ### Added
 - Optional cellular‑automata cave floors with secret rooms and environmental hazards like spike traps and lava.
 - Animated tiles for lava pools and spike traps.

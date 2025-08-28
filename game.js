@@ -1,0 +1,3485 @@
+// ===== Config / Globals =====
+let VIEW_W=window.innerWidth, VIEW_H=window.innerHeight;
+const TILE=32, MAP_W=48, MAP_H=48;
+const MONSTER_BASE_COUNT=6, MONSTER_MIN_COUNT=6, MONSTER_COUNT_GROWTH=2, MONSTER_COUNT_VARIANCE=3;
+const FOV_RADIUS=8; const LOOT_CHANCE=0.18;
+const MONSTER_LOOT_CHANCE=0.5; const AGGRO_RANGE=6;
+const TORCH_CHANCE=0.06;
+const TORCH_LIGHT_RADIUS=4;
+const FOV_RAYS=360;
+const SCORE_PER_SECOND = 1;
+const OUT_OF_COMBAT_HEAL_DELAY = 3000;
+const OUT_OF_COMBAT_HEAL_RATE = 1;
+const SCORE_PER_KILL = 10;
+const SCORE_PER_FLOOR_CLEAR = 100;
+const SCORE_PER_FLOOR_REACHED = 50;
+const BOSS_VARIANTS=['griffin','dragon','snake'];
+function randomBossVariant(){ return BOSS_VARIANTS[rng.int(0,BOSS_VARIANTS.length-1)]; }
+function monsterCountForFloor(floor){
+  const base = MONSTER_BASE_COUNT + (floor-1)*MONSTER_COUNT_GROWTH;
+  const extra = rng.int(0, MONSTER_COUNT_VARIANCE + Math.floor(floor/2));
+  return Math.max(MONSTER_MIN_COUNT, base + extra);
+}
+// Global multiplier for all XP gains
+const XP_GAIN_MULT = 1.1;
+// Higher values slow all enemy actions (movement frequency and speed)
+const ENEMY_SPEED_MULT = 1.5;
+// Global modifiers for monster stats
+const MONSTER_HP_MULT = 1.2;
+const MONSTER_DMG_MULT = 0.9;
+let canvas=document.getElementById('gameCanvas'); let ctx=canvas.getContext('2d');
+let mouseX=0, mouseY=0;
+canvas.addEventListener('mousemove', e=>{ const r=canvas.getBoundingClientRect(); mouseX=e.clientX-r.left; mouseY=e.clientY-r.top; });
+function resizeCanvas(){ canvas.width = VIEW_W = window.innerWidth; canvas.height = VIEW_H = window.innerHeight; }
+window.addEventListener('resize', resizeCanvas); resizeCanvas();
+let camX=0, camY=0; let floorLayer=null, wallLayer=null;
+let floorTint='#ffffff', wallTint='#ffffff';
+let torches=[];
+let lavaTiles=[];
+let spikeTraps=[];
+let gameOver=false;
+let paused=false;
+let actionLog=[];
+let scoreUpdateTimer=0;
+// procedural floor and wall textures (no external assets)
+const floorTex = (() => {
+  const c = document.createElement('canvas');
+  c.width = c.height = 32;
+  const g = c.getContext('2d');
+  g.fillStyle = '#8B4513';
+  g.fillRect(0, 0, 32, 32);
+  g.fillStyle = '#A0522D';
+  g.fillRect(0, 0, 16, 16);
+  g.fillRect(16, 16, 16, 16);
+  return c;
+})();
+const wallTex = (() => {
+  const c = document.createElement('canvas');
+  c.width = c.height = 32;
+  const g = c.getContext('2d');
+  g.fillStyle = '#808080';
+  g.fillRect(0, 0, 32, 32);
+  g.strokeStyle = '#A9A9A9';
+  g.lineWidth = 4;
+  g.strokeRect(0, 0, 32, 32);
+  return c;
+})();
+
+// ====== Sprites (generated at runtime) ======
+// why: generate pixel art once, store data URLs so everything stays single-file & offline
+const SPRITES = {}; // key -> { cv }
+function makeSprite(size, draw){ const c=document.createElement("canvas"); c.width=c.height=size; const g=c.getContext("2d"); g.imageSmoothingEnabled=false; draw(g,size); return { cv: c }; }
+function px(g,x,y,w,h,col){ g.fillStyle=col; g.fillRect(x,y,w,h); }
+function outline(g,size){ /* no outline to avoid black boxes */ }
+function genSprites(){
+  // Warrior animation 24x24
+  function makePlayerWarriorAnim(){
+    function drawFrame(g, oy, step){
+      // boots
+      px(g,5,18+oy,14,3,'#4b3621');
+      // legs
+      px(g,6+step,14+oy,4,4,'#6b6b7d');
+      px(g,14-step,14+oy,4,4,'#6b6b7d');
+      // torso armor
+      px(g,6,8+oy,12,6,'#8c8d9f');
+      // shoulders
+      px(g,5,8+oy,2,6,'#7a7b8c');
+      px(g,17,8+oy,2,6,'#7a7b8c');
+      // arms
+      px(g,4-step,12+oy,2,4,'#c0c0c0');
+      px(g,18+step,12+oy,2,4,'#c0c0c0');
+      // head & helmet
+      px(g,8,2+oy,8,6,'#e3c6a6');
+      px(g,9,4+oy,2,2,'#000'); px(g,13,4+oy,2,2,'#000');
+      px(g,7,1+oy,10,2,'#8c8d9f');
+      px(g,7,2+oy,2,3,'#8c8d9f'); px(g,15,2+oy,2,3,'#8c8d9f');
+      // sword
+      px(g,20+step,8+oy,2,10,'#c0c0c0');
+      px(g,19+step,17+oy,4,2,'#3a2d1a');
+      outline(g,24);
+    }
+    const idle=[], move=[];
+    for(let i=0;i<2;i++){
+      const c=document.createElement('canvas'); c.width=c.height=24;
+      const g=c.getContext('2d'); g.imageSmoothingEnabled=false;
+      drawFrame(g,i%2,0);
+      idle.push(c);
+    }
+    for(let i=0;i<4;i++){
+      const c=document.createElement('canvas'); c.width=c.height=24;
+      const g=c.getContext('2d'); g.imageSmoothingEnabled=false;
+      const step=(i<2?-1:1);
+      drawFrame(g,i%2,step);
+      move.push(c);
+    }
+    return { idle, move };
+  }
+  SPRITES.player_warrior = makePlayerWarriorAnim();
+
+  // Mage animation 24x24
+  function makePlayerMageAnim(){
+    function drawFrame(g, oy, step){
+      // staff
+      px(g,20+step,6+oy,2,12,'#8b5e3c');
+      px(g,19+step,4+oy,4,4,'#b84aff');
+      // boots
+      px(g,7,18+oy,10,3,'#3a2d1a');
+      // robe
+      px(g,6,8+oy,12,10,'#4a3a8a');
+      px(g,5,10+oy,2,8,'#4a3a8a');
+      px(g,17,10+oy,2,8,'#4a3a8a');
+      // arms
+      px(g,4-step,10+oy,2,6,'#4a3a8a');
+      px(g,18+step,10+oy,2,6,'#4a3a8a');
+      // head & hood
+      px(g,8,2+oy,8,6,'#e3c6a6');
+      px(g,9,4+oy,2,2,'#000'); px(g,13,4+oy,2,2,'#000');
+      px(g,7,1+oy,10,2,'#4a3a8a');
+      px(g,6,2+oy,12,2,'#4a3a8a');
+      outline(g,24);
+    }
+    const idle=[], move=[];
+    for(let i=0;i<2;i++){
+      const c=document.createElement('canvas'); c.width=c.height=24;
+      const g=c.getContext('2d'); g.imageSmoothingEnabled=false;
+      drawFrame(g,i%2,0);
+      idle.push(c);
+    }
+    for(let i=0;i<4;i++){
+      const c=document.createElement('canvas'); c.width=c.height=24;
+      const g=c.getContext('2d'); g.imageSmoothingEnabled=false;
+      const step=(i<2?-1:1);
+      drawFrame(g,i%2,step);
+      move.push(c);
+    }
+    return { idle, move };
+  }
+  SPRITES.player_mage = makePlayerMageAnim();
+
+  // Slime idle animations 24x24
+  function makeSlimeAnim(c1, c2, c3){
+    const frames = [];
+    for(let i=0;i<4;i++){
+      const c=document.createElement('canvas');
+      c.width=c.height=24;
+      const g=c.getContext('2d');
+      g.imageSmoothingEnabled=false;
+      const bob = (i%2===0)?0:1;
+      px(g,4,10+bob,16,10-bob,c1);
+      px(g,6,8+bob,12,10-bob,c2);
+      px(g,8,6+bob,8,8,c3);
+      px(g,9,11+bob,2,2,'#131340');
+      px(g,13,11+bob,2,2,'#131340');
+      outline(g,24);
+      frames.push(c);
+    }
+    return { cv: frames[0], frames };
+  }
+  SPRITES.slime = makeSlimeAnim('#5ca94a','#6bbd59','#8ed97b');
+  SPRITES.slime_red = makeSlimeAnim('#d35e5e','#e06e6e','#f18b8b');
+  SPRITES.slime_yellow = makeSlimeAnim('#d3c85e','#e0d56e','#f1e58b');
+  SPRITES.slime_blue = makeSlimeAnim('#5e6ed3','#6e7ce0','#8b9bf1');
+  SPRITES.slime_purple = makeSlimeAnim('#a45ed3','#b06ee0','#c68bf1');
+  SPRITES.slime_shadow = makeSlimeAnim('#1a1f2f','#2f1a1a','#3a2a2a');
+
+  // Coin loot 14x14 rotating animation
+  function makeCoinAnim(){
+    const frames = [];
+    const steps = 8;
+    for(let i=0;i<steps;i++){
+      const c=document.createElement('canvas');
+      c.width=c.height=14;
+      const g=c.getContext('2d');
+      g.imageSmoothingEnabled=false;
+      const t=i/steps*Math.PI*2;
+      const rx=5*Math.abs(Math.cos(t))+1; // horizontal radius varies to simulate rotation
+      const grad=g.createLinearGradient(7-rx,7,7+rx,7);
+      grad.addColorStop(0,'#fff6b7');
+      grad.addColorStop(0.5,'#ffd24a');
+      grad.addColorStop(1,'#cc9a2b');
+      g.fillStyle=grad;
+      g.beginPath();
+      g.ellipse(7,7,rx,6,0,0,Math.PI*2);
+      g.fill();
+      g.strokeStyle='#996515';
+      g.lineWidth=1;
+      g.beginPath();
+      g.ellipse(7,7,rx,6,0,0,Math.PI*2);
+      g.stroke();
+      frames.push(c);
+    }
+    return { cv: frames[0], frames };
+  }
+  SPRITES.coin = makeCoinAnim();
+
+  // Lava tile animation 32x32
+  function makeLavaAnim(){
+    const frames=[];
+    for(let i=0;i<4;i++){
+      const c=document.createElement('canvas');
+      c.width=c.height=32;
+      const g=c.getContext('2d'); g.imageSmoothingEnabled=false;
+      for(let y=0;y<32;y++){
+        for(let x=0;x<32;x++){
+          const v=Math.sin((x+i*2)/4)+Math.cos((y+i*2)/4);
+          let col='#8b0000';
+          if(v>1) col='#ffd700';
+          else if(v>0.5) col='#ff8c00';
+          else if(v>0) col='#d04000';
+          g.fillStyle=col; g.fillRect(x,y,1,1);
+        }
+      }
+      frames.push(c);
+    }
+    return { cv: frames[0], frames };
+  }
+  SPRITES.lava = makeLavaAnim();
+
+  // Spike trap animation 32x32
+  function makeSpikeTrapAnim(){
+    const frames=[]; const heights=[4,12,20,12];
+    for(let i=0;i<heights.length;i++){
+      const c=document.createElement('canvas');
+      c.width=c.height=32;
+      const g=c.getContext('2d'); g.imageSmoothingEnabled=false;
+      g.clearRect(0,0,32,32);
+      g.fillStyle='#222';
+      g.fillRect(0,24,32,8);
+      g.fillStyle='#bbb';
+      g.strokeStyle='#555';
+      const h=heights[i];
+      for(let s=0;s<4;s++){
+        const bx=4+s*8;
+        g.beginPath();
+        g.moveTo(bx,24);
+        g.lineTo(bx+4,24);
+        g.lineTo(bx+2,24-h);
+        g.closePath();
+        g.fill();
+        g.stroke();
+      }
+      frames.push(c);
+    }
+    return { cv: frames[0], frames };
+  }
+  SPRITES.spike = makeSpikeTrapAnim();
+
+  // Potion sprites with simple rotation animation
+  function makePotionAnim(svg){
+    const img = new Image();
+    const sprite = { cv: img, frames: [] };
+    img.onload = () => {
+      const steps = 8;
+      for(let i=0;i<steps;i++){
+        const c=document.createElement('canvas');
+        c.width=c.height=12;
+        const g=c.getContext('2d');
+        g.imageSmoothingEnabled=false;
+        const t=i/steps*Math.PI*2;
+        const sx=Math.abs(Math.cos(t))*0.6+0.4; // scale 0.4–1.0
+        g.setTransform(sx,0,0,1,6-6*sx,0);
+        g.drawImage(img,0,0);
+        sprite.frames.push(c);
+      }
+      sprite.cv=sprite.frames[0];
+    };
+    img.src = URL.createObjectURL(new Blob([svg], {type: 'image/svg+xml'}));
+    return sprite;
+  }
+
+  function makeSpinAnim(svg){
+    const img = new Image();
+    const sprite = { cv: img, frames: [] };
+    img.onload = () => {
+      const steps = 16;
+      for(let i=0;i<steps;i++){
+        const c=document.createElement('canvas');
+        c.width=c.height=14;
+        const g=c.getContext('2d');
+        g.imageSmoothingEnabled=false;
+        g.translate(7,7);
+        g.rotate(i/steps*Math.PI*2);
+        g.drawImage(img,-6,-6);
+        sprite.frames.push(c);
+      }
+      sprite.cv=sprite.frames[0];
+    };
+    img.src = URL.createObjectURL(new Blob([svg], {type: 'image/svg+xml'}));
+    return sprite;
+  }
+
+  const hpPotionSVG = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12" shape-rendering="crispEdges">
+  <!-- Palette -->
+  <!-- O = outline #6b0018, B = body #d61a3c, H = highlight #ff9aaa, D = deep red #a10f28 -->
+
+  <!-- y=0 -->
+  <rect x="5" y="0" width="1" height="1" fill="#6b0018"/>
+
+  <!-- y=1 -->
+  <rect x="4" y="1" width="1" height="1" fill="#6b0018"/>
+  <rect x="5" y="1" width="1" height="1" fill="#d61a3c"/>
+  <rect x="6" y="1" width="1" height="1" fill="#6b0018"/>
+
+  <!-- y=2 -->
+  <rect x="3" y="2" width="1" height="1" fill="#6b0018"/>
+  <rect x="4" y="2" width="1" height="1" fill="#d61a3c"/>
+  <rect x="5" y="2" width="1" height="1" fill="#ff9aaa"/>
+  <rect x="6" y="2" width="1" height="1" fill="#d61a3c"/>
+  <rect x="7" y="2" width="1" height="1" fill="#6b0018"/>
+
+  <!-- y=3 -->
+  <rect x="2" y="3" width="1" height="1" fill="#6b0018"/>
+  <rect x="3" y="3" width="1" height="1" fill="#d61a3c"/>
+  <rect x="4" y="3" width="1" height="1" fill="#ff9aaa"/>
+  <rect x="5" y="3" width="1" height="1" fill="#d61a3c"/>
+  <rect x="6" y="3" width="1" height="1" fill="#d61a3c"/>
+  <rect x="7" y="3" width="1" height="1" fill="#d61a3c"/>
+  <rect x="8" y="3" width="1" height="1" fill="#6b0018"/>
+
+  <!-- y=4 -->
+  <rect x="1" y="4" width="1" height="1" fill="#6b0018"/>
+  <rect x="2" y="4" width="1" height="1" fill="#d61a3c"/>
+  <rect x="3" y="4" width="1" height="1" fill="#d61a3c"/>
+  <rect x="4" y="4" width="1" height="1" fill="#d61a3c"/>
+  <rect x="5" y="4" width="1" height="1" fill="#ff9aaa"/>
+  <rect x="6" y="4" width="1" height="1" fill="#d61a3c"/>
+  <rect x="7" y="4" width="1" height="1" fill="#d61a3c"/>
+  <rect x="8" y="4" width="1" height="1" fill="#d61a3c"/>
+  <rect x="9" y="4" width="1" height="1" fill="#6b0018"/>
+
+  <!-- y=5 -->
+  <rect x="1" y="5" width="1" height="1" fill="#6b0018"/>
+  <rect x="2" y="5" width="1" height="1" fill="#d61a3c"/>
+  <rect x="3" y="5" width="1" height="1" fill="#d61a3c"/>
+  <rect x="4" y="5" width="1" height="1" fill="#d61a3c"/>
+  <rect x="5" y="5" width="1" height="1" fill="#ff9aaa"/>
+  <rect x="6" y="5" width="1" height="1" fill="#d61a3c"/>
+  <rect x="7" y="5" width="1" height="1" fill="#d61a3c"/>
+  <rect x="8" y="5" width="1" height="1" fill="#d61a3c"/>
+  <rect x="9" y="5" width="1" height="1" fill="#6b0018"/>
+
+  <!-- y=6 -->
+  <rect x="2" y="6" width="1" height="1" fill="#6b0018"/>
+  <rect x="3" y="6" width="1" height="1" fill="#d61a3c"/>
+  <rect x="4" y="6" width="1" height="1" fill="#d61a3c"/>
+  <rect x="5" y="6" width="1" height="1" fill="#d61a3c"/>
+  <rect x="6" y="6" width="1" height="1" fill="#d61a3c"/>
+  <rect x="7" y="6" width="1" height="1" fill="#d61a3c"/>
+  <rect x="8" y="6" width="1" height="1" fill="#6b0018"/>
+
+  <!-- y=7 -->
+  <rect x="3" y="7" width="1" height="1" fill="#6b0018"/>
+  <rect x="4" y="7" width="1" height="1" fill="#d61a3c"/>
+  <rect x="5" y="7" width="1" height="1" fill="#d61a3c"/>
+  <rect x="6" y="7" width="1" height="1" fill="#d61a3c"/>
+  <rect x="7" y="7" width="1" height="1" fill="#6b0018"/>
+
+  <!-- y=8 -->
+  <rect x="4" y="8" width="1" height="1" fill="#6b0018"/>
+  <rect x="5" y="8" width="1" height="1" fill="#a10f28"/>
+  <rect x="6" y="8" width="1" height="1" fill="#6b0018"/>
+
+  <!-- y=9 -->
+  <rect x="5" y="9" width="1" height="1" fill="#a10f28"/>
+
+  <!-- y=10 -->
+  <rect x="5" y="10" width="1" height="1" fill="#6b0018"/>
+
+  <!-- y=11 -->
+  <rect x="4" y="11" width="1" height="1" fill="#6b0018"/>
+  <rect x="5" y="11" width="1" height="1" fill="#6b0018"/>
+  <rect x="6" y="11" width="1" height="1" fill="#6b0018"/>
+</svg>`;
+
+  const mpPotionSVG = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12" shape-rendering="crispEdges">
+  <!-- Palette: outline #0d2a5f, body #1f86ff, highlight #bfe3ff, deep #135bbf -->
+
+  <!-- y=0 -->
+  <rect x="5" y="0" width="1" height="1" fill="#0d2a5f"/>
+
+  <!-- y=1 -->
+  <rect x="4" y="1" width="1" height="1" fill="#0d2a5f"/>
+  <rect x="5" y="1" width="1" height="1" fill="#1f86ff"/>
+  <rect x="6" y="1" width="1" height="1" fill="#0d2a5f"/>
+
+  <!-- y=2 -->
+  <rect x="3" y="2" width="1" height="1" fill="#0d2a5f"/>
+  <rect x="4" y="2" width="1" height="1" fill="#1f86ff"/>
+  <rect x="5" y="2" width="1" height="1" fill="#bfe3ff"/>
+  <rect x="6" y="2" width="1" height="1" fill="#1f86ff"/>
+  <rect x="7" y="2" width="1" height="1" fill="#0d2a5f"/>
+
+  <!-- y=3 -->
+  <rect x="2" y="3" width="1" height="1" fill="#0d2a5f"/>
+  <rect x="3" y="3" width="1" height="1" fill="#1f86ff"/>
+  <rect x="4" y="3" width="1" height="1" fill="#bfe3ff"/>
+  <rect x="5" y="3" width="1" height="1" fill="#1f86ff"/>
+  <rect x="6" y="3" width="1" height="1" fill="#1f86ff"/>
+  <rect x="7" y="3" width="1" height="1" fill="#1f86ff"/>
+  <rect x="8" y="3" width="1" height="1" fill="#0d2a5f"/>
+
+  <!-- y=4 -->
+  <rect x="1" y="4" width="1" height="1" fill="#0d2a5f"/>
+  <rect x="2" y="4" width="1" height="1" fill="#1f86ff"/>
+  <rect x="3" y="4" width="1" height="1" fill="#1f86ff"/>
+  <rect x="4" y="4" width="1" height="1" fill="#1f86ff"/>
+  <rect x="5" y="4" width="1" height="1" fill="#bfe3ff"/>
+  <rect x="6" y="4" width="1" height="1" fill="#1f86ff"/>
+  <rect x="7" y="4" width="1" height="1" fill="#1f86ff"/>
+  <rect x="8" y="4" width="1" height="1" fill="#1f86ff"/>
+  <rect x="9" y="4" width="1" height="1" fill="#0d2a5f"/>
+
+  <!-- y=5 -->
+  <rect x="1" y="5" width="1" height="1" fill="#0d2a5f"/>
+  <rect x="2" y="5" width="1" height="1" fill="#1f86ff"/>
+  <rect x="3" y="5" width="1" height="1" fill="#1f86ff"/>
+  <rect x="4" y="5" width="1" height="1" fill="#1f86ff"/>
+  <rect x="5" y="5" width="1" height="1" fill="#bfe3ff"/>
+  <rect x="6" y="5" width="1" height="1" fill="#1f86ff"/>
+  <rect x="7" y="5" width="1" height="1" fill="#1f86ff"/>
+  <rect x="8" y="5" width="1" height="1" fill="#1f86ff"/>
+  <rect x="9" y="5" width="1" height="1" fill="#0d2a5f"/>
+
+  <!-- y=6 -->
+  <rect x="2" y="6" width="1" height="1" fill="#0d2a5f"/>
+  <rect x="3" y="6" width="1" height="1" fill="#1f86ff"/>
+  <rect x="4" y="6" width="1" height="1" fill="#1f86ff"/>
+  <rect x="5" y="6" width="1" height="1" fill="#1f86ff"/>
+  <rect x="6" y="6" width="1" height="1" fill="#1f86ff"/>
+  <rect x="7" y="6" width="1" height="1" fill="#1f86ff"/>
+  <rect x="8" y="6" width="1" height="1" fill="#0d2a5f"/>
+
+  <!-- y=7 -->
+  <rect x="3" y="7" width="1" height="1" fill="#0d2a5f"/>
+  <rect x="4" y="7" width="1" height="1" fill="#1f86ff"/>
+  <rect x="5" y="7" width="1" height="1" fill="#1f86ff"/>
+  <rect x="6" y="7" width="1" height="1" fill="#1f86ff"/>
+  <rect x="7" y="7" width="1" height="1" fill="#0d2a5f"/>
+
+  <!-- y=8 -->
+  <rect x="4" y="8" width="1" height="1" fill="#0d2a5f"/>
+  <rect x="5" y="8" width="1" height="1" fill="#135bbf"/>
+  <rect x="6" y="8" width="1" height="1" fill="#0d2a5f"/>
+
+  <!-- y=9 -->
+  <rect x="5" y="9" width="1" height="1" fill="#135bbf"/>
+
+  <!-- y=10 -->
+  <rect x="5" y="10" width="1" height="1" fill="#0d2a5f"/>
+
+  <!-- y=11 -->
+  <rect x="4" y="11" width="1" height="1" fill="#0d2a5f"/>
+  <rect x="5" y="11" width="1" height="1" fill="#0d2a5f"/>
+  <rect x="6" y="11" width="1" height="1" fill="#0d2a5f"/>
+</svg>`;
+
+  const bowLootSVG = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12">
+  <rect x="6" y="1" width="1" height="10" fill="#dcdcdc"/>
+  <rect x="4" y="1" width="1" height="1" fill="#3a1c0a"/>
+  <rect x="3" y="2" width="1" height="1" fill="#8b5a2b"/>
+  <rect x="2" y="3" width="1" height="1" fill="#8b5a2b"/>
+  <rect x="2" y="4" width="1" height="1" fill="#3a1c0a"/>
+  <rect x="2" y="7" width="1" height="1" fill="#3a1c0a"/>
+  <rect x="2" y="8" width="1" height="1" fill="#8b5a2b"/>
+  <rect x="3" y="9" width="1" height="1" fill="#8b5a2b"/>
+  <rect x="4" y="10" width="1" height="1" fill="#3a1c0a"/>
+  <rect x="3" y="3" width="1" height="1" fill="#c78549"/>
+  <rect x="3" y="8" width="1" height="1" fill="#c78549"/>
+  <rect x="4" y="6" width="1" height="1" fill="#c78549"/>
+  <rect x="7" y="1" width="1" height="1" fill="#3a1c0a"/>
+  <rect x="8" y="2" width="1" height="1" fill="#8b5a2b"/>
+  <rect x="9" y="3" width="1" height="1" fill="#8b5a2b"/>
+  <rect x="9" y="4" width="1" height="1" fill="#3a1c0a"/>
+  <rect x="9" y="7" width="1" height="1" fill="#3a1c0a"/>
+  <rect x="9" y="8" width="1" height="1" fill="#8b5a2b"/>
+  <rect x="8" y="9" width="1" height="1" fill="#8b5a2b"/>
+  <rect x="7" y="10" width="1" height="1" fill="#3a1c0a"/>
+  <rect x="8" y="3" width="1" height="1" fill="#c78549"/>
+  <rect x="8" y="8" width="1" height="1" fill="#c78549"/>
+  </svg>`;
+  const swordLootSVG = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12">
+  <rect x="5" y="0" width="2" height="7" fill="#dcdcdc"/>
+  <rect x="5" y="0" width="1" height="7" fill="#a0a0a0"/>
+  <rect x="6" y="0" width="1" height="7" fill="#f8f8f8"/>
+  <rect x="4" y="7" width="4" height="1" fill="#b8860b"/>
+  <rect x="3" y="8" width="6" height="1" fill="#8b5a2b"/>
+  <rect x="5" y="9" width="2" height="2" fill="#8b4513"/>
+  <rect x="5" y="11" width="2" height="1" fill="#d2b48c"/>
+  </svg>`;
+  const chestLootSVG = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12" shape-rendering="crispEdges">
+    <rect x="2" y="0" width="3" height="2" fill="#3a3b44"/>
+    <rect x="7" y="0" width="3" height="2" fill="#3a3b44"/>
+    <rect x="1" y="2" width="10" height="1" fill="#3a3b44"/>
+    <rect x="1" y="3" width="1" height="8" fill="#3a3b44"/>
+    <rect x="10" y="3" width="1" height="8" fill="#3a3b44"/>
+    <rect x="2" y="10" width="8" height="1" fill="#3a3b44"/>
+    <rect x="2" y="3" width="8" height="7" fill="#8c8d9f"/>
+    <rect x="3" y="4" width="6" height="5" fill="#aeb0c0"/>
+    <rect x="4" y="5" width="4" height="3" fill="#c5c6d5"/>
+    <rect x="2" y="9" width="8" height="1" fill="#7a7b8c"/>
+  </svg>`;
+
+  SPRITES.potion_hp = makePotionAnim(hpPotionSVG);
+  SPRITES.potion_mp = makePotionAnim(mpPotionSVG);
+  SPRITES.bow_loot = makeSpinAnim(bowLootSVG);
+  SPRITES.sword_loot = makeSpinAnim(swordLootSVG);
+  SPRITES.chest_loot = makeSpinAnim(chestLootSVG);
+
+  // Bat idle animations 24x24
+  function makeBatAnim(wing, body){
+    const frames = [];
+    const wingPos = [
+      {x:2,y:12,w:8,h:6},
+      {x:4,y:8,w:6,h:6},
+      {x:2,y:12,w:8,h:6},
+      {x:0,y:14,w:10,h:6}
+    ];
+    const bob = [0,-1,0,1];
+    for(let i=0;i<4;i++){
+      const c=document.createElement('canvas');
+      c.width=c.height=24;
+      const g=c.getContext('2d');
+      g.imageSmoothingEnabled=false;
+      const w=wingPos[i];
+      const oy=bob[i];
+      px(g,w.x,w.y+oy,w.w,w.h,wing);
+      px(g,24-w.x-w.w,w.y+oy,w.w,w.h,wing);
+      px(g,9,10+oy,6,8,body);
+      px(g,10,8+oy,4,3,body);
+      px(g,10,12+oy,1,2,'#9b0000'); px(g,13,12+oy,1,2,'#9b0000');
+      outline(g,24);
+      frames.push(c);
+    }
+    return { cv: frames[0], frames };
+  }
+  SPRITES.bat = makeBatAnim('#20222b','#2e3240');
+  SPRITES.bat_brown = makeBatAnim('#3b2b1a','#4c3524');
+  // Skeleton 24x24 (allows simple recolors)
+  function makeSkeleton(skull='#e9edf1', bone='#dde3ea'){
+    return makeSprite(24,(g,S)=>{
+      px(g,7,2,10,6,skull); px(g,9,4,2,2,'#000'); px(g,13,4,2,2,'#000');
+      px(g,8,10,8,6,bone); px(g,6,10,2,4,bone); px(g,16,10,2,4,bone);
+      px(g,8,18,3,3,bone); px(g,13,18,3,3,bone);
+      outline(g,S);
+    });
+  }
+  SPRITES.skeleton = makeSkeleton();
+  SPRITES.skeleton_red = makeSkeleton('#ff8b8b','#ff6b6b');
+  SPRITES.skeleton_green = makeSkeleton('#9fe2a1','#76d38b');
+
+  // Skeleton Mage 24x24 (caster enemy)
+  function makeMageAnim(){
+    const frames = [];
+    const orbYOffset = [0,-1,0,1];
+    for(let i=0;i<4;i++){
+      const c=document.createElement('canvas');
+      c.width=c.height=24;
+      const g=c.getContext('2d');
+      g.imageSmoothingEnabled=false;
+      const bob = (i%2===0)?0:1;
+      // skull
+      px(g,7,2+bob,10,6,'#e9edf1');
+      px(g,9,4+bob,2,2,'#7e4ab8');
+      px(g,13,4+bob,2,2,'#7e4ab8');
+      // body
+      px(g,8,10+bob,8,6,'#dde3ea');
+      px(g,6,10+bob,2,4,'#dde3ea');
+      px(g,16,10+bob,2,4,'#dde3ea');
+      px(g,8,18+bob,3,3,'#dde3ea');
+      px(g,13,18+bob,3,3,'#dde3ea');
+      // casting arm
+      px(g,18,10+bob,4,2,'#dde3ea');
+      // purple orb
+      const oy = 5 + orbYOffset[i];
+      px(g,21,oy+bob,2,2,'#b84aff');
+      px(g,22,oy-1+bob,1,1,'#d9a3ff');
+      px(g,23,oy-2+bob,1,1,'#d9a3ff');
+      outline(g,24);
+      frames.push(c);
+    }
+    return { cv: frames[0], frames };
+  }
+  SPRITES.mage = makeMageAnim();
+  SPRITES.mage_red = makeMageAnim();
+  SPRITES.mage_green = makeMageAnim();
+
+  // Goblin idle animations 24x24
+  // Inspired by OpenGameArt goblin sprites: https://opengameart.org/content/goblin-2
+  function makeGoblinAnim(){
+    const frames=[];
+    const bob=[0,1,0,-1];
+    for(let i=0;i<4;i++){
+      const c=document.createElement('canvas');
+      c.width=c.height=24;
+      const g=c.getContext('2d');
+      g.imageSmoothingEnabled=false;
+      const oy=bob[i];
+      // head
+      px(g,7,2+oy,10,6,'#6fcf5a');
+      // ears
+      px(g,5,3+oy,2,2,'#6fcf5a');
+      px(g,17,3+oy,2,2,'#6fcf5a');
+      // eyes
+      px(g,9,4+oy,2,2,'#000');
+      px(g,13,4+oy,2,2,'#000');
+      // body
+      px(g,7,8+oy,10,8,'#6fcf5a');
+      px(g,5,10+oy,2,6,'#6fcf5a');
+      px(g,17,10+oy,2,6,'#6fcf5a');
+      // belt
+      px(g,7,14+oy,10,2,'#3a2a1a');
+      // legs / feet
+      px(g,8,16+oy,3,4,'#4b3621');
+      px(g,13,16+oy,3,4,'#4b3621');
+      outline(g,24);
+      frames.push(c);
+    }
+    return { cv: frames[0], frames };
+  }
+  SPRITES.goblin = makeGoblinAnim();
+
+  // Ghost idle animations 24x24
+  // Inspired by OpenGameArt ghost sprites: https://opengameart.org/content/ghost-pixel-art
+  function makeGhostAnim(){
+    const frames=[];
+    const bob=[0,1,0,-1];
+    for(let i=0;i<4;i++){
+      const c=document.createElement('canvas');
+      c.width=c.height=24;
+      const g=c.getContext('2d');
+      g.imageSmoothingEnabled=false;
+      const oy=bob[i];
+      const body='#e0e8ff', shade='#cfd8f8';
+      g.globalAlpha=0.85;
+      px(g,7,4+oy,10,8,body);
+      px(g,6,12+oy,12,4,shade);
+      px(g,8,16+oy,8,4,shade);
+      g.globalAlpha=1;
+      px(g,9,7+oy,2,2,'#000');
+      px(g,13,7+oy,2,2,'#000');
+      outline(g,24);
+      frames.push(c);
+    }
+    return { cv: frames[0], frames };
+  }
+  SPRITES.ghost = makeGhostAnim();
+
+
+  // Boss variants 48x48 with idle animations
+  // Griffin idle animation 48x48
+  // Inspired by OpenGameArt griffin sprites
+  function makeGriffinAnim(){
+    const frames=[], bob=[0,1,0,-1], wing=[0,-2,0,-2];
+    for(let i=0;i<4;i++){
+      const c=document.createElement('canvas');
+      c.width=c.height=48;
+      const g=c.getContext('2d');
+      g.imageSmoothingEnabled=false;
+      const oy=bob[i], wy=wing[i];
+      const body='#c49a6b', head='#f4e6c4', wingCol='#e0cc91', beak='#d4aa00';
+      px(g,4,8+wy+oy,16,12,wingCol);
+      px(g,28,8+wy+oy,16,12,wingCol);
+      px(g,14,22+oy,20,14,body);
+      px(g,16,14+oy,16,8,head);
+      px(g,14,18+oy,6,4,beak);
+      px(g,22,17+oy,2,2,'#000');
+      px(g,26,17+oy,2,2,'#000');
+      px(g,32,28+oy,8,4,body);
+      outline(g,48);
+      frames.push(c);
+    }
+    return { cv: frames[0], frames };
+  }
+  SPRITES.griffin = makeGriffinAnim();
+
+  // Dragon idle animation 48x48
+  // Inspired by OpenGameArt dragon sprites
+  function makeDragonAnim(){
+    const frames=[], bob=[0,1,0,-1], wing=[0,-2,0,-2];
+    for(let i=0;i<4;i++){
+      const c=document.createElement('canvas');
+      c.width=c.height=48;
+      const g=c.getContext('2d');
+      g.imageSmoothingEnabled=false;
+      const oy=bob[i], wy=wing[i];
+      const body='#5c8a42', wingCol='#7ba75e', belly='#a2d46f', horn='#ffffb5', flame='#6cf';
+      px(g,2,8+wy+oy,18,12,wingCol);
+      px(g,28,8+wy+oy,18,12,wingCol);
+      px(g,14,22+oy,20,12,body);
+      px(g,14,26+oy,20,6,belly);
+      px(g,18,14+oy,12,8,body);
+      px(g,18,12+oy,2,4,horn);
+      px(g,28,12+oy,2,4,horn);
+      px(g,22,18+oy,2,2,'#000');
+      px(g,8,18+oy+i%2,4,2,flame);
+      px(g,32,26+oy,10,4,body);
+      outline(g,48);
+      frames.push(c);
+    }
+    return { cv: frames[0], frames };
+  }
+  SPRITES.dragon = makeDragonAnim();
+
+  // Snake idle animation 48x48
+  // Inspired by OpenGameArt snake sprite sheets
+  function makeSnakeAnim(){
+    const frames=[], bob=[0,1,0,-1], sway=[0,2,0,-2];
+    for(let i=0;i<4;i++){
+      const c=document.createElement('canvas');
+      c.width=c.height=48;
+      const g=c.getContext('2d');
+      g.imageSmoothingEnabled=false;
+      const oy=bob[i], sx=sway[i];
+      const body='#8a5c8a', belly='#b97ab9', tongue='#f44';
+      px(g,12+sx,28+oy,24,8,body);
+      px(g,8+sx,20+oy,16,8,body);
+      px(g,24+sx,20+oy,16,8,body);
+      px(g,18+sx,14+oy,12,6,body);
+      px(g,18+sx,18+oy,12,4,belly);
+      px(g,20+sx,16+oy,2,2,'#000');
+      px(g,26+sx,16+oy,2,2,'#000');
+      if(i%2===0) px(g,24+sx,20+oy,2,4,tongue);
+      outline(g,48);
+      frames.push(c);
+    }
+    return { cv: frames[0], frames };
+  }
+  SPRITES.snake = makeSnakeAnim();
+
+  function makeDragonHatchling() {
+    const frames = [];
+    const bob = [0, 1, 0, -1];
+    for (let i = 0; i < 4; i++) {
+      const c = document.createElement('canvas');
+      c.width = c.height = 24;
+      const g = c.getContext('2d');
+      g.imageSmoothingEnabled = false;
+      const oy = bob[i];
+      const shell = '#e8e8e8', shellShade = '#c6c6c6';
+      const dragon = '#5c8a42', horn = '#ffffb5';
+      px(g,7,11,10,1,shell);
+      px(g,6,12,12,1,shell);
+      px(g,5,13,14,1,shell);
+      px(g,4,14,16,6,shell);
+      px(g,5,20,14,1,shell);
+      px(g,6,21,12,1,shell);
+      px(g,7,22,10,1,shell);
+      px(g,4,14,1,6,shellShade);
+      px(g,19,14,1,6,shellShade);
+      px(g,9,5+oy,6,6,dragon);
+      px(g,8,5+oy,1,2,horn);
+      px(g,15,5+oy,1,2,horn);
+      px(g,10,7+oy,1,1,'#000');
+      px(g,13,7+oy,1,1,'#000');
+      outline(g,24);
+      frames.push(c);
+    }
+    return { cv: frames[0], frames };
+  }
+  SPRITES.dragon_hatchling = makeDragonHatchling();
+
+
+  // Portal animation 48x48 (replaces stairs)
+  function makePortalSprite(){
+    const SIZE = 48;
+    const SPEED_SWIRL = 1.2, SPEED_PULSE = 2.0, ARMS = 4, RNG_SPARKLES = 9;
+    const PALETTE = ["#23022f","#38075a","#581091","#7d1fd1","#b264ff","#edd8ff"];
+    const cv = document.createElement('canvas'); cv.width=cv.height=SIZE;
+    const ctx = cv.getContext('2d'); ctx.imageSmoothingEnabled=false;
+
+    function px(x,y,color,a=1){
+      if(x<0||y<0||x>=SIZE||y>=SIZE) return;
+      ctx.globalAlpha=a; ctx.fillStyle=color; ctx.fillRect(x|0,y|0,1,1); ctx.globalAlpha=1;
+    }
+    function ring(cx,cy,r,color,a=0.3){
+      ctx.save(); ctx.globalAlpha=a; ctx.strokeStyle=color; ctx.lineWidth=1;
+      ctx.beginPath(); ctx.arc(cx+0.5,cy+0.5,r,0,Math.PI*2); ctx.stroke(); ctx.restore();
+    }
+    function draw(t){
+      ctx.clearRect(0,0,SIZE,SIZE);
+      const cx=SIZE/2, cy=SIZE/2; const time=t/1000;
+      const pulse=0.5+0.5*Math.sin(time*SPEED_PULSE*Math.PI*2);
+      const baseAngle=time*SPEED_SWIRL;
+
+      ctx.save(); ctx.globalCompositeOperation='lighter';
+      const glowColor=PALETTE[4];
+      ring(cx,cy,18,glowColor,0.15+0.25*pulse);
+      ring(cx,cy,20,glowColor,0.10+0.20*pulse);
+      ring(cx,cy,22,glowColor,0.07+0.15*pulse);
+      ctx.restore();
+
+      for(let a=0;a<ARMS;a++){
+        for(let r=3;r<=18;r+=0.75){
+          const ang=baseAngle + a*(Math.PI*2/ARMS) + r*0.28;
+          const x=Math.cos(ang)*r, y=Math.sin(ang)*r;
+          const xx=(cx+x)|0, yy=(cy+y)|0;
+          const idx=Math.min(PALETTE.length-1, Math.max(0,(PALETTE.length-1)-Math.floor((r-3)/3)));
+          const col=PALETTE[idx];
+          px(xx,yy,col,0.95);
+          if((r*3|0)%2===0){ px(xx+1,yy,col,0.7); px(xx,yy+1,col,0.7); }
+        }
+      }
+
+      ctx.save(); ctx.globalCompositeOperation='lighter';
+      const coreR=4+Math.floor(pulse*2);
+      ctx.fillStyle=PALETTE[PALETTE.length-1];
+      ctx.beginPath(); ctx.arc(cx+0.5,cy+0.5,coreR,0,Math.PI*2); ctx.fill();
+      ring(cx,cy,coreR+2,PALETTE[PALETTE.length-2],0.25+0.25*pulse);
+      ctx.restore();
+
+      for(let i=0;i<RNG_SPARKLES;i++){
+        const ang=baseAngle*1.5 + i*(Math.PI*2/RNG_SPARKLES);
+        const rr=10 + 2*Math.sin(time*3 + i*1.7);
+        const x=(cx + Math.cos(ang)*rr)|0;
+        const y=(cy + Math.sin(ang)*rr)|0;
+        const alpha=0.6 + 0.4*Math.sin(time*6 + i);
+        px(x,y,"#ffd8ff",alpha);
+      }
+    }
+    return { cv, draw };
+  }
+  SPRITES.stairs = makePortalSprite();
+
+  // Merchant goblin 24x24 (with lootbag)
+  SPRITES.shop_goblin = makeSprite(24,(g,S)=>{
+    // bag
+    px(g,3,14,8,6,'#6b4b2a'); px(g,4,13,6,2,'#7a5a37');
+    // goblin body
+    px(g,12,6,8,8,'#6fcf5a'); px(g,10,10,12,8,'#6fcf5a');
+    // eyes
+    px(g,14,9,2,2,'#000'); px(g,18,9,2,2,'#000');
+    // ear
+    px(g,10,7,2,2,'#6fcf5a'); px(g,20,7,2,2,'#6fcf5a');
+    // belt
+    px(g,10,15,12,2,'#3a2a1a');
+    outline(g,S);
+  });
+
+  // Merchant stall 24x24 (alternative)
+  SPRITES.shop_stall = makeSprite(24,(g,S)=>{
+    // counter
+    px(g,2,12,20,8,'#6b3f2b'); px(g,3,11,18,2,'#7e4a33');
+    // legs
+    px(g,3,20,3,2,'#3a2318'); px(g,18,20,3,2,'#3a2318');
+    // canopy
+    px(g,2,3,20,6,'#b84aff'); px(g,2,3,4,6,'#ffd24a'); px(g,10,3,4,6,'#ffd24a'); px(g,18,3,4,6,'#ffd24a');
+    outline(g,S);
+  });
+
+  // Merchant tile (purple marker) for visibility hint
+  SPRITES.merchant_tile = makeSprite(24,(g,S)=>{ px(g,4,4,16,16,'#8a5cff'); outline(g,S); });
+
+  // Projectile sprites (8x8)
+  function makeBallAnim(c1, c2){
+    const frames=[];
+    for(let i=0;i<2;i++){
+      const c=document.createElement('canvas');
+      c.width=c.height=8;
+      const g=c.getContext('2d');
+      g.imageSmoothingEnabled=false;
+      g.fillStyle = i===0?c1:c2;
+      g.beginPath();
+      g.arc(4,4,3,0,Math.PI*2);
+      g.fill();
+      frames.push(c);
+    }
+    return { cv: frames[0], frames };
+  }
+  function makeArrowAnim(g1, g2){
+    const frames=[];
+    for(let i=0;i<2;i++){
+      const c=document.createElement('canvas');
+      c.width=c.height=8;
+      const g=c.getContext('2d');
+      g.imageSmoothingEnabled=false;
+      const glow = g1 ? (i===0?g1:(g2||g1)) : null;
+      if(glow){
+        g.fillStyle=glow;
+        g.globalAlpha=0.4 + 0.3*i;
+        g.fillRect(0,0,8,8);
+        g.globalAlpha=1;
+      }
+      // arrow pointing right
+      px(g,0,3,5,2,'#8b5e3c');
+      px(g,5,2,3,4,'#c0c0c0');
+      frames.push(c);
+    }
+    return { cv: frames[0], frames };
+  }
+  SPRITES.proj_fire   = makeBallAnim('#ff9b4a','#ff6b4a');
+  SPRITES.proj_poison = makeBallAnim('#9fe2a1','#76d38b');
+  SPRITES.proj_magic  = makeBallAnim('#b84aff','#d6a2ff');
+  SPRITES.proj_blast  = makeBallAnim('#ffd24a','#ffe68a');
+  SPRITES.proj_ice    = makeBallAnim('#7dd3fc','#bdeafe');
+  SPRITES.proj_shock  = makeBallAnim('#facc15','#fde047');
+  SPRITES.arrow       = makeArrowAnim();
+  SPRITES.arrow_fire  = makeArrowAnim('#ff6b4a','#ff9b4a');
+  SPRITES.arrow_shock = makeArrowAnim('#facc15','#fde047');
+  SPRITES.arrow_ice   = makeArrowAnim('#7dd3fc','#bdeafe');
+  SPRITES.arrow_poison= makeArrowAnim('#76d38b','#9fe2a1');
+
+  // previews on start screen
+  const prevWarrior=document.getElementById('prevWarrior');
+  const prevMage=document.getElementById('prevMage');
+  if(prevWarrior){ const c=SPRITES.player_warrior.idle[0]; prevWarrior.width=c.width; prevWarrior.height=c.height; prevWarrior.getContext('2d').drawImage(c,0,0);}
+  if(prevMage){ const c=SPRITES.player_mage.idle[0]; prevMage.width=c.width; prevMage.height=c.height; prevMage.getContext('2d').drawImage(c,0,0);}
+}
+
+// generate immediately so previews show on start
+genSprites();
+
+let seed=(Math.random()*1e9)|0, floorNum=1, rng=new RNG(seed);
+let map=[], fog=[], vis=[]; let rooms=[]; let stairs={x:0,y:0};
+let merchant={x:0,y:0}; let merchantStyle = Math.random()<0.5 ? 'goblin' : 'stall';
+let player={x:0,y:0,hp:150,hpMax:150,mp:60,mpMax:60,sp:60,spMax:60,gold:0,stepCD:0,stepDelay:140,speedPct:0,lvl:1,xp:0,xpToNext:50,baseAtkBonus:0,class:'warrior', atkCD:0, combatTimer:0, healAcc:0, faceDx:1, faceDy:0, effects:[], magicPoints:0, skillPoints:0, score:0, kills:0, timeSurvived:0, floorsCleared:0, magic:{healing:[false,false,false,false,false,false],damage:[false,false,false,false,false,false],dot:[false,false,false,false,false,false]}, skills:{offense:[false,false,false,false,false,false],defense:[false,false,false,false,false,false],techniques:[false,false,false]}, boundSpell:null, boundSkill:null};
+let playerSpriteKey = 'player_warrior';
+const magicTrees={
+  healing:{display:'Healing',abilities:[
+    {name:'Heal I',type:'heal',value:30,mp:10,cost:1},
+    {name:'Heal II',type:'heal',value:60,mp:20,cost:2},
+    {name:'Heal III',type:'heal',value:120,mp:30,cost:3},
+    {name:'Heal IV',type:'heal',value:null,mp:40,cost:4},
+    {name:'Heal V',type:'heal',value:null,mp:60,cost:5},
+    {name:'Divine Light',type:'heal',value:null,mp:80,cost:9}
+  ]},
+  damage:{display:'Damage',abilities:[
+    {name:'Fire Bolt',type:'damage',dmg:15,mp:10,cost:1,range:8,elem:'fire',status:{k:'burn',dur:2000,power:1.0,chance:1}},
+    {name:'Ice Spike',type:'damage',dmg:40,mp:15,cost:2,range:8,elem:'ice',status:{k:'freeze',dur:1800,power:0.4,chance:1}},
+    {name:'Lightning Bolt',type:'damage',dmg:65,mp:20,cost:3,range:9,elem:'shock',status:{k:'shock',dur:2000,power:0.25,chance:1}},
+    {name:'Arcane Blast',type:'damage',dmg:90,mp:30,cost:4,range:9,elem:'magic'},
+    {name:'Meteor',type:'damage',dmg:120,mp:40,cost:5,range:9,elem:'fire',status:{k:'burn',dur:3000,power:1.5,chance:1}},
+    {name:'Void Ray',type:'damage',dmg:150,mp:60,cost:9,range:10,elem:'magic'}
+  ]},
+  dot:{display:'Damage Over Time',abilities:[
+    {name:'Ignite',type:'dot',dmg:8,mp:12,cost:1,range:8,elem:'fire',status:{k:'burn',dur:2200,power:1.0,chance:1}},
+    {name:'Scorch',type:'dot',dmg:18,mp:16,cost:2,range:8,elem:'fire',status:{k:'burn',dur:2600,power:1.1,chance:1}},
+    {name:'Sear',type:'dot',dmg:28,mp:20,cost:3,range:8,elem:'fire',status:{k:'burn',dur:3000,power:1.2,chance:1}},
+    {name:'Inferno',type:'dot',dmg:38,mp:25,cost:4,range:8,elem:'fire',status:{k:'burn',dur:3400,power:1.3,chance:1}},
+    {name:'Conflagrate',type:'dot',dmg:48,mp:28,cost:5,range:8,elem:'fire',status:{k:'burn',dur:3800,power:1.4,chance:1}},
+    {name:'Hellfire',type:'dot',dmg:60,mp:35,cost:9,range:8,elem:'fire',status:{k:'burn',dur:4200,power:1.5,chance:1}}
+  ]}
+};
+const skillTrees={
+  offense:{display:'Offense',abilities:[
+    {name:'Precision',desc:'Increase critical chance by 5%.',bonus:{crit:5},cost:1},
+    {name:'Berserk',desc:'Increase attack damage by 2.',bonus:{dmgMin:2,dmgMax:2},cost:2},
+    {name:'Cleave',desc:'Increase attack damage by 3.',bonus:{dmgMin:3,dmgMax:3},cost:3},
+    {name:'Earthshatter',desc:'Increase attack damage by 4.',bonus:{dmgMin:4,dmgMax:4},cost:4},
+    {name:'Bloodlust',desc:'Increase attack damage by 5.',bonus:{dmgMin:5,dmgMax:5},cost:5},
+    {name:'Dominance',desc:'Increase attack damage by 6.',bonus:{dmgMin:6,dmgMax:6},cost:9}
+  ]},
+  defense:{display:'Defense',abilities:[
+    {name:'Toughness',desc:'Increase max HP by 20.',bonus:{hpMax:20},cost:1},
+    {name:'Shield Wall',desc:'Increase armor by 2.',bonus:{armor:2},cost:2},
+    {name:'Fortify',desc:'Increase max HP by 20.',bonus:{hpMax:20},cost:3},
+    {name:'Stone Skin',desc:'Increase armor by 2.',bonus:{armor:2},cost:4},
+    {name:'Guardian',desc:'Increase max HP by 30.',bonus:{hpMax:30},cost:5},
+    {name:'Unbreakable',desc:'Increase armor by 3.',bonus:{armor:3},cost:9}
+  ]},
+  techniques:{display:'Techniques',abilities:[
+    {name:'Power Strike',desc:'Spend 20 stamina to strike for 40% more damage.',cost:1,cast:'powerStrike'},
+    {name:'Whirlwind',desc:'Spin and hit nearby foes for 60% more damage (30 stamina).',cost:2,cast:'whirlwind'},
+    {name:'Shield Bash',desc:'Bash an enemy for 80% more damage and shock them (15 stamina).',cost:3,cast:'shieldBash'}
+  ]}
+};
+// Monsters now have richer AI with per-type patterns and scaling
+// {x,y,rx,ry,type,hp,hpMax,dmgMin,dmgMax,atkCD,moveCD,xp,state:{...},hitFlash,effects:[]}
+let monsters=[];
+// Simple projectile pool for ranged/magic attacks
+// {x,y,dx,dy,speed,damage,type,elem,owner,alive,maxDist,dist,ls,status}
+let projectiles=[];
+// floating combat text
+let damageTexts=[];
+function addDamageText(tx,ty,text,color){ damageTexts.push({ tx, ty, text, color, age:0, ttl:800 }); }
+const SLOTS=["helmet","chest","legs","hands","feet","weapon"];
+let equip={helmet:null,chest:null,legs:null,hands:null,feet:null,weapon:null};
+const BAG_SIZE=12; let bag=new Array(BAG_SIZE).fill(null);
+const POTION_BAG_SIZE=3; let potionBag=new Array(POTION_BAG_SIZE).fill(null);
+let shopStock=[];
+let currentStats={dmgMin:0,dmgMax:0,crit:0,armor:0,resF:0,resI:0,resS:0,resM:0,resP:0,hpMax:0,mpMax:0,spMax:0};
+
+// HUD refs
+const hpFill=document.getElementById('hpFill'); const mpFill=document.getElementById('mpFill');
+const hpLbl=document.getElementById('hpLbl'); const mpLbl=document.getElementById('mpLbl');
+const hudFloor=document.getElementById('hudFloor'); const hudSeed=document.getElementById('hudSeed'); const hudGold=document.getElementById('hudGold'); const hudDmg=document.getElementById('hudDmg');
+const hudScore=document.getElementById('hudScore'); const hudKills=document.getElementById('hudKills');
+const xpFill=document.getElementById('xpFill'); const xpLbl=document.getElementById('xpLbl'); const hudLvl=document.getElementById('hudLvl'); const hudSpell=document.getElementById('hudSpell'); const hudAbilityLabel=document.getElementById('hudAbilityLabel');
+
+function updateResourceUI(){
+  if(player.class==='mage'){
+    mpFill.style.width=`${(player.mp/player.mpMax)*100}%`;
+    mpLbl.textContent=`Mana ${player.mp}/${player.mpMax}`;
+  }else{
+    mpFill.style.width=`${(player.sp/player.spMax)*100}%`;
+    mpLbl.textContent=`Stamina ${player.sp}/${player.spMax}`;
+  }
+}
+
+function updateScoreUI(){
+  if(hudScore) hudScore.textContent = Math.floor(player.score);
+  if(hudKills) hudKills.textContent = player.kills;
+}
+
+// ===== Audio =====
+let audioCtx, musicTimer, musicOsc, currentMusic=-1;
+const musicPacks = [
+  { type:'sine', notes:[130.81,146.83,155.56,174.61,196,207.65,233.08] },
+  { type:'square', notes:[196,220,246.94,261.63,293.66,329.63,349.23] },
+  { type:'triangle', notes:[233.08,261.63,277.18,311.13,349.23,392,415.3] }
+];
+function initAudio(){
+  if(!audioCtx) audioCtx = new (window.AudioContext||window.webkitAudioContext)();
+  if(audioCtx.state === 'suspended') audioCtx.resume();
+}
+function playFootstep(){
+  initAudio(); if(!audioCtx) return;
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(120 + Math.random()*30, audioCtx.currentTime);
+  gain.gain.setValueAtTime(0.001, audioCtx.currentTime);
+  gain.gain.linearRampToValueAtTime(0.15, audioCtx.currentTime + 0.01);
+  gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.25);
+  osc.connect(gain).connect(audioCtx.destination);
+  osc.start(); osc.stop(audioCtx.currentTime + 0.25);
+}
+const attackSounds=[
+  {type:'sawtooth',freq:300},
+  {type:'square',freq:260},
+  {type:'triangle',freq:320}
+];
+function playAttack(){
+  initAudio(); if(!audioCtx) return;
+  const variant = attackSounds[Math.floor(Math.random()*attackSounds.length)];
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.type = variant.type;
+  osc.frequency.setValueAtTime(variant.freq, audioCtx.currentTime);
+  gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.15);
+  osc.connect(gain).connect(audioCtx.destination);
+  osc.start(); osc.stop(audioCtx.currentTime + 0.15);
+}
+const hitSounds=[
+  {type:'triangle',freq:180},
+  {type:'sine',freq:200},
+  {type:'square',freq:150}
+];
+function playHit(){
+  initAudio(); if(!audioCtx) return;
+  const variant = hitSounds[Math.floor(Math.random()*hitSounds.length)];
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.type = variant.type;
+  osc.frequency.setValueAtTime(variant.freq, audioCtx.currentTime);
+  gain.gain.setValueAtTime(0.25, audioCtx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.2);
+  osc.connect(gain).connect(audioCtx.destination);
+  osc.start(); osc.stop(audioCtx.currentTime + 0.2);
+}
+function startMusic(packIdx){
+  initAudio(); if(!audioCtx) return;
+  if(musicTimer) clearInterval(musicTimer);
+  if(musicOsc){ try{ musicOsc.stop(); }catch(e){} }
+  const pack = musicPacks[packIdx];
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  gain.gain.value = 0.04;
+  osc.type = pack.type;
+  osc.connect(gain).connect(audioCtx.destination);
+  let i = 0;
+  function next(){ osc.frequency.setValueAtTime(pack.notes[i % pack.notes.length], audioCtx.currentTime); i++; }
+  next();
+  musicTimer = setInterval(next, 2000);
+  osc.start();
+  musicOsc = osc;
+  currentMusic = packIdx;
+}
+function nextMusic(){
+  let idx;
+  do{ idx = Math.floor(Math.random()*musicPacks.length); } while(idx===currentMusic && musicPacks.length>1);
+  startMusic(idx);
+}
+
+// --- Smooth helpers & settings ---
+function smoothstep01(t){ return t*t*(3-2*t); }
+function lerp(a,b,t){ return a + (b-a)*t; }
+function walkable(x,y){ if(x<0||y<0||x>=MAP_W||y>=MAP_H) return false; const t=map[y*MAP_W+x]; return t!==T_WALL && t!==T_EMPTY; }
+function canMoveFrom(x,y,dx,dy){
+  const nx=x+dx, ny=y+dy;
+  if(!walkable(nx,ny)) return false;
+  if(dx!==0 && dy!==0){ if(!walkable(x+dx,y) && !walkable(x,y+dy)) return false; }
+  return true;
+}
+let smoothEnabled = true; let baseStepDelay = 140; // sync to player.stepDelay on start
+
+// ===== RNG =====
+function RNG(seed){ this.s=seed|0; }
+RNG.prototype.next=function(){ this.s=(this.s*1664525+1013904223)|0; return ((this.s>>>0)/4294967296); }
+RNG.prototype.int=function(a,b){ return Math.floor(a + (b-a+1)*this.next()); }
+
+// ===== Map / Gen =====
+const T_EMPTY=0, T_FLOOR=1, T_WALL=2, T_TRAP=3, T_LAVA=4;
+const TRAP_CHANCE=0.01, LAVA_CHANCE=0.02;
+
+function generateRooms(){
+  rooms = [];
+  map.fill(T_EMPTY);
+  // rooms
+  for(let i=0;i<28;i++){
+    const w=rng.int(6,11), h=rng.int(6,11);
+    const x=rng.int(1,MAP_W-w-1), y=rng.int(1,MAP_H-h-1);
+    rooms.push({x,y,w,h});
+    for(let yy=y; yy<y+h; yy++) for(let xx=x; xx<x+w; xx++) map[yy*MAP_W+xx]=T_FLOOR;
+  }
+  // corridors
+  for(let i=1;i<rooms.length;i++){
+    const a=rooms[i-1], b=rooms[i];
+    for(let x=Math.min(a.x,b.x); x<=Math.max(a.x,b.x); x++) map[(a.y+((a.h/2)|0))*MAP_W+x]=T_FLOOR;
+    for(let y=Math.min(a.y,b.y); y<=Math.max(a.y,b.y); y++) map[y*MAP_W+(b.x+((b.w/2)|0))]=T_FLOOR;
+  }
+  // ensure connectivity by removing unreachable floors
+  if(rooms.length){
+    const start=rooms[0];
+    const sx=start.x+((start.w/2)|0), sy=start.y+((start.h/2)|0);
+    const q=[[sx,sy]];
+    const seen=new Set([sy*MAP_W+sx]);
+    while(q.length){
+      const [x,y]=q.pop();
+      for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){
+        const nx=x+dx, ny=y+dy; if(nx<0||ny<0||nx>=MAP_W||ny>=MAP_H) continue;
+        const idx=ny*MAP_W+nx; if(map[idx]!==T_FLOOR || seen.has(idx)) continue;
+        seen.add(idx); q.push([nx,ny]);
+      }
+    }
+    for(let i=0;i<map.length;i++) if(map[i]===T_FLOOR && !seen.has(i)) map[i]=T_WALL;
+    rooms=rooms.filter(r=>{
+      const cx=r.x+((r.w/2)|0), cy=r.y+((r.h/2)|0);
+      return seen.has(cy*MAP_W+cx);
+    });
+  }
+  // walls
+  for(let y=0;y<MAP_H;y++) for(let x=0;x<MAP_W;x++) if(map[y*MAP_W+x]===T_FLOOR){ for(const d of [[1,0],[-1,0],[0,1],[0,-1]]){ const nx=x+d[0], ny=y+d[1]; if(nx>=0&&ny>=0&&nx<MAP_W&&ny<MAP_H && map[ny*MAP_W+nx]===T_EMPTY) map[ny*MAP_W+nx]=T_WALL; } }
+  // torches along walls facing floors
+  for(let y=1;y<MAP_H-1;y++) for(let x=1;x<MAP_W-1;x++){
+    if(map[y*MAP_W+x]!==T_WALL) continue;
+    let adj=false;
+    for(const d of [[1,0],[-1,0],[0,1],[0,-1]]){
+      const nx=x+d[0], ny=y+d[1];
+      if(map[ny*MAP_W+nx]===T_FLOOR){ adj=true; break; }
+    }
+    if(adj && rng.next()<TORCH_CHANCE){ torches.push({x,y,phase:rng.next()*Math.PI*2}); }
+  }
+  // place player + stairs + merchant
+  const r=rooms[rng.int(0,rooms.length-1)]; player.x=r.x+((r.w/2)|0); player.y=r.y+((r.h/2)|0);
+  let rr=rooms[rng.int(0,rooms.length-1)]; stairs.x=rr.x+((rr.w/2)|0); stairs.y=rr.y+((rr.h/2)|0);
+  let rm=rooms[rng.int(0,rooms.length-1)];
+  merchant.x=rm.x+((rm.w/2)|0); merchant.y=rm.y+((rm.h/2)|0);
+  while((merchant.x===player.x && merchant.y===player.y) || (merchant.x===stairs.x && merchant.y===stairs.y)){
+    merchant.x=rng.int(rm.x+1,rm.x+rm.w-2);
+    merchant.y=rng.int(rm.y+1,rm.y+rm.h-2);
+  }
+
+  // monsters
+  const spawnCount = monsterCountForFloor(floorNum);
+  for(let i=0;i<spawnCount;i++){
+    let placed=false, tries=0;
+    while(!placed && tries<25){
+      const r=rooms[rng.int(0,rooms.length-1)];
+      const x=rng.int(r.x+1,r.x+r.w-2), y=rng.int(r.y+1,r.y+r.h-2);
+      if((x===player.x && y===player.y) || (x===merchant.x && y===merchant.y)){
+        tries++; continue;
+      }
+      if(monsters.some(m=>Math.abs(m.x-x)+Math.abs(m.y-y)<4)){
+        tries++; continue;
+      }
+      const t = chooseMonsterType(floorNum);
+      monsters.push(spawnMonster(t,x,y, shouldSpawnElite(floorNum)));
+      placed=true;
+    }
+  }
+
+  // ensure at least one mage spawns on higher floors
+  if(floorNum > 4 && !monsters.some(m=>m.type===3)){
+    let placed=false, tries=0;
+    while(!placed && tries<25){
+      const r=rooms[rng.int(0,rooms.length-1)];
+      const x=rng.int(r.x+1,r.x+r.w-2), y=rng.int(r.y+1,r.y+r.h-2);
+      if((x===player.x && y===player.y) || (x===merchant.x && y===merchant.y)){
+        tries++; continue;
+      }
+      if(monsters.some(m=>Math.abs(m.x-x)+Math.abs(m.y-y)<4)){
+        tries++; continue;
+      }
+      monsters.push(spawnMonster(3,x,y, shouldSpawnElite(floorNum)));
+      placed=true;
+    }
+  }
+
+  // determine strongest monster to scale bosses from
+  let strongest = null;
+  for(const m of monsters){ if(!strongest || m.hpMax > strongest.hpMax) strongest = m; }
+  if(strongest){
+    // spawn mini boss with 1.8x HP of strongest mob
+    let placed=false, tries=0;
+    while(!placed && tries<50){
+      const r=rooms[rng.int(0,rooms.length-1)];
+      const x=rng.int(r.x+1,r.x+r.w-2), y=rng.int(r.y+1,r.y+r.h-2);
+      if((x===player.x && y===player.y) || (x===merchant.x && y===merchant.y)){
+        tries++; continue;
+      }
+      if(monsters.some(m=>Math.abs(m.x-x)+Math.abs(m.y-y)<4)){
+        tries++; continue;
+      }
+      const mb=spawnMonster(strongest.type,x,y);
+      mb.hpMax = mb.hp = Math.round(strongest.hpMax * 1.8);
+      mb.miniBoss = true;
+      mb.spriteKey = randomBossVariant();
+      mb.spriteSize = 48;
+      monsters.push(mb);
+      placed=true;
+    }
+
+    // every 5 floors spawn an extra large boss
+    if(floorNum % 5 === 0){
+      placed=false; tries=0;
+      const hpMult = 2.5 + rng.next()*0.5; // 2.5-3x
+      while(!placed && tries<50){
+        const r=rooms[rng.int(0,rooms.length-1)];
+        const x=rng.int(r.x+1,r.x+r.w-2), y=rng.int(r.y+1,r.y+r.h-2);
+        if((x===player.x && y===player.y) || (x===merchant.x && y===merchant.y)){
+          tries++; continue;
+        }
+        if(monsters.some(m=>Math.abs(m.x-x)+Math.abs(m.y-y)<4)){
+          tries++; continue;
+        }
+        const bb=spawnMonster(strongest.type,x,y);
+        bb.hpMax = bb.hp = Math.round(strongest.hpMax * hpMult);
+        bb.dmgMin = Math.round(bb.dmgMin * 2);
+        bb.dmgMax = Math.round(bb.dmgMax * 2);
+        bb.bigBoss = true;
+        bb.spriteKey = randomBossVariant();
+        bb.spriteSize = 48;
+        monsters.push(bb);
+        placed=true;
+      }
+      showBossAlert();
+    }
+  }
+}
+
+function generateCave(){
+  // random initial map
+  for(let y=0;y<MAP_H;y++){
+    for(let x=0;x<MAP_W;x++){
+      const idx=y*MAP_W+x;
+      if(x===0||y===0||x===MAP_W-1||y===MAP_H-1) map[idx]=T_WALL;
+      else map[idx]=rng.next()<0.45?T_FLOOR:T_WALL;
+    }
+  }
+  // cellular automata smoothing
+  for(let iter=0; iter<4; iter++){
+    const next=map.slice();
+    for(let y=1;y<MAP_H-1;y++){
+      for(let x=1;x<MAP_W-1;x++){
+        let cnt=0;
+        for(let yy=-1;yy<=1;yy++) for(let xx=-1;xx<=1;xx++) if(!(xx===0&&yy===0) && map[(y+yy)*MAP_W+(x+xx)]===T_FLOOR) cnt++;
+        const idx=y*MAP_W+x;
+        if(map[idx]===T_FLOOR) next[idx]=cnt>=4?T_FLOOR:T_WALL;
+        else next[idx]=cnt>=5?T_FLOOR:T_WALL;
+      }
+    }
+    map=next;
+  }
+  // connectivity
+  let startIdx=map.findIndex(t=>t===T_FLOOR);
+  if(startIdx!==-1){
+    const q=[[startIdx%MAP_W, Math.floor(startIdx/MAP_W)]];
+    const seen=new Set([startIdx]);
+    while(q.length){
+      const [x,y]=q.pop();
+      for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){
+        const nx=x+dx, ny=y+dy; if(nx<0||ny<0||nx>=MAP_W||ny>=MAP_H) continue;
+        const i=ny*MAP_W+nx; if(map[i]!==T_FLOOR || seen.has(i)) continue; seen.add(i); q.push([nx,ny]);
+      }
+    }
+    for(let i=0;i<map.length;i++) if(map[i]===T_FLOOR && !seen.has(i)) map[i]=T_WALL;
+  }
+  // secret rooms
+  for(let s=0;s<3;s++){
+    const baseX=rng.int(2,MAP_W-3), baseY=rng.int(2,MAP_H-3);
+    if(map[baseY*MAP_W+baseX]!==T_FLOOR) continue;
+    const dirs=[[1,0],[-1,0],[0,1],[0,-1]];
+    const dir=dirs[rng.int(0,dirs.length-1)];
+    const wx=baseX+dir[0], wy=baseY+dir[1];
+    const rx=wx+dir[0], ry=wy+dir[1];
+    const rw=rng.int(3,5), rh=rng.int(3,5);
+    if(rx<1||ry<1||rx+rw>=MAP_W-1||ry+rh>=MAP_H-1) continue;
+    map[wy*MAP_W+wx]=T_FLOOR;
+    for(let yy=ry; yy<ry+rh; yy++) for(let xx=rx; xx<rx+rw; xx++) map[yy*MAP_W+xx]=T_FLOOR;
+  }
+  // torches
+  for(let y=1;y<MAP_H-1;y++) for(let x=1;x<MAP_W-1;x++){
+    if(map[y*MAP_W+x]!==T_WALL) continue;
+    let adj=false;
+    for(const d of [[1,0],[-1,0],[0,1],[0,-1]]){
+      const nx=x+d[0], ny=y+d[1]; if(map[ny*MAP_W+nx]===T_FLOOR){ adj=true; break; }
+    }
+    if(adj && rng.next()<TORCH_CHANCE){ torches.push({x,y,phase:rng.next()*Math.PI*2}); }
+  }
+  // collect floor tiles
+  const tiles=[];
+  for(let y=1;y<MAP_H-1;y++) for(let x=1;x<MAP_W-1;x++) if(map[y*MAP_W+x]===T_FLOOR) tiles.push({x,y});
+  function pick(){ return tiles[rng.int(0,tiles.length-1)]; }
+  const p=pick(); player.x=p.x; player.y=p.y;
+  let s=pick(); stairs.x=s.x; stairs.y=s.y;
+  let m=pick(); merchant.x=m.x; merchant.y=m.y;
+  while((merchant.x===player.x && merchant.y===player.y) || (merchant.x===stairs.x && merchant.y===stairs.y)){
+    m=pick(); merchant.x=m.x; merchant.y=m.y;
+  }
+  const spawnCount = monsterCountForFloor(floorNum);
+  for(let i=0;i<spawnCount;i++){
+    let placed=false, tries=0;
+    while(!placed && tries<25){
+      const t=pick(); const x=t.x, y=t.y;
+      if(Math.abs(x-player.x)+Math.abs(y-player.y)<2 || (x===merchant.x && y===merchant.y) || (x===stairs.x && y===stairs.y)){ tries++; continue; }
+      if(monsters.some(mo=>Math.abs(mo.x-x)+Math.abs(mo.y-y)<4)){ tries++; continue; }
+      const tt = chooseMonsterType(floorNum);
+      monsters.push(spawnMonster(tt,x,y, shouldSpawnElite(floorNum))); placed=true;
+    }
+  }
+  if(floorNum>4 && !monsters.some(m=>m.type===3)){
+    let placed=false, tries=0;
+    while(!placed && tries<25){
+      const t=pick(); const x=t.x, y=t.y;
+      if(Math.abs(x-player.x)+Math.abs(y-player.y)<2 || (x===merchant.x && y===merchant.y) || (x===stairs.x && y===stairs.y)){ tries++; continue; }
+      if(monsters.some(mo=>Math.abs(mo.x-x)+Math.abs(mo.y-y)<4)){ tries++; continue; }
+      monsters.push(spawnMonster(3,x,y, shouldSpawnElite(floorNum))); placed=true;
+    }
+  }
+  let strongest=null;
+  for(const m of monsters){ if(!strongest || m.hpMax>strongest.hpMax) strongest=m; }
+  if(strongest){
+    let placed=false, tries=0;
+    while(!placed && tries<50){
+      const t=pick(); const x=t.x, y=t.y;
+      if(Math.abs(x-player.x)+Math.abs(y-player.y)<2 || (x===merchant.x && y===merchant.y) || (x===stairs.x && y===stairs.y)){ tries++; continue; }
+      if(monsters.some(mo=>Math.abs(mo.x-x)+Math.abs(mo.y-y)<4)){ tries++; continue; }
+      const mb=spawnMonster(strongest.type,x,y);
+      mb.hpMax = mb.hp = Math.round(strongest.hpMax*1.8);
+      mb.miniBoss=true; mb.spriteKey=randomBossVariant(); mb.spriteSize=48; monsters.push(mb); placed=true;
+    }
+    if(floorNum%5===0){
+      placed=false; tries=0; const hpMult=2.5 + rng.next()*0.5;
+      while(!placed && tries<50){
+        const t=pick(); const x=t.x, y=t.y;
+        if(Math.abs(x-player.x)+Math.abs(y-player.y)<2 || (x===merchant.x && y===merchant.y) || (x===stairs.x && y===stairs.y)){ tries++; continue; }
+        if(monsters.some(mo=>Math.abs(mo.x-x)+Math.abs(mo.y-y)<4)){ tries++; continue; }
+        const bb=spawnMonster(strongest.type,x,y);
+        bb.hpMax = bb.hp = Math.round(strongest.hpMax*hpMult);
+        bb.dmgMin = Math.round(bb.dmgMin*2); bb.dmgMax = Math.round(bb.dmgMax*2);
+        bb.bigBoss=true; bb.spriteKey=randomBossVariant(); bb.spriteSize=48; monsters.push(bb); placed=true;
+      }
+      showBossAlert();
+    }
+  }
+}
+
+function placeHazards(){
+  for(let y=1;y<MAP_H-1;y++){
+    for(let x=1;x<MAP_W-1;x++){
+      const idx=y*MAP_W+x;
+      if(map[idx]!==T_FLOOR) continue;
+      if((x===player.x && y===player.y) || (x===stairs.x && y===stairs.y) || (x===merchant.x && y===merchant.y)) continue;
+      if(monsters.some(m=>m.x===x && m.y===y)) continue;
+      const r=rng.next();
+      if(r<LAVA_CHANCE){
+        map[idx]=T_LAVA;
+        lavaTiles.push({x,y});
+      } else if(r<LAVA_CHANCE+TRAP_CHANCE){
+        map[idx]=T_TRAP;
+        spikeTraps.push({x,y});
+      }
+    }
+  }
+}
+
+function checkHazard(x,y){
+  const t=map[y*MAP_W+x];
+  if(t===T_TRAP){
+    applyDamageToPlayer(20);
+    addDamageText(x,y,'Trap!','#f55');
+  } else if(t===T_LAVA){
+    applyDamageToPlayer(8,'fire');
+    addDamageText(x,y,'Lava!','#f80');
+  }
+}
+
+function generate(){
+  map=new Array(MAP_W*MAP_H).fill(T_EMPTY);
+  fog=new Array(MAP_W*MAP_H).fill(0);
+  vis=new Array(MAP_W*MAP_H).fill(0);
+  rooms=[]; monsters=[]; projectiles=[]; lootMap.clear(); player.effects = [];
+  torches=[]; lavaTiles=[]; spikeTraps=[];
+  const hue=rng.int(0,360);
+  const sat=8+rng.int(0,8);
+  const baseLight=35+rng.int(-5,5);
+  const light=Math.min(100,Math.round(baseLight*1.1));
+  floorTint=`hsl(${hue}, ${sat}%, ${light}%)`;
+  const wallHue=(hue + rng.int(-20,20) + 360)%360;
+  const wallLight=Math.max(10, light-5);
+  wallTint=`hsl(${wallHue}, ${sat}%, ${wallLight}%)`;
+  if(rng.next()<0.5) generateCave(); else generateRooms();
+  placeHazards();
+  buildLayers();
+  recomputeFOV();
+  seedRoomLoot();
+  genShopStock();
+  redrawInventory();
+  renderShop();
+  nextMusic();
+}
+
+// ===== Difficulty scaling & Monster factory =====
+const SCALE = { HP_PER_FLOOR: 6, DMG_PER_FLOOR: 1, HARDNESS_MULT: 0.15, RES_PER_FLOOR: 0.5, RES_MAGIC_PER_FLOOR: 0.3 };
+function scaleStat(base, perFloor){ return Math.max(1, Math.floor(base + perFloor * Math.max(0, floorNum-1))); }
+
+function chooseMonsterType(floor){
+  const pool = [
+    {type:0, w:3}, // slimes always
+    {type:1, w:2}, // bats always
+  ];
+  if(floor>=2) pool.push({type:5, w:2}); // goblins
+  if(floor>=3) pool.push({type:2, w:2}); // skeletons
+  if(floor>=4) pool.push({type:6, w:1}); // ghosts
+  if(floor>=5) pool.push({type:3, w:1}); // mages
+  // weight tough enemies if player overpowered
+  const power = player.lvl + (player.dmgMin + player.dmgMax)/4;
+  if(power > floor*2){
+    for(const opt of pool){ if(opt.type>=2) opt.w += 2; }
+  }
+  const total = pool.reduce((s,o)=>s+o.w,0);
+  let r = rng.next()*total;
+  for(const opt of pool){ r -= opt.w; if(r<=0) return opt.type; }
+  return 0;
+}
+function shouldSpawnElite(floor){
+  const chance = 0.05 + floor*0.02;
+  return rng.next() < Math.min(0.25, chance);
+}
+
+function spawnMonster(type,x,y,elite=false){
+  // Base stats per archetype
+  const archetypes = [
+    { hp:18, dmg:[2,4], atkCD:28, moveCD:[6,10] },    // slime base
+    { hp:6,  dmg:[1,3], atkCD:22, moveCD:[4,8] },     // bat: frail but fast
+    { hp:14, dmg:[2,5], atkCD:38, moveCD:[6,10] },    // skeleton: durable ranged
+    { hp:11, dmg:[3,7], atkCD:39, moveCD:[6,10] },    // mage: higher damage, slower attack
+    { hp:12, dmg:[3,6], atkCD:30, moveCD:[6,10] },    // dragon hatchling
+    { hp:10, dmg:[2,5], atkCD:26, moveCD:[5,9] },     // goblin: agile melee
+    { hp:8,  dmg:[1,4], atkCD:32, moveCD:[6,12] },    // ghost: drifting foe
+  ];
+  let a = archetypes[type] || archetypes[0];
+  let spriteKey;
+  if(type===0){ // slime variants
+    const vars = [
+      {key:'slime', hp:18, dmg:[2,4], atkCD:28, moveCD:[6,10]},
+      {key:'slime_red', hp:16, dmg:[3,6], atkCD:28, moveCD:[6,10]},
+      {key:'slime_yellow', hp:24, dmg:[2,5], atkCD:32, moveCD:[8,12]},
+      {key:'slime_blue', hp:20, dmg:[2,5], atkCD:28, moveCD:[6,10]},
+      {key:'slime_purple', hp:22, dmg:[3,5], atkCD:30, moveCD:[6,10]},
+      {key:'slime_shadow', hp:18, dmg:[4,7], atkCD:35, moveCD:[6,10]},
+    ];
+    const v = vars[rng.int(0, vars.length-1)];
+    a = {hp:v.hp, dmg:v.dmg, atkCD:v.atkCD, moveCD:v.moveCD};
+    spriteKey = v.key;
+  } else if(type===1){ // bat variants
+    const vars = ['bat','bat_brown'];
+    spriteKey = vars[rng.int(0, vars.length-1)];
+  } else if(type===2){ // skeleton variants
+    const vars = ['skeleton','skeleton_red','skeleton_green'];
+    spriteKey = vars[rng.int(0, vars.length-1)];
+  } else if(type===3){ // mage variants
+    const vars = ['mage','mage_red','mage_green'];
+    spriteKey = vars[rng.int(0, vars.length-1)];
+  } else if(type===4){ // dragon hatchling
+    spriteKey = 'dragon_hatchling';
+  } else if(type===5){ // goblin
+    spriteKey = 'goblin';
+  } else if(type===6){ // ghost
+    spriteKey = 'ghost';
+  }
+  const diff = 1 + SCALE.HARDNESS_MULT * Math.max(0, floorNum-1);
+  const m = {
+    x, y, rx:x, ry:y, type,
+    hpMax: Math.round(scaleStat(a.hp * MONSTER_HP_MULT, SCALE.HP_PER_FLOOR) * diff),
+    hp: 0,
+    dmgMin: Math.round(scaleStat(a.dmg[0] * MONSTER_DMG_MULT, SCALE.DMG_PER_FLOOR) * diff),
+    dmgMax: Math.round(scaleStat(a.dmg[1] * MONSTER_DMG_MULT, SCALE.DMG_PER_FLOOR) * diff),
+    atkCD: rng.int(10, a.atkCD), // frames
+    moveCD: Math.round(rng.int(a.moveCD[0], a.moveCD[1]) * ENEMY_SPEED_MULT),
+    xp: 0,
+    state: {}, aggroT:0, hitFlash:0, moving:false, moveT:1, moveDur: Math.round(140 * ENEMY_SPEED_MULT), fromX:x, fromY:y, toX:x, toY:y, effects:[],
+    elite
+  };
+  if(elite){
+    m.hpMax = Math.round(m.hpMax * 1.5);
+    m.dmgMin = Math.round(m.dmgMin * 1.3);
+    m.dmgMax = Math.round(m.dmgMax * 1.3);
+    m.atkCD = Math.max(6, Math.round(m.atkCD * 0.8));
+    m.moveCD = Math.max(2, Math.round(m.moveCD * 0.8));
+  }
+  m.hp = m.hpMax;
+  m.xp = calcMonsterXP(m);
+  const elemRes = Math.floor(SCALE.RES_PER_FLOOR * Math.max(0, floorNum-1));
+  const magicRes = Math.floor(SCALE.RES_MAGIC_PER_FLOOR * Math.max(0, floorNum-1));
+  m.resFire = elemRes;
+  m.resIce = elemRes;
+  m.resShock = elemRes;
+  m.resPoison = elemRes;
+  m.resMagic = magicRes;
+  if(spriteKey) m.spriteKey = spriteKey;
+  return m;
+}
+
+// Helpers
+function sign(n){ return n===0?0:(n>0?1:-1); }
+function clearPathCardinal(x1,y1,x2,y2){
+  if(x1!==x2 && y1!==y2) return false;
+  const dx=sign(x2-x1), dy=sign(y2-y1);
+  let x=x1+dx, y=y1+dy;
+  while(!(x===x2 && y===y2)){
+    if(isBlock(x,y)) return false;
+    x+=dx; y+=dy;
+  }
+  return true;
+}
+// 8-directional LoS (grid step); simple check for caster
+function clearPath8(x1,y1,x2,y2){
+  let dx = sign(x2-x1), dy = sign(y2-y1);
+  if(dx===0 && dy===0) return true;
+  let x=x1+dx, y=y1+dy;
+  while(!(x===x2 && y===y2)){
+    if(isBlock(x,y)) return false;
+    if(x!==x2) x+=dx;
+    if(y!==y2) y+=dy;
+  }
+  return true;
+}
+
+function buildLayers(){
+  floorLayer=document.createElement('canvas'); floorLayer.width=MAP_W*TILE; floorLayer.height=MAP_H*TILE;
+  wallLayer=document.createElement('canvas'); wallLayer.width=MAP_W*TILE; wallLayer.height=MAP_H*TILE;
+  const f=floorLayer.getContext('2d'), w=wallLayer.getContext('2d');
+  f.fillStyle=f.createPattern(floorTex,'repeat'); f.fillRect(0,0,floorLayer.width,floorLayer.height);
+  // mask non-floor
+  const mask=document.createElement('canvas'); mask.width=floorLayer.width; mask.height=floorLayer.height;
+  const mg=mask.getContext('2d'); mg.fillStyle='#000'; mg.fillRect(0,0,mask.width,mask.height);
+  mg.globalCompositeOperation='destination-out';
+  mg.fillStyle='#fff';
+  for(let y=0;y<MAP_H;y++) for(let x=0;x<MAP_W;x++) if(map[y*MAP_W+x]===T_FLOOR||map[y*MAP_W+x]===T_TRAP||map[y*MAP_W+x]===T_LAVA){ mg.fillRect(x*TILE,y*TILE,TILE,TILE); }
+  f.drawImage(mask,0,0);
+  f.globalCompositeOperation='multiply';
+  f.fillStyle=floorTint;
+  f.fillRect(0,0,floorLayer.width,floorLayer.height);
+  f.globalCompositeOperation='source-over';
+  // walls
+  w.fillStyle=w.createPattern(wallTex,'repeat');
+  for(let y=0;y<MAP_H;y++) for(let x=0;x<MAP_W;x++) if(map[y*MAP_W+x]===T_WALL) w.fillRect(x*TILE,y*TILE,TILE,TILE);
+  w.globalCompositeOperation='multiply';
+  w.fillStyle=wallTint;
+  w.fillRect(0,0,wallLayer.width,wallLayer.height);
+  w.globalCompositeOperation='source-over';
+}
+
+// ===== FOV =====
+function isBlock(x,y){
+  if(x<0||y<0||x>=MAP_W||y>=MAP_H) return true;
+  return map[y*MAP_W+x]===T_WALL || map[y*MAP_W+x]===T_EMPTY;
+}
+
+function castLightFrom(sx, sy, radius){
+  for(let a=0; a<FOV_RAYS; a++){
+    const ang = a*Math.PI*2/FOV_RAYS;
+    let x=sx+0.5, y=sy+0.5;
+    for(let r=0; r<radius*2; r++){
+      const ix=x|0, iy=y|0;
+      if(ix<0||iy<0||ix>=MAP_W||iy>=MAP_H) break;
+      const idx=iy*MAP_W+ix;
+      vis[idx]=1; fog[idx]=Math.max(fog[idx],1);
+      if(isBlock(ix,iy) && !(ix===sx && iy===sy)) break;
+      x+=Math.cos(ang)*0.5; y+=Math.sin(ang)*0.5;
+    }
+  }
+}
+
+function recomputeFOV(){
+  vis.fill(0);
+  castLightFrom(player.x, player.y, FOV_RADIUS);
+  for(const t of torches){
+    const dx = t.x - player.x;
+    const dy = t.y - player.y;
+    const maxDist = FOV_RADIUS + TORCH_LIGHT_RADIUS;
+    if(dx*dx + dy*dy > maxDist*maxDist) continue;
+    castLightFrom(t.x, t.y, TORCH_LIGHT_RADIUS);
+  }
+}
+
+// ===== Loot / Inventory =====
+const ITEM_BASES = {
+  helmet:['Helmet','Cap','Hood','Cowl','Circlet'],
+  chest:['Armor','Robe','Vest','Tunic','Mail'],
+  legs:['Greaves','Leggings','Pants','Skirt','Kilt'],
+  hands:['Gloves','Gauntlets','Wraps','Mitts','Bracers'],
+  feet:['Boots','Sandals','Shoes','Sabatons','Slippers'],
+  weapon:['Sword','Axe','Mace','Dagger','Bow','Wand','Staff','Spear','Halberd','Crossbow','Flail','Katana']
+};
+// Total base items: 37
+const RARITY=[
+  {n:'Common',c:'#bfbfbf',m:1.0},
+  {n:'Uncommon',c:'#38c172',m:1.05},
+  {n:'Magic',c:'#3490dc',m:1.1},
+  {n:'Rare',c:'#eab308',m:1.35},
+  {n:'Epic',c:'#a855f7',m:1.4},
+  {n:'Legendary',c:'#f97316',m:1.6}
+];
+const RARITY_WEIGHTS=[40,30,15,8,5,2];
+const WEAPON_PREFIXES=['Ancient','Flaming','Shadow','Swift','Vicious','Mystic','Dragon','Stormforged','Ethereal','Gloom','Silver','Blood','Infernal','Eternal','Sacred','Dark','Frost','Thunder','Cursed','Luminous','Valkyrie','Arcane','Ghostly'];
+const WEAPON_SUFFIXES=['of Power','of Doom','of the Fox','of Frost','of Flames','of Shadows','of the Dragon','of Vengeance','of Nightmares','of the Phoenix','of Destiny','of the Ancients','of the Depths','of Kings','of Ruin','of Glory','of Fury','of the Reaper','of Whispers','of the Titan','of the Tempest','of Ages','of the Void'];
+const ITEM_PREFIXES=['Sturdy','Blessed','Cursed','Enchanted','Gleaming','Guardian','Eternal','Shadowed','Dragonhide','Stormforged','Silver','Ironbound','Silent','Glacial','Luminous','Infernal','Radiant','Venerable','Mystic','Obsidian'];
+const ITEM_SUFFIXES=['of Protection','of the Bear','of Fortitude','of Stealth','of the Lion','of Resilience','of Twilight','of the Wolf','of the Eagle','of the Serpent','of the Mountain','of Grace','of the Titan','of Endurance','of the Seas','of Insight','of the Wind','of Shadows','of the Void'];
+const WEAPON_UNIQUES=["Shadow's Bane","Dragon's Heart","The Cleaver","Nightfall","Sunseeker","Soulreaper","Stormcaller","Frostbite","Bloodletter","Kingslayer","Dawnbringer","Voidrender","Thunderfury","Eclipse Edge","Grim Herald","Starforged","Venomspike"];
+
+function rollRarity(){
+  const total=RARITY_WEIGHTS.reduce((a,b)=>a+b,0);
+  let r=rng.int(0,total-1);
+  for(let i=0;i<RARITY_WEIGHTS.length;i++){
+    if(r<RARITY_WEIGHTS[i]) return i;
+    r-=RARITY_WEIGHTS[i];
+  }
+  return 0;
+}
+
+const POTION_TYPES=[
+  {k:'hp', base:'Health Potion', vals:[40,60,100,160,240,400]},
+  {k:'mp', base:'Mana Potion', vals:[25,35,60,100,150,250]}
+];
+function generateWeaponName(base){
+  if(rng.next()<0.2) return WEAPON_UNIQUES[rng.int(0,WEAPON_UNIQUES.length-1)];
+  const pre=rng.next()<0.5?WEAPON_PREFIXES[rng.int(0,WEAPON_PREFIXES.length-1)]+' ':'';
+  const suf=rng.next()<0.5?' '+WEAPON_SUFFIXES[rng.int(0,WEAPON_SUFFIXES.length-1)]:'';
+  return pre+base+suf;
+}
+function generateItemName(base){
+  const pre=rng.next()<0.5?ITEM_PREFIXES[rng.int(0,ITEM_PREFIXES.length-1)]+' ':'';
+  const suf=rng.next()<0.5?' '+ITEM_SUFFIXES[rng.int(0,ITEM_SUFFIXES.length-1)]:'';
+  return pre+base+suf;
+}
+let lootMap=new Map();
+
+const WEAPON_AFFIX_POOL = [
+  {k:'crit', min:3, max:8, lvl:.5},
+  {k:'ls', min:1, max:5, lvl:.5},
+  {k:'md', min:1, max:5, lvl:.5},
+  {k:'status'},
+  {k:'kb', min:1, max:2, lvl:.5},
+  {k:'atkSpd', min:5, max:15, lvl:.5},
+  {k:'pierce', min:1, max:2, lvl:.5},
+  {k:'hpMax', min:10, max:25, lvl:.5},
+  {k:'speedPct', min:3, max:10, lvl:.5},
+];
+
+const ARMOR_AFFIX_POOL = [
+  {k:'armor', min:2, max:6, lvl:1},
+  {k:'resFire', min:5, max:15, lvl:1},
+  {k:'resIce', min:5, max:15, lvl:1},
+  {k:'resShock', min:5, max:15, lvl:1},
+  {k:'resMagic', min:5, max:15, lvl:1},
+  {k:'resPoison', min:5, max:15, lvl:1},
+  {k:'hpMax', min:10, max:25, lvl:.5},
+  {k:'mpMax', min:10, max:20, lvl:.5},
+  {k:'speedPct', min:3, max:10, lvl:.5},
+  {k:'ls', min:1, max:5, lvl:.5},
+  {k:'md', min:1, max:5, lvl:.5},
+  {k:'crit', min:3, max:8, lvl:.5},
+];
+
+function levelMult(lvl, factor=1){
+  return 1 + (lvl - 1) * 0.1 * factor;
+}
+
+function affixMods(slot, rarityIdx, lvl=1){
+  const R={};
+  const mult = RARITY[rarityIdx]?.m || 1;
+  if(slot==='weapon'){
+    R.dmgMin=Math.floor(rng.int(1,3)*mult*levelMult(lvl));
+    R.dmgMax=Math.floor(rng.int(2,6)*mult*levelMult(lvl));
+  }
+  const pool = slot==='weapon'?WEAPON_AFFIX_POOL:ARMOR_AFFIX_POOL;
+  const maxAff = Math.min(4, 1 + rarityIdx);
+  const minAff = rarityIdx > 0 ? 2 : 1;
+  const affCount = rng.int(minAff, maxAff);
+  for(let i=0;i<affCount;i++){
+    const a = pool[rng.int(0, pool.length-1)];
+    if(a.k==='status'){
+      const roll=rng.int(0,4);
+      const chance=rng.int(10,30)/100;
+      let status;
+      if(roll===0)      status={k:'burn',  dur:2200,power:1.0,chance,elem:'fire'};
+      else if(roll===1) status={k:'bleed', dur:2000,power:1.0,chance,elem:'bleed'};
+      else if(roll===2) status={k:'poison',dur:2200,power:1.0,chance,elem:'poison'};
+      else if(roll===3) status={k:'freeze',dur:1800,power:0.4,chance,elem:'ice'};
+      else              status={k:'shock', dur:2000,power:0.25,chance,elem:'shock'};
+      if(!R.status) R.status=[];
+      R.status.push(status);
+    }else{
+      const factor = typeof a.lvl === 'number' ? a.lvl : (a.lvl ? 1 : 0);
+      const val = rng.int(a.min,a.max) * mult;
+      R[a.k]=(R[a.k]||0)+Math.floor(val*levelMult(lvl, factor));
+    }
+  }
+  return R;
+}
+
+function seedRoomLoot(){
+  if(rooms.length){
+    for(const r of rooms){
+      if(rng.next()<LOOT_CHANCE){
+        const x=rng.int(r.x+1,r.x+r.w-2), y=rng.int(r.y+1,r.y+r.h-2);
+        lootMap.set(`${x},${y}`,{color:'#ffd24a',type:'gold',amt:rng.int(5,20)});
+      }
+    }
+  } else {
+    for(let y=1;y<MAP_H-1;y++) for(let x=1;x<MAP_W-1;x++) if(map[y*MAP_W+x]===T_FLOOR && rng.next()<LOOT_CHANCE*0.3){
+      lootMap.set(`${x},${y}`,{color:'#ffd24a',type:'gold',amt:rng.int(5,20)});
+    }
+  }
+}
+
+function pickupHere(){
+  const key = `${player.x},${player.y}`;
+  const it = lootMap.get(key);
+  if(!it) return;
+  if(it.type === 'gold'){
+    player.gold += it.amt; hudGold.textContent = player.gold; showToast(`+${it.amt} gold`); lootMap.delete(key); return;
+  }
+  if(it.type === 'potion'){
+    const pidx = potionBag.findIndex(b=>!b);
+    if(pidx === -1){ showToast('Potion bag full'); return; }
+    potionBag[pidx] = it; lootMap.delete(key); showToast(`Picked up ${it.name}`);
+    redrawInventory();
+    return;
+  }
+  const idx = bag.findIndex(b=>!b);
+  if(idx === -1){ showToast('Bag full'); return; }
+  bag[idx] = it; lootMap.delete(key); showToast(`Picked up ${it.name}`);
+  redrawInventory();
+}
+
+function equipFromBag(idx){
+  const it = bag[idx]; if(!it) return;
+  const slot = it.slot; const prev = equip[slot];
+  equip[slot] = it; bag[idx] = prev || null; showToast(`Equipped ${it.name}`);
+  redrawInventory(); recalcStats();
+}
+
+function usePotionFromBag(idx){
+  const it = potionBag[idx]; if(!it) return;
+  usePotion(it);
+  potionBag[idx]=null;
+  redrawInventory();
+}
+
+function usePotion(it){
+  let healed=0, restored=0;
+  if(it.hp){ const before=player.hp; player.hp=Math.min(player.hpMax, player.hp+it.hp); healed=player.hp-before; }
+  if(it.mp){
+    if(player.class==='mage'){
+      const before=player.mp; player.mp=Math.min(player.mpMax, player.mp+it.mp); restored=player.mp-before;
+    }else{
+      const before=player.sp; player.sp=Math.min(player.spMax, player.sp+it.mp); restored=player.sp-before;
+    }
+  }
+  if(healed>0) addDamageText(player.x,player.y,`+${healed}`,'#76d38b');
+  if(restored>0) addDamageText(player.x,player.y,`+${restored}`,'#4aa3ff');
+  hpFill.style.width=`${(player.hp/player.hpMax)*100}%`; hpLbl.textContent=`HP ${player.hp}/${player.hpMax}`;
+  updateResourceUI();
+  showToast(`Used ${it.name}`);
+}
+
+function unequip(slot){
+  const it = equip[slot]; if(!it) return;
+  const idx = bag.findIndex(b=>!b); if(idx === -1){ showToast('Bag full'); return; }
+  bag[idx] = it; equip[slot] = null; showToast(`Unequipped ${it.name}`);
+  redrawInventory(); recalcStats();
+}
+
+function dropFromBag(idx){ const it=bag[idx]; if(!it) return; lootMap.set(`${player.x},${player.y}`,it); bag[idx]=null; showToast(`Dropped ${it.name}`); redrawInventory(); }
+
+function sellFromBag(idx){ const it=bag[idx]; if(!it) return; const price=getSellPrice(it); player.gold+=price; hudGold.textContent=player.gold; showToast(`Sold ${it.name} for ${price}`); bag[idx]=null; redrawInventory(); }
+
+function dropFromPotionBag(idx){ const it=potionBag[idx]; if(!it) return; lootMap.set(`${player.x},${player.y}`,it); potionBag[idx]=null; showToast(`Dropped ${it.name}`); redrawInventory(); }
+
+function sellFromPotionBag(idx){ const it=potionBag[idx]; if(!it) return; const price=getSellPrice(it); player.gold+=price; hudGold.textContent=player.gold; showToast(`Sold ${it.name} for ${price}`); potionBag[idx]=null; redrawInventory(); }
+
+function unequipAndSell(slot){ const it=equip[slot]; if(!it) return; const price=getSellPrice(it); equip[slot]=null; player.gold+=price; hudGold.textContent=player.gold; showToast(`Sold ${it.name} for ${price}`); redrawInventory(); recalcStats(); }
+
+function redrawInventory(){
+  recalcStats();
+  let panel = document.getElementById('inventory'); if(!panel){ panel=document.createElement('div'); panel.id='inventory'; panel.className='panel'; document.body.appendChild(panel); }
+  let html = '';
+  html += '<div class="section-title">Character Stats</div>';
+  html += '<div>';
+  html += `<div class="list-row"><div>HP</div><div class="muted">${player.hp}/${currentStats.hpMax}</div></div>`;
+  if(player.class==='mage')
+    html += `<div class="list-row"><div>Mana</div><div class="muted">${player.mp}/${currentStats.mpMax}</div></div>`;
+  else
+    html += `<div class="list-row"><div>Stamina</div><div class="muted">${player.sp}/${currentStats.spMax}</div></div>`;
+  html += `<div class="list-row"><div>ATK</div><div class="muted">${currentStats.dmgMin}-${currentStats.dmgMax}</div></div>`;
+  html += `<div class="list-row"><div>CRIT</div><div class="muted">${currentStats.crit}%</div></div>`;
+  html += `<div class="list-row"><div>Armor</div><div class="muted">${currentStats.armor}</div></div>`;
+  html += `<div class="list-row"><div>Res F/I/S/M/P</div><div class="muted">${currentStats.resF}/${currentStats.resI}/${currentStats.resS}/${currentStats.resM}/${currentStats.resP}</div></div>`;
+  html += '</div><div class="hr"></div>';
+  html += '<div class="section-title">Equipped</div>';
+  html += '<div>';
+  for(const slot of SLOTS){
+    const it = equip[slot];
+    const name = it?`<span style="color:${it.color}">${escapeHtml(it.name)}</span>`:'-';
+    html += `<div class="list-row" data-type="eq" data-slot="${slot}"><div>${slot}: ${name}</div><div class="muted">${it?shortMods(it):''}</div></div>`;
+  }
+  html += '</div><div class="hr"></div>';
+  html += '<div class="section-title">Bag</div><div class="inv-grid">';
+  for(let i=0;i<BAG_SIZE;i++){
+    const it = bag[i];
+    html += `<div class="list-row" data-type="bag" data-idx="${i}"><div>${i+1}. ${it?`<span style="color:${it.color}">${escapeHtml(it.name)}</span>`:'(empty)'}</div><div class="muted">${it?shortMods(it):''}</div></div>`;
+  }
+  html += '</div><div class="hr"></div>';
+  html += '<div class="section-title">Potions</div><div class="inv-grid">';
+  for(let i=0;i<POTION_BAG_SIZE;i++){
+    const it = potionBag[i];
+    html += `<div class="list-row" data-type="pbag" data-idx="${i}"><div>${i+1}. ${it?`<span style="color:${it.color}">${escapeHtml(it.name)}</span>`:'(empty)'}</div><div class="muted">${it?shortMods(it):''}</div></div>`;
+  }
+  html += '</div><div class="hr"></div>';
+  html += '<div id="invDetails" class="muted">Hover an item to see details. Click bag item to Equip or Use. Click potion to Use. Click equipped item to Unequip. Press F or use the Sell button to sell. Use Drop button to drop.</div>';
+  html += '<div class="actions" style="margin-top:8px"><button id="btnSell" class="btn sml" disabled>Sell</button><button id="btnDrop" class="btn sml" disabled>Drop</button></div>';
+  panel.innerHTML = html;
+
+  // events (why: keep DOM light using delegation instead of many listeners)
+  panel.onmouseover = (e)=>{
+    const row = e.target.closest('.list-row'); if(!row) return; showItemDetailsFromRow(row);
+  };
+  panel.onclick = (e)=>{
+    const row = e.target.closest('.list-row'); if(row){
+      const t=row.dataset.type; if(t==='bag'){ equipFromBag(parseInt(row.dataset.idx,10)); } else if(t==='eq'){ unequip(row.dataset.slot); } else if(t==='pbag'){ usePotionFromBag(parseInt(row.dataset.idx,10)); }
+    }
+  };
+  document.getElementById('btnSell').onclick = ()=>{
+    const sel = document.getElementById('invDetails').dataset.sel;
+    const kind = document.getElementById('invDetails').dataset.kind;
+    if(kind==='bag'){ sellFromBag(parseInt(sel,10)); }
+    if(kind==='pbag'){ sellFromPotionBag(parseInt(sel,10)); }
+    if(kind==='eq'){ unequipAndSell(sel); }
+  };
+  document.getElementById('btnDrop').onclick = ()=>{
+    const sel = document.getElementById('invDetails').dataset.sel;
+    const kind = document.getElementById('invDetails').dataset.kind;
+    if(kind==='bag'){ dropFromBag(parseInt(sel,10)); }
+    if(kind==='pbag'){ dropFromPotionBag(parseInt(sel,10)); }
+  };
+}
+
+function showItemDetailsFromRow(row){
+  const det = document.getElementById('invDetails');
+  det.dataset.sel=''; det.dataset.kind='';
+  const t=row.dataset.type;
+  if(t==='bag'){
+    const i=parseInt(row.dataset.idx,10); const it=bag[i]; if(!it){ setDetailsText('(empty slot)'); disableInvActions(); return; }
+    det.dataset.sel=String(i); det.dataset.kind='bag';
+    setDetailsText(renderDetails(it, 'bag'));
+    document.getElementById('btnSell').disabled=false; document.getElementById('btnDrop').disabled=false;
+  }else if(t==='pbag'){
+    const i=parseInt(row.dataset.idx,10); const it=potionBag[i]; if(!it){ setDetailsText('(empty slot)'); disableInvActions(); return; }
+    det.dataset.sel=String(i); det.dataset.kind='pbag';
+    setDetailsText(renderDetails(it, 'bag'));
+    document.getElementById('btnSell').disabled=false; document.getElementById('btnDrop').disabled=false;
+  }else if(t==='eq'){
+    const slot=row.dataset.slot; const it=equip[slot]; if(!it){ setDetailsText(`No ${slot} equipped.`); disableInvActions(); return; }
+    det.dataset.sel=slot; det.dataset.kind='eq';
+    setDetailsText(renderDetails(it, 'eq'));
+    document.getElementById('btnSell').disabled=false; document.getElementById('btnDrop').disabled=true; // avoid dropping equipped directly
+  }
+}
+
+function disableInvActions(){ document.getElementById('btnSell').disabled=true; document.getElementById('btnDrop').disabled=true; }
+function setDetailsText(html){ const det=document.getElementById('invDetails'); det.innerHTML=html; }
+
+function shortMods(it){
+  if(it.type==='potion'){
+    const bits=[];
+    if(it.hp) bits.push(`HP ${it.hp}`);
+    if(it.mp) bits.push(`MP ${it.mp}`);
+    return bits.join(' · ');
+  }
+  const m=it.mods||{}; const bits=[];
+  if(it.lvl) bits.push(`LVL ${it.lvl}`);
+  if(m.dmgMin||m.dmgMax) bits.push(`ATK ${m.dmgMin||0}-${m.dmgMax||0}`);
+  if(m.crit) bits.push(`CR ${m.crit}%`);
+  if(m.armor) bits.push(`ARM ${m.armor}`);
+  if(m.hpMax) bits.push(`HP+${m.hpMax}`);
+  if(m.mpMax) bits.push(`MP+${m.mpMax}`);
+  if(m.speedPct) bits.push(`SPD+${m.speedPct}%`);
+  if(m.ls) bits.push(`LS ${m.ls}%`);
+  if(m.md) bits.push(`MD ${m.md}%`);
+  if(m.atkSpd) bits.push(`AS+${m.atkSpd}%`);
+  if(m.kb) bits.push(`KB ${m.kb}`);
+  if(m.pierce) bits.push(`PRC ${m.pierce}`);
+  if(m.status){
+    const sts = Array.isArray(m.status) ? m.status : [m.status];
+    for(const st of sts){
+      bits.push(`${st.k.toUpperCase()} ${Math.round((st.chance||0)*100)}%`);
+    }
+  }
+  const rf=m.resFire||0, ri=m.resIce||0, rs=m.resShock||0, rm=m.resMagic||0, rp=m.resPoison||0;
+  if(rf||ri||rs||rm||rp) bits.push(`RES F/I/S/M/P ${rf}/${ri}/${rs}/${rm}/${rp}`);
+  return bits.join(' · ');
+}
+
+function renderDetails(it, origin){
+  const val = getItemValue(it); const sell = getSellPrice(it);
+  const lines = [];
+  lines.push(`<div class="item-title" style="color:${it.color}">${escapeHtml(it.name)}</div>`);
+  if(it.type==='potion'){
+    const rows=[];
+    lines.push(`<div class="muted">Potion · ${RARITY[it.rarity]?.n||'?'}</div>`);
+    if(it.hp) rows.push(`<div>Restores <span class="mono">${it.hp}</span> HP</div>`);
+    if(it.mp) rows.push(`<div>Restores <span class="mono">${it.mp}</span> ${player.class==='mage'?'Mana':'Stamina'}</div>`);
+    lines.push(`<div style="margin:6px 0">${rows.join('')}</div>`);
+    lines.push(`<div class="kv"><span class="pill">Value ${val}</span><span class="pill">Sell ${sell}</span>${origin==='shop'?'<span class="pill">Buy</span>':''}</div>`);
+    return lines.join('');
+  }
+  lines.push(`<div class="muted">${it.slot} · Lv ${it.lvl||1} · ${RARITY[it.rarity]?.n||'?'}</div>`);
+  const m = it.mods||{}; const rows = [];
+  if(m.dmgMin||m.dmgMax) rows.push(`<div>Attack: <span class="mono">${m.dmgMin||0}-${m.dmgMax||0}</span></div>`);
+  if(m.crit) rows.push(`<div>Crit: <span class="mono">+${m.crit}%</span></div>`);
+  if(m.armor) rows.push(`<div>Armor: <span class="mono">+${m.armor}</span></div>`);
+  if(m.hpMax) rows.push(`<div>HP Max: <span class="mono">+${m.hpMax}</span></div>`);
+  if(m.mpMax) rows.push(`<div>${player.class==='mage'?'MP':'SP'} Max: <span class="mono">+${m.mpMax}</span></div>`);
+  if(m.speedPct) rows.push(`<div>Speed: <span class="mono">+${m.speedPct}%</span></div>`);
+  if(m.ls) rows.push(`<div>Lifesteal: <span class="mono">${m.ls}%</span></div>`);
+  if(m.md) rows.push(`<div>${player.class==='mage'?'Mana':'Stamina'} Drain: <span class="mono">${m.md}%</span></div>`);
+  if(m.atkSpd) rows.push(`<div>Attack Speed: <span class="mono">+${m.atkSpd}%</span></div>`);
+  if(m.kb) rows.push(`<div>Knockback: <span class="mono">${m.kb}</span></div>`);
+  if(m.pierce) rows.push(`<div>Projectile Pierce: <span class="mono">${m.pierce}</span></div>`);
+  if(m.status){
+    const sts = Array.isArray(m.status) ? m.status : [m.status];
+    for(const st of sts){
+      rows.push(`<div>${st.k.toUpperCase()} Chance: <span class="mono">${Math.round((st.chance||0)*100)}%</span></div>`);
+    }
+  }
+  if(m.resFire||m.resIce||m.resShock||m.resMagic||m.resPoison){
+    rows.push(`<div>Resists (F/I/S/M/P): <span class="mono">${m.resFire||0}/${m.resIce||0}/${m.resShock||0}/${m.resMagic||0}/${m.resPoison||0}%</span></div>`);
+  }
+  if(rows.length===0) rows.push('<div class="muted">No magical properties.</div>');
+  lines.push(`<div style="margin:6px 0">${rows.join('')}</div>`);
+  lines.push(`<div class="kv"><span class="pill">Value ${val}</span><span class="pill">Sell ${sell}</span>${origin==='shop'?'<span class="pill">Buy</span>':''}</div>`);
+  return lines.join('');
+}
+
+// ===== Values / Shop =====
+function getItemValue(it){
+  if(it.type==='potion'){
+    const rBase=[10,20,40,80,160,320][it.rarity||0];
+    let score=0;
+    if(it.hp) score+=it.hp*0.3;
+    if(it.mp) score+=it.mp*0.25;
+    const floorBonus=Math.max(0,floorNum-1)*2;
+    return Math.max(5, Math.floor(rBase+score+floorBonus));
+  }
+  const rBase=[10,25,60,120,250,500][it.rarity||0];
+  const slotFactor = it.slot==='weapon'?1.25:1.0;
+  const m=it.mods||{}; let score=0;
+  score+= (m.dmgMin||0)*4 + (m.dmgMax||0)*6;
+  score+= (m.crit||0)*3 + (m.armor||0)*3;
+  score+= (m.hpMax||0)*0.8 + (m.mpMax||0)*0.6 + (m.speedPct||0)*4;
+  score+= (m.ls||0)*6 + (m.md||0)*6;
+  score+= (m.atkSpd||0)*4 + (m.kb||0)*8 + (m.pierce||0)*12;
+  if(m.status){
+    const sts = Array.isArray(m.status) ? m.status : [m.status];
+    for(const st of sts){
+      score+= Math.round((st.chance||0)*100) * 4;
+    }
+  }
+  score+= ((m.resFire||0)+(m.resIce||0)+(m.resShock||0)+(m.resPoison||0))*1.2 + (m.resMagic||0)*1.8;
+  const floorBonus = Math.max(0,floorNum-1)*4;
+  return Math.max(5, Math.floor((rBase + score)*slotFactor + floorBonus));
+}
+function getSellPrice(it){ return Math.floor(getItemValue(it)*0.5); }
+
+function genShopStock(){
+  shopStock.length=0;
+  const count=5; for(let i=0;i<count;i++) shopStock.push(makeRandomItem());
+}
+
+function makeRandomGear(){
+  const nonWeaponSlots = SLOTS.filter(s=>s!=='weapon');
+  const slot = rng.next()<0.6 ? 'weapon' : nonWeaponSlots[rng.int(0, nonWeaponSlots.length-1)];
+  const rarityIdx = rollRarity();
+  const bases = ITEM_BASES[slot];
+  const base = bases[rng.int(0, bases.length-1)];
+  let baseName = base;
+  if(slot==='weapon') baseName = generateWeaponName(base);
+  else baseName = generateItemName(base);
+  const name = `${RARITY[rarityIdx].n} ${baseName}`;
+  const item = { color: RARITY[rarityIdx].c, type:'gear', slot, name, rarity: rarityIdx, lvl: floorNum, mods: affixMods(slot, rarityIdx, floorNum) };
+  if(slot==='weapon'){ item.wclass = base.toLowerCase(); }
+  return item;
+}
+
+function makeRandomPotion(){
+  const rarityIdx = rng.int(0, RARITY.length-1);
+  const p = POTION_TYPES[rng.int(0, POTION_TYPES.length-1)];
+  const item = { color: RARITY[rarityIdx].c, type:'potion', slot:'Potion', name:`${RARITY[rarityIdx].n} ${p.base}`, rarity:rarityIdx };
+  if(p.k==='hp') item.hp = p.vals[rarityIdx];
+  if(p.k==='mp') item.mp = p.vals[rarityIdx];
+  return item;
+}
+
+function makeRandomItem(){
+  if(rng.next()<0.25){
+    const p = makeRandomPotion();
+    p.price = clamp(5, 9999, Math.floor(getItemValue(p) * (1.0 + (floorNum-1)*0.05)));
+    return p;
+  }
+  const item = makeRandomGear();
+  item.price = clamp(8, 9999, Math.floor(getItemValue(item) * (1.0 + (floorNum-1)*0.05)));
+  return item;
+}
+
+function renderShop(){
+  const panel=document.getElementById('shop');
+  let h='';
+  h += '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px">';
+  h += '<div class="section-title">Merchant</div>';
+  h += '<div class="kv">Gold: <b id="shopGold" class="mono">'+player.gold+'</b></div>';
+  h += '</div>';
+  h += '<div class="muted" style="margin-bottom:6px">Stand on the merchant and press <b>E</b> to open/close. Click an item to buy.</div>';
+  h += '<div class="shop-items">';
+  for(let i=0;i<shopStock.length;i++){
+    const it=shopStock[i];
+    h += `<div class="shop-item">${renderDetails(it,'shop')}<div class="kv" style="margin-top:4px"><div class="pill mono">${it.price}g</div><button class="btn sml" data-buy="${i}">Buy</button></div></div>`;
+  }
+  h += '</div>';
+  h += '<div class="hr"></div><div class="actions"><button id="shopRefresh" class="btn sml">Refresh (15g)</button><button id="shopClose" class="btn sml">Close</button></div>';
+  panel.innerHTML=h;
+  panel.onclick=(e)=>{
+    const b=e.target.closest('button'); if(!b) return;
+    if(b.id==='shopClose'){ toggleShop(false); return; }
+    if(b.id==='shopRefresh'){ if(player.gold>=15){ player.gold-=15; hudGold.textContent=player.gold; genShopStock(); renderShop(); } else showToast('Need 15 gold'); return; }
+    if(b.dataset.buy){ const idx=parseInt(b.dataset.buy,10); buyItem(idx); }
+  };
+}
+
+function buyItem(idx){
+  const it=shopStock[idx]; if(!it) return;
+  if(player.gold<it.price){ showToast('Not enough gold'); return; }
+  if(it.type==='potion'){
+    const slot=potionBag.findIndex(b=>!b); if(slot===-1){ showToast('Potion bag full'); return; }
+    player.gold-=it.price; hudGold.textContent=player.gold; potionBag[slot]=stripShopFields(it); showToast(`Bought ${it.name}`); shopStock.splice(idx,1); renderShop(); redrawInventory();
+    return;
+  }
+  const slot=bag.findIndex(b=>!b); if(slot===-1){ showToast('Bag full'); return; }
+  player.gold-=it.price; hudGold.textContent=player.gold; bag[slot]=stripShopFields(it); showToast(`Bought ${it.name}`); shopStock.splice(idx,1); renderShop(); redrawInventory();
+}
+function stripShopFields(it){ const {price,...rest}=it; return rest; }
+
+function toggleShop(show){ const el=document.getElementById('shop'); el.style.display=show?'block':'none'; if(show){ renderShop(); document.getElementById('shopGold').textContent=player.gold; } }
+
+function dealDamageToMonster(m, base, elem=null, crit=false){
+  const vuln = getEffectPower(m,'shock') || 0;
+  const dmgBase = Math.max(1, Math.floor(base * (1 + vuln)));
+  const cap = 75;
+  const res = elem==='fire' ? clamp(0,cap,m.resFire||0)
+            : elem==='ice'  ? clamp(0,cap,m.resIce||0)
+            : elem==='shock'? clamp(0,cap,m.resShock||0)
+            : elem==='magic'? clamp(0,cap,m.resMagic||0)
+            : elem==='poison'? clamp(0,cap,m.resPoison||0) : 0;
+  const dmg = Math.max(1, Math.floor(dmgBase * (1 - res/100)));
+  m.hp -= dmg; m.hitFlash = 4; playHit();
+  m.aggroT = 10000; // leash to player for at least 10s after taking damage
+  player.combatTimer = 0; player.healAcc = 0;
+  const col = elem==='fire' ? '#ff6b4a'
+            : elem==='ice'  ? '#7dd3fc'
+            : elem==='shock'? '#facc15'
+            : elem==='poison'? '#76d38b'
+            : elem==='bleed'? '#dc2626'
+            : (crit?'#ffe066':'#ffd24a');
+  addDamageText(m.x,m.y,`-${dmg}`, col);
+}
+
+// ======== Status Effects (burn / freeze / shock / poison / bleed) ========
+function getEffect(entity, k){ return (entity.effects||[]).find(e=>e.k===k); }
+function getEffectPower(entity, k){
+  const e=getEffect(entity,k); if(!e) return 0;
+  if(k==='shock') return e.power||0;
+  if(k==='freeze') return e.power||0;
+  if(k==='burn') return e.power||0;
+  if(k==='poison') return e.power||0;
+  if(k==='bleed') return e.power||0;
+  return 0;
+}
+function speedMultFromEffects(entity){
+  const f = getEffectPower(entity,'freeze');
+  return 1 + (f||0);
+}
+function resistAdjusted(target, elem, obj){
+  if(target!==player || !elem) return obj;
+  const cap=75;
+  const res = elem==='fire' ? clamp(0,cap,player.resFire||0)
+            : elem==='ice' ? clamp(0,cap,player.resIce||0)
+            : elem==='shock'? clamp(0,cap,player.resShock||0)
+            : elem==='magic'? clamp(0,cap,player.resMagic||0)
+            : elem==='poison'? clamp(0,cap,player.resPoison||0) : 0;
+  const dur = Math.max(200, Math.floor(obj.dur * (1 - res/150)));
+  const power = Math.max(0, obj.power * (1 - res/100));
+  return { ...obj, dur, power };
+}
+function applyStatus(target, k, dur, power){
+  if(!target.effects) target.effects=[];
+  const cur = getEffect(target,k);
+  if(cur){ cur.t = Math.max(cur.t, dur); cur.power = Math.max(cur.power||0, power||0); return; }
+  target.effects.push({ k, t:dur, power:power||0, acc:0 });
+}
+function tryApplyStatus(target, status, elem){
+  if(!status) return;
+  if(Math.random() > (status.chance ?? 1)) return;
+  const tuned = resistAdjusted(target, elem, status);
+  applyStatus(target, status.k, tuned.dur, tuned.power);
+  const col = elem==='fire'?'#ff6b4a'
+             : elem==='ice'?'#7dd3fc'
+             : elem==='shock'?'#facc15'
+             : elem==='poison'?'#76d38b'
+             : elem==='bleed'?'#dc2626'
+             : '#b84aff';
+  addDamageText(target.x, target.y, status.k.toUpperCase(), col);
+}
+function tickEffects(entity, dt){
+  if(!entity.effects || entity.effects.length===0) return;
+  for(const e of entity.effects){
+    e.t -= dt;
+    if(e.k==='burn'){
+      e.acc=(e.acc||0)+dt; if(e.acc>=450){ e.acc=0;
+        const base = 2 + Math.floor(floorNum*0.6);
+        if(entity===player){ applyDamageToPlayer(Math.max(1, Math.floor(base * (e.power||1))), 'fire'); }
+        else{ dealDamageToMonster(entity, Math.max(1, Math.floor(base * (e.power||1))), 'fire', false); }
+      }
+    }
+    if(e.k==='poison'){
+      e.acc=(e.acc||0)+dt; if(e.acc>=450){ e.acc=0;
+        const base = 2 + Math.floor(floorNum*0.6);
+        if(entity===player){ applyDamageToPlayer(Math.max(1, Math.floor(base * (e.power||1))), 'poison'); }
+        else{ dealDamageToMonster(entity, Math.max(1, Math.floor(base * (e.power||1))), 'poison', false); }
+      }
+    }
+    if(e.k==='bleed'){
+      e.acc=(e.acc||0)+dt; if(e.acc>=450){ e.acc=0;
+        const base = 2 + Math.floor(floorNum*0.5);
+        if(entity===player){ applyDamageToPlayer(Math.max(1, Math.floor(base * (e.power||1))), 'physical'); }
+        else{ dealDamageToMonster(entity, Math.max(1, Math.floor(base * (e.power||1))), 'bleed', false); }
+      }
+    }
+  }
+  entity.effects = entity.effects.filter(e=>e.t>0);
+}
+function drawStatusPips(ctx, entity, cx, cy){
+  if(!entity.effects||entity.effects.length===0) return;
+  const mapColor = (k)=> k==='burn'?'#ff6b4a'
+                         :k==='freeze'?'#7dd3fc'
+                         :k==='shock'?'#facc15'
+                         :k==='poison'?'#76d38b'
+                         :k==='bleed'?'#dc2626':'#b84aff';
+  let i=0; for(const e of entity.effects){
+    const x = cx - 8 + i*8, y = cy;
+    ctx.fillStyle = mapColor(e.k); ctx.beginPath(); ctx.arc(x, y, 2.5, 0, Math.PI*2); ctx.fill(); i++;
+    if(i>=4) break;
+  }
+}
+
+// ===== Combat / Click =====
+canvas.addEventListener('mousedown', (e)=>{
+  if(e.button !== 0) return; // ensure left-click
+  e.preventDefault();
+  const rect=canvas.getBoundingClientRect(); const mx=(e.clientX-rect.left); const my=(e.clientY-rect.top);
+  const px = player.rx!==undefined?player.rx:player.x, py = player.ry!==undefined?player.ry:player.y;
+  const cx = px*TILE - camX + TILE/2, cy = py*TILE - camY + TILE/2;
+  if(mx===cx && my===cy) return;
+  const ang=Math.atan2(my-cy,mx-cx);
+  const dx=Math.cos(ang), dy=Math.sin(ang);
+  player.faceDx=dx; player.faceDy=dy;
+  performPlayerAttack(dx,dy);
+});
+
+function currentAtk(){
+  // why: single source-of-truth for attack numbers (incl. level & gear)
+  let min=2,max=4,crit=5,ls=0,md=0;
+  const lvlBonus = Math.floor((player.lvl-1)*0.6); min+=lvlBonus; max+=lvlBonus;
+  for(const slot of SLOTS){
+    const m=equip[slot]?.mods||{};
+    if(slot==='weapon'){ min+=m.dmgMin||0; max+=m.dmgMax||0; }
+    if(m.crit) crit+=m.crit;
+    if(m.ls) ls+=m.ls;
+    if(m.md) md+=m.md;
+  }
+  return {min,max,crit,ls,md};
+}
+
+function applyDamageToPlayer(dmg, type='physical'){
+  player.combatTimer = 0; player.healAcc = 0;
+  // Armor DR (applies to physical/ranged only)
+  const armor = player.armor||0;
+  const K = 50 + 10 * Math.max(0, floorNum-1);
+  const armorDR = Math.max(0, Math.min(0.8, armor / (armor + K)));
+  let afterArmor = dmg;
+  if(type==='physical' || type==='ranged'){ afterArmor = Math.max(1, Math.floor(dmg * (1 - armorDR))); }
+
+  // Elemental/magic resist (percentage, capped)
+  const cap = 75;
+  const rF = clamp(0, cap, player.resFire||0);
+  const rI = clamp(0, cap, player.resIce||0);
+  const rS = clamp(0, cap, player.resShock||0);
+  const rM = clamp(0, cap, player.resMagic||0);
+  const rP = clamp(0, cap, player.resPoison||0);
+  const resPct = (type==='fire')?rF : (type==='ice')?rI : (type==='shock')?rS : (type==='magic')?rM : (type==='poison')?rP : 0;
+  const sv = getEffectPower(player,'shock') || 0; // percent
+  const eff = Math.max(1, Math.floor(afterArmor * (1 - resPct/100) * (1 + sv)));
+
+  player.hp = Math.max(0, player.hp - eff);
+  const dmgCol = type==='magic'?'#b84aff' : type==='poison'?'#76d38b' : '#ff6b6b';
+  damageTexts.push({ tx:player.x, ty:player.y, text:`-${eff}`, color:dmgCol, age:0, ttl:900 });
+  playHit();
+  if(player.hp===0){ showRespawn(); }
+}
+
+// ===== Player weapon profiles & directional attacks =====
+const WEAPON_RULES = {
+  sword: {kind:'melee', reach:2, cooldown:240, status:{k:'bleed', elem:'bleed', dur:2000, power:1.0, chance:0.3}},
+  axe:   {kind:'melee', reach:1, cooldown:300, status:{k:'bleed', elem:'bleed', dur:2200, power:1.2, chance:0.35}, kb:1},
+  mace:  {kind:'melee', reach:1, cooldown:300, status:{k:'bleed', elem:'bleed', dur:2200, power:1.1, chance:0.3}, kb:1},
+  dagger:{kind:'melee', reach:1, cooldown:160, status:{k:'bleed', elem:'bleed', dur:1600, power:0.8, chance:0.4}},
+  // speeds now in tiles/sec
+  bow:   {kind:'ranged', projSpeed:14, projRange:14, cooldown:320, dtype:'ranged', status:{k:'poison', elem:'poison', dur:2200, power:1.0, chance:0.3}},
+  crossbow:{kind:'ranged', projSpeed:16, projRange:16, cooldown:360, dtype:'ranged', status:{k:'freeze', elem:'ice', dur:1800, power:0.4, chance:0.35}},
+  wand:  {kind:'ranged', projSpeed:12, projRange:12, cooldown:260, dtype:'magic', elem:'fire',  status:{k:'burn',  dur:2200, power:1.0, chance:0.55}},
+  staff: {kind:'ranged', projSpeed:10, projRange:12, cooldown:300, dtype:'magic', elem:'shock', status:{k:'shock', dur:2000, power:0.25, chance:0.60}},
+  _default:{kind:'melee', reach:2, cooldown:260, status:{k:'bleed', elem:'bleed', dur:2000, power:1.0, chance:0.25}}
+};
+function wclassFromName(n){
+  if(!n) return null; const s=n.toLowerCase();
+  for(const k of ['sword','axe','mace','dagger','bow','wand','staff','spear','halberd','crossbow','flail','katana']) if(s.includes(k)) return k;
+  return null;
+}
+function currentWeaponProfile(){
+  const it = equip.weapon;
+  const wc = it?.wclass || wclassFromName(it?.name) || null;
+  const base = WEAPON_RULES[wc] || WEAPON_RULES._default;
+  return {...base};
+}
+function firstMonsterAt(tx,ty){ return monsters.find(mm=>mm.x===tx && mm.y===ty); }
+function performPlayerAttack(dx,dy,dmgMult=1){
+  if(player.atkCD>0) return;
+  const prof = currentWeaponProfile();
+  const mag = Math.hypot(dx,dy);
+  if(mag===0) return;
+  const ndx = dx/mag, ndy = dy/mag;
+  player.faceDx = ndx; player.faceDy = ndy; playAttack();
+  const {min,max,crit,ls,md} = currentAtk();
+  let dmg=rng.int(min,max);
+  const wasCrit=(Math.random()*100<crit); if(wasCrit) dmg=Math.floor(dmg*1.5);
+  dmg=Math.max(1,Math.floor(dmg*dmgMult));
+  const wStatus = equip.weapon?.mods?.status;
+  const atkStatuses = [];
+  if(wStatus){
+    const ws = Array.isArray(wStatus) ? wStatus : [wStatus];
+    atkStatuses.push(...ws);
+  }
+  if(prof.status) atkStatuses.push(prof.status);
+  const wmods = equip.weapon?.mods || {};
+  const kb = (wmods.kb || 0) + (prof.kb || 0);
+  const aspd = wmods.atkSpd || 0;
+  const pierce = wmods.pierce || 0;
+  if(prof.kind==='melee'){
+    const reach = prof.reach ?? 2;
+    const cone = (prof.cone || 35) * Math.PI / 180;
+    let target=null, bestDist=Infinity;
+    for(const m of monsters){
+      const dxm = m.x - player.x, dym = m.y - player.y;
+      const dist = Math.hypot(dxm,dym);
+      if(dist>reach || dist===0) continue;
+      const ang = Math.acos((ndx*dxm + ndy*dym)/dist);
+      if(ang > cone/2) continue;
+      if(!clearPath8(player.x, player.y, m.x, m.y)) continue;
+      if(dist < bestDist){ target=m; bestDist=dist; }
+    }
+    if(target){
+      dealDamageToMonster(target, dmg, null, wasCrit);
+      for(const st of atkStatuses){
+        tryApplyStatus(target, st, st.elem);
+      }
+      if(ls>0){ const heal=Math.max(1,Math.floor(dmg*ls/100)); player.hp=Math.min(player.hpMax, player.hp+heal); addDamageText(player.x,player.y,`+${heal}`,'#76d38b'); }
+      if(md>0){ const gain=Math.max(1,Math.floor(dmg*md/100)); if(player.class==='mage'){ player.mp=Math.min(player.mpMax,player.mp+gain); } else { player.sp=Math.min(player.spMax,player.sp+gain); } addDamageText(player.x,player.y,`+${gain}`,'#4aa3ff'); updateResourceUI(); }
+      if(kb>0){
+        const kdx=Math.sign(ndx), kdy=Math.sign(ndy);
+        for(let i=0;i<kb;i++){ if(!tryMoveMonster(target,kdx,kdy)) break; }
+      }
+    }
+    let cd = prof.cooldown;
+    if(aspd>0) cd = Math.max(60, Math.floor(cd * (1 - aspd/100)));
+    player.atkCD = cd;
+  } else {
+    // ranged projectile
+    projectiles.push({
+      x: player.x+0.5, y: player.y+0.5, dx: ndx, dy: ndy,
+      speed: prof.projSpeed, damage:dmg, type: prof.dtype||'ranged', elem: (atkStatuses[0]?.elem || prof.elem || null),
+      owner:'player', alive:true, maxDist: prof.projRange, dist:0, ls, md,
+      status: atkStatuses, kb, pierce
+    });
+    let cd = prof.cooldown;
+    if(aspd>0) cd = Math.max(60, Math.floor(cd * (1 - aspd/100)));
+    player.atkCD = cd;
+  }
+}
+
+// ===== Monster AI & Movement =====
+function tryMoveMonster(m, dx, dy, dur=140){
+  if(dx===0 && dy===0) return false;
+  const nx=m.x+dx, ny=m.y+dy;
+  if(!walkable(nx,ny)) return false;
+  if(firstMonsterAt(nx,ny) || (nx===player.x && ny===player.y)) return false;
+  m.x=nx; m.y=ny;
+  dur = Math.round(dur * ENEMY_SPEED_MULT);
+  if(smoothEnabled){ m.fromX=m.rx; m.fromY=m.ry; m.toX=nx; m.toY=ny; m.moveT=0; m.moving=true; m.moveDur=dur; }
+  else{ m.rx=m.x; m.ry=m.y; m.moving=false; m.moveT=1; }
+  return true;
+}
+
+function meleeIfAdjacent(m){
+  if(Math.abs(m.x-player.x)+Math.abs(m.y-player.y)!==1) return false;
+  if(m.atkCD>0) return false;
+  const dmg = rng.int(m.dmgMin, m.dmgMax);
+  applyDamageToPlayer(dmg);
+  m.atkCD = rng.int(20, 35);
+  return true;
+}
+
+function slimeAI(m, dt, dx, dy, manhattan){
+  if(m.spriteKey==='slime_shadow'){
+    if(m.atkCD===0 && manhattan<= (m.elite?8:6)){
+      const spots=[];
+      for(let tx=player.x-1; tx<=player.x+1; tx++){
+        for(let ty=player.y-1; ty<=player.y+1; ty++){
+          if(tx===player.x && ty===player.y) continue;
+          if(!walkable(tx,ty)) continue;
+          if(firstMonsterAt(tx,ty)) continue;
+          spots.push({x:tx,y:ty});
+        }
+      }
+      if(spots.length>0){
+        const s=spots[rng.int(0,spots.length-1)];
+        m.x=s.x; m.y=s.y;
+        m.rx=m.x; m.ry=m.y; m.fromX=m.x; m.fromY=m.y; m.toX=m.x; m.toY=m.y; m.moving=false; m.moveT=1;
+        const dmg=rng.int(m.dmgMin,m.dmgMax);
+        applyDamageToPlayer(dmg);
+        m.atkCD=rng.int(40,60);
+        m.moveCD=Math.round(rng.int(6,10)*ENEMY_SPEED_MULT);
+      }
+    }
+    if(m.moveCD===0){
+      const stepX=tryMoveMonster(m, dx, 0, 150);
+      if(!stepX) tryMoveMonster(m, 0, dy, 150);
+      m.moveCD=Math.round(rng.int(6,10)*ENEMY_SPEED_MULT);
+    }
+    return;
+  }
+  if(m.state.chargeSteps>0){
+    if(tryMoveMonster(m, m.state.cdx, m.state.cdy, 110)) m.state.chargeSteps--;
+    else m.state.chargeSteps=0;
+    return;
+  }
+  if(m.moveCD===0){
+    const chance = m.elite?0.5:0.3;
+    const steps = m.elite?3:2;
+    if(manhattan<=3 && m.atkCD===0 && rng.next()<chance){
+      m.state.cdx = dx; m.state.cdy = dy; m.state.chargeSteps = steps;
+      m.atkCD = 12;
+    }else{
+      const stepX = tryMoveMonster(m, dx, 0, 150);
+      if(!stepX) tryMoveMonster(m, 0, dy, 150);
+    }
+    m.moveCD = Math.round(rng.int(6, 10) * ENEMY_SPEED_MULT);
+  }
+}
+
+function batAI(m, dt, dx, dy, manhattan){
+  if(m.state.swoop>0){
+    const ok = tryMoveMonster(m, m.state.sdx, m.state.sdy, 90);
+    m.state.swoop = ok ? m.state.swoop-1 : 0;
+    return;
+  }
+  const swoopRange = m.elite?8:6;
+  if(manhattan<=swoopRange && m.atkCD===0 && m.moveCD===0){
+    m.state.sdx = dx!==0?dx:0; m.state.sdy = dy!==0?dy:0;
+    if(m.state.sdx===0 && m.state.sdy===0){ m.state.sdx = (rng.next()<0.5?1:-1); }
+    m.state.swoop = m.elite?3:2;
+    m.atkCD = 18;
+    m.moveCD = Math.round(2 * ENEMY_SPEED_MULT);
+    return;
+  }
+  if(m.moveCD===0){
+    if(!tryMoveMonster(m, dx, dy, 110)){
+      if(!tryMoveMonster(m, dx, 0, 110)) tryMoveMonster(m, 0, dy, 110);
+    }
+    m.moveCD = Math.round(rng.int(4, 8) * ENEMY_SPEED_MULT);
+  }
+}
+
+function skeletonAI(m, dt, dx, dy, manhattan){
+  if(manhattan<=7 && clearPathCardinal(m.x,m.y,player.x,player.y) && m.atkCD===0){
+    const adx = sign(player.x - m.x), ady = sign(player.y - m.y);
+    let elem='ranged', status=null;
+    if(m.spriteKey==='skeleton_red'){ elem='fire'; status={k:'burn',  dur:2200, power:1.0, chance:0.9}; }
+    else if(m.spriteKey==='skeleton_green'){ elem='poison'; status={k:'poison',dur:2200, power:1.0, chance:0.9}; }
+    projectiles.push({ x:m.x+0.5, y:m.y+0.5, dx:adx, dy:ady, speed:12, damage:rng.int(m.dmgMin,m.dmgMax), type:'ranged', elem, owner:'enemy', alive:true, maxDist:12, dist:0, status });
+    if(m.elite){
+      projectiles.push({ x:m.x+0.5, y:m.y+0.5, dx:adx, dy:ady, speed:14, damage:rng.int(m.dmgMin,m.dmgMax), type:'ranged', elem, owner:'enemy', alive:true, maxDist:12, dist:0, status });
+    }
+    m.atkCD = rng.int(26, 40);
+    return;
+  }
+  if(m.moveCD===0){
+    if(!tryMoveMonster(m, dx, 0, 160)) tryMoveMonster(m, 0, dy, 160);
+    m.moveCD = Math.round(rng.int(6, 10) * ENEMY_SPEED_MULT);
+  }
+}
+
+function goblinAI(m, dt, dx, dy, manhattan){
+  if(m.moveCD===0){
+    if(!tryMoveMonster(m, dx, 0, 120)) tryMoveMonster(m, 0, dy, 120);
+    if(m.elite){
+      if(!tryMoveMonster(m, dx, 0, 120)) tryMoveMonster(m, 0, dy, 120);
+    }
+    m.moveCD = Math.round(rng.int(4, 8) * ENEMY_SPEED_MULT);
+  }
+}
+
+function ghostAI(m, dt, dx, dy, manhattan){
+  if(m.moveCD===0){
+    if(!tryMoveMonster(m, dx, dy, 140)){
+      if(!tryMoveMonster(m, dx, 0, 140)) tryMoveMonster(m, 0, dy, 140);
+    }
+    if(m.elite){
+      if(!tryMoveMonster(m, dx, dy, 140)){
+        if(!tryMoveMonster(m, dx, 0, 140)) tryMoveMonster(m, 0, dy, 140);
+      }
+    }
+    m.moveCD = Math.round(rng.int(6, 12) * ENEMY_SPEED_MULT);
+  }
+}
+
+function mageAI(m, dt, dx, dy, manhattan){
+  const preferRange = 5;
+  if(manhattan<=8 && clearPath8(m.x,m.y,player.x,player.y) && m.atkCD===0){
+    const adx = sign(player.x - m.x), ady = sign(player.y - m.y);
+    const roll = rng.next(); let elem='magic', status=null, speed=10, maxDist=10;
+    if(roll<0.34){ elem='fire';  status={k:'burn',  dur:2200, power:1.0, chance:0.9}; }
+    else if(roll<0.67){ elem='ice';   status={k:'freeze',dur:1800, power:0.40, chance:0.9}; }
+    else { elem='shock'; status={k:'shock', dur:2000, power:0.25, chance:0.9}; }
+    projectiles.push({ x:m.x+0.5, y:m.y+0.5, dx:adx, dy:ady, speed, damage:rng.int(m.dmgMin,m.dmgMax+2), type:'magic', elem, owner:'enemy', alive:true, maxDist, dist:0, status });
+    if(m.elite){
+      projectiles.push({ x:m.x+0.5, y:m.y+0.5, dx:adx, dy:ady, speed:speed+2, damage:rng.int(m.dmgMin,m.dmgMax+2), type:'magic', elem, owner:'enemy', alive:true, maxDist, dist:0, status });
+    }
+    m.atkCD = rng.int(24, 34);
+    return;
+  }
+  if(m.moveCD===0){
+    if(manhattan<=preferRange-1){
+      if(!tryMoveMonster(m, -dx, 0, 150)) tryMoveMonster(m, 0, -dy, 150);
+    }else{
+      if(!tryMoveMonster(m, dx, 0, 150)) tryMoveMonster(m, 0, dy, 150);
+    }
+    if(m.elite){
+      if(manhattan<=preferRange-1){
+        if(!tryMoveMonster(m, -dx, 0, 150)) tryMoveMonster(m, 0, -dy, 150);
+      }else{
+        if(!tryMoveMonster(m, dx, 0, 150)) tryMoveMonster(m, 0, dy, 150);
+      }
+    }
+    m.moveCD = Math.round(rng.int(6, 10) * ENEMY_SPEED_MULT);
+  }
+}
+
+const MONSTER_BEHAVIORS = {0:slimeAI,1:batAI,2:skeletonAI,3:mageAI,4:mageAI,5:goblinAI,6:ghostAI};
+
+function monsterAI(m, dt){
+  m.atkCD = Math.max(0, m.atkCD - 1);
+  m.moveCD = Math.max(0, m.moveCD - 1);
+  m.aggroT = Math.max(0, (m.aggroT || 0) - dt);
+  if(meleeIfAdjacent(m)) return;
+  const dx = sign(player.x - m.x), dy = sign(player.y - m.y);
+  const manhattan = Math.abs(player.x-m.x)+Math.abs(player.y-m.y);
+  if(manhattan>AGGRO_RANGE && (m.aggroT||0)<=0) return;
+  const fn = MONSTER_BEHAVIORS[m.type] || mageAI;
+  fn(m, dt, dx, dy, manhattan);
+}
+
+// ===== Drawing =====
+function drawLootIcon(it, x, y){
+  ctx.save();
+  if(it.rarity>0){
+    ctx.shadowColor = it.color;
+    ctx.shadowBlur = 4 + it.rarity*2;
+  }
+  ctx.fillStyle = it.color;
+  ctx.strokeStyle = '#000';
+  ctx.lineWidth = 1;
+  if(it.type==='gold'){
+    const frames = SPRITES.coin.frames;
+    const idx = Math.floor(performance.now()/100) % frames.length;
+    ctx.drawImage(frames[idx], x, y);
+  }else if(it.type==='potion'){
+    const spr = it.hp ? SPRITES.potion_hp : SPRITES.potion_mp;
+    const frames = spr.frames;
+    const idx = frames.length ? Math.floor(performance.now()/100)%frames.length : 0;
+    ctx.drawImage(frames[idx]||spr.cv, x+1, y+1);
+  }else{
+    switch(it.slot){
+      case 'weapon':
+        if(it.wclass === 'bow'){
+          const spr = SPRITES.bow_loot;
+          const frames = spr.frames;
+          const idx = frames.length ? Math.floor(performance.now()/100)%frames.length : 0;
+          ctx.drawImage(frames[idx]||spr.cv, x, y);
+        }else if(it.wclass === 'sword'){
+          const spr = SPRITES.sword_loot;
+          const frames = spr.frames;
+          const idx = frames.length ? Math.floor(performance.now()/100)%frames.length : 0;
+          ctx.drawImage(frames[idx]||spr.cv, x, y);
+        }else{
+          ctx.fillRect(x+6, y, 2, 10);
+          ctx.strokeRect(x+6, y, 2, 10);
+          ctx.fillRect(x+4, y+8, 6, 2);
+          ctx.strokeRect(x+4, y+8, 6, 2);
+        }
+        break;
+      case 'helmet':
+        ctx.beginPath();
+        ctx.arc(x+7, y+6, 5, Math.PI, 0);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillRect(x+2, y+6, 10, 6);
+        ctx.strokeRect(x+2, y+6, 10, 6);
+        break;
+      case 'chest': {
+        const spr = SPRITES.chest_loot;
+        const frames = spr.frames;
+        const idx = frames.length ? Math.floor(performance.now()/100)%frames.length : 0;
+        ctx.drawImage(frames[idx]||spr.cv, x, y);
+        break;
+      }
+      case 'legs':
+        ctx.fillRect(x+4, y+3, 3, 8);
+        ctx.strokeRect(x+4, y+3, 3, 8);
+        ctx.fillRect(x+7, y+3, 3, 8);
+        ctx.strokeRect(x+7, y+3, 3, 8);
+        break;
+      case 'hands':
+        ctx.beginPath();
+        ctx.arc(x+7, y+7, 5, 0, Math.PI*2);
+        ctx.fill();
+        ctx.stroke();
+        break;
+      case 'feet':
+        ctx.fillRect(x+3, y+8, 4, 4);
+        ctx.strokeRect(x+3, y+8, 4, 4);
+        ctx.fillRect(x+7, y+8, 4, 4);
+        ctx.strokeRect(x+7, y+8, 4, 4);
+        break;
+      default:
+        ctx.fillRect(x, y, 14, 14);
+        ctx.strokeRect(x, y, 14, 14);
+    }
+  }
+  ctx.restore();
+}
+
+function draw(dt){
+  const maxX=MAP_W*TILE - VIEW_W, maxY=MAP_H*TILE - VIEW_H;
+  const camTileX = (smoothEnabled && player.rx!==undefined ? player.rx : player.x);
+  const camTileY = (smoothEnabled && player.ry!==undefined ? player.ry : player.y);
+  camX = Math.max(0, Math.min(camTileX*TILE - VIEW_W/2, maxX));
+  camY = Math.max(0, Math.min(camTileY*TILE - VIEW_H/2, maxY));
+
+  ctx.clearRect(0,0,VIEW_W,VIEW_H);
+  ctx.drawImage(floorLayer, -camX, -camY);
+  ctx.drawImage(wallLayer, -camX, -camY);
+
+  // hazards
+  const now = performance.now();
+  if(SPRITES.lava){
+    const lframes = SPRITES.lava.frames;
+    const lidx = Math.floor(now/200)%lframes.length;
+    for(const h of lavaTiles){
+      const idx=h.y*MAP_W + h.x; if(!vis[idx]) continue;
+      ctx.drawImage(lframes[lidx], h.x*TILE - camX, h.y*TILE - camY);
+    }
+  }
+  if(SPRITES.spike){
+    const sframes = SPRITES.spike.frames;
+    const sidx = Math.floor(now/200)%sframes.length;
+    for(const h of spikeTraps){
+      const idx=h.y*MAP_W + h.x; if(!vis[idx]) continue;
+      ctx.drawImage(sframes[sidx], h.x*TILE - camX, h.y*TILE - camY);
+    }
+  }
+
+  // torches
+  for(const t of torches){
+    const idx = t.y*MAP_W + t.x;
+    if(!vis[idx]) continue;
+    const tx = t.x*TILE - camX + TILE/2;
+    const ty = t.y*TILE - camY + TILE/2;
+    const flick = 0.7 + 0.3*Math.sin(now*0.005 + t.phase);
+    const rad = 6 + flick*2;
+    ctx.globalCompositeOperation='lighter';
+    const g = ctx.createRadialGradient(tx, ty, 0, tx, ty, rad*2);
+    g.addColorStop(0, `rgba(255,200,80,${0.6*flick})`);
+    g.addColorStop(1, 'rgba(255,200,80,0)');
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(tx, ty, rad*2, 0, Math.PI*2); ctx.fill();
+    ctx.globalCompositeOperation='source-over';
+    ctx.fillStyle = `rgba(255,180,50,${0.8*flick})`;
+    ctx.beginPath(); ctx.arc(tx, ty, rad, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#663300';
+    ctx.fillRect(tx-1, ty+rad-2, 2, 6);
+  }
+
+  // portal (stairs replacement) sprite
+  const stairsX = stairs.x*TILE - camX + (TILE-48)/2; const stairsY = stairs.y*TILE - camY + (TILE-48)/2;
+  SPRITES.stairs.draw(performance.now());
+  ctx.drawImage(SPRITES.stairs.cv, stairsX, stairsY);
+
+  // merchant (sprite)
+  if(vis[merchant.y*MAP_W+merchant.x]){
+    const mx = merchant.x*TILE - camX + (TILE-24)/2; const my = merchant.y*TILE - camY + (TILE-24)/2;
+    const sprite = merchantStyle==='goblin'? SPRITES.shop_goblin.cv : SPRITES.shop_stall.cv;
+    ctx.drawImage(sprite, mx, my);
+  }
+
+  // loot
+  for(const [k,it] of lootMap.entries()){
+    const [lx,ly]=k.split(',').map(Number);
+    if(vis[ly*MAP_W+lx]){
+      const lxpx = lx*TILE - camX + (TILE-14)/2;
+      const lypy = ly*TILE - camY + (TILE-14)/2;
+      drawLootIcon(it, lxpx, lypy);
+    }
+  }
+
+  // monsters (sprites by type)
+  for(const m of monsters){
+    if(!vis[m.y*MAP_W+m.x]) continue;
+    const mtx = (m.rx!==undefined ? m.rx : m.x);
+    const mty = (m.ry!==undefined ? m.ry : m.y);
+    const size = m.spriteSize || 24;
+    const mx = mtx*TILE - camX + (TILE-size)/2; const my = mty*TILE - camY + (TILE-size)/2;
+    const key = m.spriteKey || (m.type===0?'slime' : m.type===1?'bat' : m.type===2?'skeleton' : m.type===5?'goblin' : m.type===6?'ghost' : 'mage');
+    const spr = SPRITES[key];
+    let frame = spr.cv;
+    if(spr.frames && spr.frames.length>0){
+      const animIdx = Math.floor(now/200) % spr.frames.length;
+      frame = spr.frames[animIdx];
+    }
+    if(m.elite || m.miniBoss || m.bigBoss){
+      const pulse = 0.5 + 0.5*Math.sin(now*0.002);
+      const cx = mx + size/2;
+      const cy = my + size/2;
+      const inner = size/2;
+      const outer = inner + 8 + pulse*4;
+      const g = ctx.createRadialGradient(cx, cy, inner, cx, cy, outer);
+      g.addColorStop(0, 'rgba(255,0,0,0)');
+      g.addColorStop(1, `rgba(255,0,0,${0.4*pulse})`);
+      ctx.save();
+      ctx.globalCompositeOperation='lighter';
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.arc(cx, cy, outer, 0, Math.PI*2);
+      ctx.fill();
+      ctx.restore();
+    }
+    ctx.drawImage(frame, mx, my);
+    if(m.hitFlash>0){ ctx.globalAlpha=0.5; ctx.fillStyle='#ff6666'; ctx.fillRect(mx,my,size,size); ctx.globalAlpha=1; }
+    // hp bar
+    ctx.fillStyle='#111'; ctx.fillRect(mx, my-6, size, 3);
+    ctx.fillStyle='#e33'; const hw=size*(Math.max(0,m.hp)/m.hpMax); ctx.fillRect(mx, my-6, hw, 3);
+    // status pips over bar
+    drawStatusPips(ctx, m, mx+size/2, my-9);
+    if(m.hitFlash>0) m.hitFlash--;
+    if(m.hp<=0){
+      player.kills++; player.score += SCORE_PER_KILL; updateScoreUI();
+      if(m.miniBoss){
+        if(Math.random()<MONSTER_LOOT_CHANCE){ dropGearNear(m.x,m.y); }
+        lootMap.set(`${m.x},${m.y}`,{color:'#ffd24a',type:'gold',amt:rng.int(8,20)});
+      } else {
+        if(Math.random()<MONSTER_LOOT_CHANCE) dropLoot(m.x,m.y);
+        if(Math.random()<0.55){ lootMap.set(`${m.x},${m.y}`,{color:'#ffd24a',type:'gold',amt:rng.int(3,12)}); }
+      }
+      grantXP(m.xp);
+      const idx=monsters.indexOf(m); if(idx>=0) monsters.splice(idx,1);
+    }
+  }
+
+  // projectiles
+  for(const p of projectiles){
+    if(!p.alive) continue;
+    let key;
+    if(p.type==='ranged'){
+      if(p.elem==='fire') key='arrow_fire';
+      else if(p.elem==='shock') key='arrow_shock';
+      else if(p.elem==='ice') key='arrow_ice';
+      else if(p.elem==='poison') key='arrow_poison';
+      else key='arrow';
+    }else{
+      if(p.elem==='fire') key='proj_fire';
+      else if(p.elem==='poison') key='proj_poison';
+      else if(p.elem==='ice') key='proj_ice';
+      else if(p.elem==='shock') key='proj_shock';
+      else if(p.elem==='blast') key='proj_blast';
+      else key='proj_magic';
+    }
+    const spr = SPRITES[key];
+    const frame = spr.frames[Math.floor(now/150) % spr.frames.length];
+    const size = spr.cv.width;
+    const px = p.x*TILE - camX - size/2;
+    const py = p.y*TILE - camY - size/2;
+    if(p.type==='ranged'){
+      const ang = Math.atan2(p.dy, p.dx);
+      ctx.save();
+      ctx.translate(px+size/2, py+size/2);
+      ctx.rotate(ang);
+      ctx.drawImage(frame, -size/2, -size/2);
+      ctx.restore();
+    }else{
+      ctx.drawImage(frame, px, py);
+    }
+  }
+
+  // player (sprite)
+  const ptx = (smoothEnabled && player.rx!==undefined ? player.rx : player.x);
+  const pty = (smoothEnabled && player.ry!==undefined ? player.ry : player.y);
+  const px = ptx*TILE - camX + (TILE-24)/2; const py = pty*TILE - camY + (TILE-24)/2;
+  const pspr = SPRITES[playerSpriteKey];
+  const anim = player.moving ? pspr.move : pspr.idle;
+  const frame = anim[Math.floor(now/200) % anim.length];
+  ctx.drawImage(frame, px, py);
+  // player status pips
+  drawStatusPips(ctx, player, px+12, py-9);
+
+  // floating damage texts
+  for(const t of damageTexts){
+    const tx = t.tx*TILE - camX;
+    const ty = t.ty*TILE - camY - (t.age/100)*20;
+    ctx.fillStyle = t.color || '#ff6b6b';
+    ctx.font = 'bold 14px sans-serif';
+    ctx.fillText(t.text, tx+8, ty);
+    t.age += dt;
+  }
+  damageTexts = damageTexts.filter(t=>t.age < t.ttl);
+
+  // fog
+  ctx.fillStyle='#000';
+  for(let y=0;y<MAP_H;y++)for(let x=0;x<MAP_W;x++){ if(fog[y*MAP_W+x]===0) ctx.fillRect(x*TILE - camX, y*TILE - camY, TILE, TILE); }
+  ctx.fillStyle='rgba(0,0,0,0.6)';
+  for(let y=0;y<MAP_H;y++)for(let x=0;x<MAP_W;x++){ const idx=y*MAP_W+x; const v=fog[idx]; const vv=vis[idx]; if(v && !vv) ctx.fillRect(x*TILE - camX, y*TILE - camY, TILE, TILE); }
+
+  // HUD
+  hpFill.style.width=(100*player.hp/player.hpMax).toFixed(0)+'%';
+  updateResourceUI();
+  const xpPct = Math.min(100, Math.floor(100*player.xp/Math.max(1,player.xpToNext)));
+  xpFill.style.width = xpPct+'%'; xpLbl.textContent=`XP ${player.xp}/${player.xpToNext}`; hudLvl.textContent=player.lvl;
+  hpLbl.textContent=`HP ${player.hp}/${player.hpMax}`;
+}
+
+// ===== Update (smooth tween + 8-dir) =====
+function update(dt){
+  if(gameOver || paused) return;
+  player.timeSurvived += dt;
+  player.score += SCORE_PER_SECOND * (dt/1000);
+  scoreUpdateTimer += dt;
+  player.combatTimer += dt;
+  if(player.combatTimer > OUT_OF_COMBAT_HEAL_DELAY && player.hp < player.hpMax){
+    player.healAcc += OUT_OF_COMBAT_HEAL_RATE * dt/1000;
+    const heal = Math.floor(player.healAcc);
+    if(heal > 0){
+      player.hp = Math.min(player.hpMax, player.hp + heal);
+      player.healAcc -= heal;
+    }
+  }
+  if(scoreUpdateTimer >= 1000){ updateScoreUI(); scoreUpdateTimer = 0; }
+  // init render state
+  if(player.rx===undefined){
+    player.rx=player.x; player.ry=player.y; player.fromX=player.x; player.fromY=player.y; player.toX=player.x; player.toY=player.y; player.moving=false; player.moveT=1; player.moveDur=player.stepDelay; baseStepDelay = player.stepDelay || baseStepDelay;
+  }
+  for(const m of monsters){ if(m.rx===undefined){ m.rx=m.x; m.ry=m.y; m.moving=false; m.moveT=1; m.moveDur=140; } }
+
+  // inputs
+  player.stepCD = Math.max(0, player.stepCD - dt);
+  if(player.stepCD<=0 && !player.moving){
+    const up=!!(keys['arrowup']||keys['w']);
+    const down=!!(keys['arrowdown']||keys['s']);
+    const left=!!(keys['arrowleft']||keys['a']);
+    const right=!!(keys['arrowright']||keys['d']);
+    const dx = (right && !left) ? 1 : (left && !right) ? -1 : 0;
+    const dy = (down && !up) ? 1 : (up && !down) ? -1 : 0;
+    if(dx||dy){
+      // update facing when moving
+      player.faceDx = dx; player.faceDy = dy;
+      if(canMoveFrom(player.x, player.y, dx, dy)){
+        const nx=player.x+dx, ny=player.y+dy;
+        if(!firstMonsterAt(nx,ny)){
+          player.x=nx; player.y=ny; pickupHere(); recomputeFOV(); checkHazard(player.x,player.y);
+          const diag = (dx!==0 && dy!==0) ? Math.SQRT2 : 1;
+          const gearFactor = (1 - Math.min(0.5, player.speedPct/100));
+          const freezeMul = speedMultFromEffects(player);
+          const dur = Math.max(60, baseStepDelay * gearFactor * diag * freezeMul);
+          player.moveDur = dur; player.stepCD = dur; playFootstep();
+          if(smoothEnabled){ player.fromX=player.rx; player.fromY=player.ry; player.toX=player.x; player.toY=player.y; player.moveT=0; player.moving=true; }
+          else{ player.rx=player.x; player.ry=player.y; player.moving=false; player.moveT=1; }
+        }
+      }
+    }
+  }
+
+  // advance player tween
+  if(smoothEnabled && player.moving){
+    player.moveT = Math.min(1, player.moveT + dt / player.moveDur);
+    const t=smoothstep01(player.moveT);
+    player.rx=lerp(player.fromX,player.toX,t); player.ry=lerp(player.fromY,player.toY,t);
+    if(player.moveT>=1){ player.moving=false; player.rx=player.toX; player.ry=player.toY; }
+  }else{ player.rx=player.x; player.ry=player.y; }
+
+  // attack cooldown
+  player.atkCD = Math.max(0, player.atkCD - dt);
+  // standing in lava adds burn duration equal to time spent
+  const tileUnder = map[player.y * MAP_W + player.x];
+  if(tileUnder === T_LAVA){
+    const cur = getEffect(player, 'burn');
+    const dur = (cur ? cur.t : 0) + dt * 2;
+    const pow = cur ? cur.power : 1.0;
+    applyStatus(player, 'burn', dur, pow);
+  }
+  // status tick
+  tickEffects(player, dt);
+
+  // monster AI ticks every frame
+  for(const m of monsters){ monsterAI(m, dt); }
+  // advance monster tweens
+  for(const m of monsters){
+    tickEffects(m, dt);
+    if(m.moving){ m.moveT=Math.min(1,m.moveT + dt / m.moveDur); const t=smoothstep01(m.moveT); m.rx=lerp(m.fromX,m.toX,t); m.ry=lerp(m.fromY,m.toY,t); if(m.moveT>=1){ m.moving=false; m.rx=m.toX; m.ry=m.toY; } }
+    else{ m.rx=m.x; m.ry=m.y; }
+  }
+
+  for(const p of projectiles){
+    if(!p.alive) continue;
+    // move: speed is tiles/sec -> tiles per frame
+    const nx = p.x + p.dx * (p.speed * dt/1000);
+    const ny = p.y + p.dy * (p.speed * dt/1000);
+    const stepLen = Math.hypot(nx - p.x, ny - p.y);
+    p.x = nx; p.y = ny; p.dist = (p.dist||0) + stepLen;
+    const tx = Math.floor(p.x), ty = Math.floor(p.y);
+    // stop on walls
+    if(isBlock(tx,ty)){ p.alive=false; continue; }
+    // hit player if sharing tile
+    if(p.owner!=='player' && tx===player.x && ty===player.y){
+      applyDamageToPlayer(p.damage, p.elem || p.type || 'ranged');
+      if(p.status){
+        const sts = Array.isArray(p.status) ? p.status : [p.status];
+        for(const st of sts){ tryApplyStatus(player, st, st.elem); }
+      }
+      p.alive=false;
+    }
+    // hit monster if player-owned
+    if(p.owner==='player'){
+      const m = monsters.find(mm=>mm.x===tx && mm.y===ty);
+      if(m){
+        dealDamageToMonster(m, p.damage, p.elem||null, false);
+        if(p.status){
+          const sts = Array.isArray(p.status) ? p.status : [p.status];
+          for(const st of sts){ tryApplyStatus(m, st, st.elem); }
+        }
+        if(p.ls>0){ const heal=Math.max(1,Math.floor(p.damage*p.ls/100)); player.hp=Math.min(player.hpMax, player.hp+heal); addDamageText(player.x,player.y,`+${heal}`,'#76d38b'); }
+        if(p.md>0){ const gain=Math.max(1,Math.floor(p.damage*p.md/100)); if(player.class==='mage'){ player.mp=Math.min(player.mpMax,player.mp+gain); } else { player.sp=Math.min(player.spMax,player.sp+gain); } addDamageText(player.x,player.y,`+${gain}`,'#4aa3ff'); updateResourceUI(); }
+        if(p.kb>0){
+          const kdx=Math.sign(p.dx), kdy=Math.sign(p.dy);
+          for(let i=0;i<p.kb;i++){ if(!tryMoveMonster(m,kdx,kdy)) break; }
+        }
+        if(p.pierce>0){ p.pierce--; }
+        else{ p.alive=false; }
+      }
+    }
+    // range limit
+    if(p.maxDist && p.dist>=p.maxDist){ p.alive=false; }
+  }
+  // cleanup dead projectiles
+  if(projectiles.length>64){ projectiles = projectiles.filter(p=>p.alive); }
+}
+
+// ===== Input =====
+const keys={};
+window.addEventListener('keydown',e=>{
+  const key=e.key.toLowerCase();
+  keys[key]=true;
+  if(key==='escape'){ if(!closeMenus()) toggleEscMenu(); return; }
+  if(key==='i') toggleInv();
+  if(key==='k'){
+    if(player.class==='mage') toggleMagic();
+    else toggleSkills();
+  }
+  if(key==='l') toggleSkills();
+  if(key==='q'){
+    if(player.class==='mage') castSelectedSpell();
+    else if(player.class==='warrior') castBoundSkill();
+  }
+  if(key==='c') toggleCharPage();
+  if(key==='/') toggleActionLog();
+  if(key==='e' && !e.repeat){
+    if(player.x===stairs.x && player.y===stairs.y){
+      player.floorsCleared++; player.score += SCORE_PER_FLOOR_CLEAR;
+      floorNum++; player.score += SCORE_PER_FLOOR_REACHED * floorNum;
+      seed=(seed*1664525+1013904223)|0; rng=new RNG(seed);
+      generate(); hudFloor.textContent=floorNum; hudSeed.textContent=seed>>>0; showToast('Down we go'); toggleShop(false);
+      updateScoreUI();
+    } else if(player.x===merchant.x && player.y===merchant.y){
+      toggleShop(document.getElementById('shop').style.display!=='block'); renderShop();
+    }
+  }
+  // quick-use potions from potion bag slots with number keys 1-3
+  if(key==='1'||key==='2'||key==='3'){
+    const idx = parseInt(key,10)-1;
+    const it = potionBag[idx];
+    if(it){
+      usePotion(it);
+      potionBag[idx]=null;
+      const panel=document.getElementById('inventory');
+      if(panel && panel.style.display==='block') redrawInventory();
+    }
+  }
+  // sell hovered inventory item with F key
+  if(key==='f'){
+    const panel=document.getElementById('inventory');
+    if(panel && panel.style.display==='block'){
+      const det=document.getElementById('invDetails');
+      const sel=det?.dataset.sel;
+      const kind=det?.dataset.kind;
+      if(sel && kind){
+        if(kind==='bag') sellFromBag(parseInt(sel,10));
+        else if(kind==='pbag') sellFromPotionBag(parseInt(sel,10));
+        else if(kind==='eq') unequipAndSell(sel);
+      }
+    }
+  }
+  if(e.code==='Space'){
+    performPlayerAttack(player.faceDx, player.faceDy);
+  }
+});
+window.addEventListener('keyup',e=>{ keys[e.key.toLowerCase()]=false; });
+
+// ===== Inventory UI (toggle only) =====
+function updatePaused(){
+  const inv=document.getElementById('inventory');
+  const magic=document.getElementById('magic');
+  const skills=document.getElementById('skills');
+  const esc=document.getElementById('escMenu');
+  const charP=document.getElementById('charPage');
+  const log=document.getElementById('actionLog');
+  paused=(inv&&inv.style.display==='block')||(magic&&magic.style.display==='block')||(skills&&skills.style.display==='block')||(esc&&esc.style.display==='grid')||(charP&&charP.style.display==='block')||(log&&log.style.display==='block');
+}
+
+function toggleInv(){ let panel=document.getElementById('inventory'); if(!panel){ redrawInventory(); panel=document.getElementById('inventory'); } if(!panel) return; const show=panel.style.display===''||panel.style.display==='none'; panel.style.display=show?'block':'none'; if(show) redrawInventory(); updatePaused(); }
+
+function renderCharPage(){
+  const panel=document.getElementById('charPage');
+  if(!panel) return;
+  let html='<div class="section-title">Character</div>';
+  html+=`<div class="kv">Class: <b>${player.class}</b></div>`;
+  html+=`<div class="kv">HP: <b>${player.hp}/${player.hpMax}</b></div>`;
+  html+=`<div class="kv">${player.class==='mage'?'Mana':'Stamina'}: <b>${player.class==='mage'?player.mp+'/'+player.mpMax:player.sp+'/'+player.spMax}</b></div>`;
+  html+=`<div class="kv">Attack: <b>${currentStats.dmgMin}-${currentStats.dmgMax}</b></div>`;
+  html+=`<div class="kv">Armor: <b>${currentStats.armor}</b></div>`;
+  html+=`<div class="kv">Fire Res: <b>${player.resFire||0}%</b></div>`;
+  html+=`<div class="kv">Ice Res: <b>${player.resIce||0}%</b></div>`;
+  html+=`<div class="kv">Shock Res: <b>${player.resShock||0}%</b></div>`;
+  html+=`<div class="kv">Magic Res: <b>${player.resMagic||0}%</b></div>`;
+  panel.innerHTML=html;
+}
+
+function toggleCharPage(){
+  const panel=document.getElementById('charPage');
+  if(!panel) return;
+  const show=panel.style.display===''||panel.style.display==='none';
+  panel.style.display=show?'block':'none';
+  if(show) renderCharPage();
+  updatePaused();
+}
+
+function renderActionLog(){
+  const panel=document.getElementById('actionLog');
+  if(!panel) return;
+  let html='<div class="section-title">Action Log</div>';
+  for(const msg of actionLog){ html+=`<div class="kv">${msg}</div>`; }
+  panel.innerHTML=html;
+}
+
+function toggleActionLog(){
+  const panel=document.getElementById('actionLog');
+  if(!panel) return;
+  const show=panel.style.display===''||panel.style.display==='none';
+  panel.style.display=show?'block':'none';
+  if(show) renderActionLog();
+  updatePaused();
+}
+
+function closeMenus(){
+  let closed=false;
+  const inv=document.getElementById('inventory');
+  if(inv && inv.style.display==='block'){ toggleInv(); closed=true; }
+  const shop=document.getElementById('shop');
+  if(shop && shop.style.display==='block'){ toggleShop(false); closed=true; }
+  const charP=document.getElementById('charPage');
+  if(charP && charP.style.display==='block'){ toggleCharPage(); closed=true; }
+  const magic=document.getElementById('magic');
+  if(magic && magic.style.display==='block'){ toggleMagic(); closed=true; }
+  const skills=document.getElementById('skills');
+  if(skills && skills.style.display==='block'){ toggleSkills(); closed=true; }
+  const log=document.getElementById('actionLog');
+  if(log && log.style.display==='block'){ toggleActionLog(); closed=true; }
+  const esc=document.getElementById('escMenu');
+  if(esc && esc.style.display==='grid'){ toggleEscMenu(false); closed=true; }
+  if(closed) updatePaused();
+  return closed;
+}
+
+function redrawMagic(){
+  let panel=document.getElementById('magic');
+  if(!panel){ panel=document.createElement('div'); panel.id='magic'; panel.className='panel'; document.body.appendChild(panel); }
+  let html = `<div class="section-title">Magic Points: ${player.magicPoints}</div>`;
+  for(const treeName of ['healing','damage','dot']){
+    const tree=magicTrees[treeName];
+    html += `<div class="section-title">${tree.display}</div><div>`;
+    tree.abilities.forEach((ab,i)=>{
+      const unlocked=player.magic[treeName][i];
+      const bind = player.boundSpell && player.boundSpell.tree===treeName && player.boundSpell.idx===i;
+      if(unlocked){
+        html += `<div class="list-row"><div>${ab.name}</div><div>${bind?'<span class="green">Bound</span>':`<button class="btn sml" data-bind="${treeName}-${i}">Bind</button>`}</div></div>`;
+      }else{
+        const prevUnlocked = i===0 || player.magic[treeName][i-1];
+        const dis = (player.magicPoints<ab.cost || !prevUnlocked)?'disabled':'';
+        html += `<div class="list-row"><div>${ab.name}</div><div><button class="btn sml" data-unlock="${treeName}-${i}" ${dis}>Unlock (${ab.cost})</button></div></div>`;
+      }
+    });
+    html += '</div>';
+  }
+  panel.innerHTML = html;
+  panel.onclick=(e)=>{
+    const b=e.target.closest('button'); if(!b) return;
+    if(b.dataset.unlock){
+      const [t,i]=b.dataset.unlock.split('-'); unlockSpell(t,parseInt(i,10)); redrawMagic();
+    }
+    if(b.dataset.bind){
+      const [t,i]=b.dataset.bind.split('-'); bindSpell(t,parseInt(i,10)); redrawMagic();
+    }
+  };
+}
+
+function toggleMagic(){ if(player.class!=='mage') return; let panel=document.getElementById('magic'); if(!panel){ redrawMagic(); panel=document.getElementById('magic'); } if(!panel) return; const show=panel.style.display===''||panel.style.display==='none'; panel.style.display=show?'block':'none'; if(show) redrawMagic(); updatePaused(); }
+
+function redrawSkills(){
+  if(player.class!=='warrior') return;
+  let panel=document.getElementById('skills');
+  if(!panel){ panel=document.createElement('div'); panel.id='skills'; panel.className='panel'; document.body.appendChild(panel); }
+  let html = `<div class="section-title">Skill Points: ${player.skillPoints}</div>`;
+  for(const treeName of ['offense','defense','techniques']){
+    const tree=skillTrees[treeName];
+    html += `<div class="section-title">${tree.display}</div><div>`;
+    tree.abilities.forEach((ab,i)=>{
+      const unlocked=player.skills[treeName][i];
+      const bind = player.boundSkill && player.boundSkill.tree===treeName && player.boundSkill.idx===i;
+      if(unlocked){
+        if(ab.cast){
+          html += `<div class="list-row"><div>${ab.name}<div class="muted">${ab.desc}</div></div><div>${bind?'<span class="green">Bound</span>':`<button class="btn sml" data-bind="${treeName}-${i}">Bind</button>`}</div></div>`;
+        }else{
+          html += `<div class="list-row"><div>${ab.name}<div class="muted">${ab.desc}</div></div><div><span class="green">Unlocked</span></div></div>`;
+        }
+      }else{
+        const prevUnlocked = i===0 || player.skills[treeName][i-1];
+        const dis=(player.skillPoints<ab.cost || !prevUnlocked)?'disabled':'';
+        html += `<div class="list-row"><div>${ab.name}<div class="muted">${ab.desc}</div></div><div><button class="btn sml" data-unlock="${treeName}-${i}" ${dis}>Unlock (${ab.cost})</button></div></div>`;
+      }
+    });
+    html += '</div>';
+  }
+  panel.innerHTML=html;
+  panel.onclick=(e)=>{
+    const b=e.target.closest('button'); if(!b) return;
+    if(b.dataset.unlock){ const [t,i]=b.dataset.unlock.split('-'); unlockSkill(t,parseInt(i,10)); redrawSkills(); }
+    if(b.dataset.bind){ const [t,i]=b.dataset.bind.split('-'); bindSkill(t,parseInt(i,10)); redrawSkills(); }
+  };
+}
+
+function toggleSkills(){ if(player.class!=='warrior') return; let panel=document.getElementById('skills'); if(!panel){ redrawSkills(); panel=document.getElementById('skills'); } if(!panel) return; const show=panel.style.display===''||panel.style.display==='none'; panel.style.display=show?'block':'none'; if(show) redrawSkills(); updatePaused(); }
+
+function unlockSkill(treeName, idx){
+  const ab=skillTrees[treeName].abilities[idx];
+  if(player.skills[treeName][idx]) return;
+  if(idx>0 && !player.skills[treeName][idx-1]){ showToast('Unlock previous ability first'); return; }
+  if(player.skillPoints>=ab.cost){ player.skillPoints-=ab.cost; player.skills[treeName][idx]=true; showToast(`Unlocked ${ab.name}`); recalcStats(); }
+  else showToast('Not enough points');
+}
+
+function bindSkill(treeName, idx){
+  if(!player.skills[treeName][idx]){ showToast('Ability not unlocked'); return; }
+  player.boundSkill={tree:treeName, idx};
+  const ab=skillTrees[treeName].abilities[idx];
+  hudSpell.textContent=ab.name;
+  showToast(`Bound ${ab.name} to Q`);
+}
+
+function unlockSpell(treeName, idx){
+  const ab=magicTrees[treeName].abilities[idx];
+  if(player.magic[treeName][idx]) return;
+  if(idx>0 && !player.magic[treeName][idx-1]){ showToast('Unlock previous ability first'); return; }
+  if(player.magicPoints>=ab.cost){ player.magicPoints-=ab.cost; player.magic[treeName][idx]=true; showToast(`Unlocked ${ab.name}`); }
+  else showToast('Not enough points');
+}
+
+function bindSpell(treeName, idx){
+  if(!player.magic[treeName][idx]){ showToast('Ability not unlocked'); return; }
+  player.boundSpell={tree:treeName, idx};
+  const ab=magicTrees[treeName].abilities[idx];
+  hudSpell.textContent=ab.name;
+  showToast(`Bound ${ab.name} to Q`);
+}
+
+function castSelectedSpell(){
+  const b=player.boundSpell; if(!b){ showToast('No spell bound'); return; }
+  const ab=magicTrees[b.tree].abilities[b.idx];
+  if(!player.magic[b.tree][b.idx]){ showToast('Spell locked'); return; }
+  if(player.mp<ab.mp){ showToast('Not enough mana'); return; }
+  player.mp-=ab.mp; updateResourceUI();
+  if(ab.type==='heal'){
+    const amt=ab.value===null?player.hpMax:ab.value;
+    const heal=Math.min(amt, player.hpMax-player.hp);
+    player.hp+=heal; hpFill.style.width=`${(player.hp/player.hpMax)*100}%`; hpLbl.textContent=`HP ${player.hp}/${player.hpMax}`; addDamageText(player.x,player.y,'+'+heal,'#76d38b');
+    return;
+  }
+  const px = player.rx!==undefined?player.rx:player.x, py = player.ry!==undefined?player.ry:player.y;
+  const cx = px*TILE - camX + TILE/2, cy = py*TILE - camY + TILE/2;
+  let dx = mouseX - cx, dy = mouseY - cy;
+  if(dx===0 && dy===0){ dx = player.faceDx; dy = player.faceDy; }
+  const mag = Math.hypot(dx, dy);
+  if(mag===0){ showToast('Face a direction'); return; }
+  dx/=mag; dy/=mag; player.faceDx=dx; player.faceDy=dy;
+  const dmg = (ab.dmg||0)*(1+(player.spellBonus||0));
+  projectiles.push({x:player.x+0.5,y:player.y+0.5,dx,dy,speed:12,damage:dmg,type:'magic',elem:ab.elem||null,owner:'player',alive:true,maxDist:ab.range||8,dist:0,status:ab.status||null});
+}
+
+function castBoundSkill(){
+  const b=player.boundSkill; if(!b){ showToast('No skill bound'); return; }
+  const ab=skillTrees[b.tree].abilities[b.idx];
+  if(!player.skills[b.tree][b.idx]){ showToast('Skill locked'); return; }
+  if(ab.cast==='powerStrike') castPowerStrike();
+  else if(ab.cast==='whirlwind') castWhirlwind();
+  else if(ab.cast==='shieldBash') castShieldBash();
+}
+
+function castPowerStrike(){
+  const cost=20;
+  if(player.sp<cost){ showToast('Not enough stamina'); return; }
+  player.sp-=cost; updateResourceUI();
+  performPlayerAttack(player.faceDx, player.faceDy, 1.4);
+}
+
+function castWhirlwind(){
+  const cost=30;
+  if(player.sp<cost){ showToast('Not enough stamina'); return; }
+  if(player.atkCD>0) return;
+  player.sp-=cost; updateResourceUI();
+  const {min,max,crit,ls,md} = currentAtk();
+  const prof=currentWeaponProfile();
+  let hit=false;
+  for(const m of monsters){
+    const dist=Math.hypot(m.x-player.x, m.y-player.y);
+    if(dist<=1.5){
+      let dmg=rng.int(min,max);
+      const wasCrit=Math.random()*100<crit; if(wasCrit) dmg=Math.floor(dmg*1.5);
+      dmg=Math.floor(dmg*1.6);
+      dealDamageToMonster(m,dmg,null,wasCrit);
+      if(ls>0){ const heal=Math.max(1,Math.floor(dmg*ls/100)); player.hp=Math.min(player.hpMax,player.hp+heal); addDamageText(player.x,player.y,`+${heal}`,'#76d38b'); }
+      if(md>0){ const gain=Math.max(1,Math.floor(dmg*md/100)); if(player.class==='mage'){ player.mp=Math.min(player.mpMax,player.mp+gain); } else { player.sp=Math.min(player.spMax,player.sp+gain); } addDamageText(player.x,player.y,`+${gain}`,'#4aa3ff'); updateResourceUI(); }
+      hit=true;
+    }
+  }
+  if(hit) playAttack();
+  player.atkCD = prof.cooldown*1.5;
+}
+
+function castShieldBash(){
+  const cost=15;
+  if(player.sp<cost){ showToast('Not enough stamina'); return; }
+  if(player.atkCD>0) return;
+  player.sp-=cost; updateResourceUI();
+  const {min,max,crit,ls,md}=currentAtk();
+  const prof=currentWeaponProfile();
+  let dmg=rng.int(min,max);
+  const wasCrit=Math.random()*100<crit; if(wasCrit) dmg=Math.floor(dmg*1.5);
+  dmg=Math.floor(dmg*1.8);
+  const reach=prof.reach ?? 2;
+  const cone=(prof.cone || 35) * Math.PI/180;
+  const ndx=player.faceDx, ndy=player.faceDy;
+  let target=null,bestDist=Infinity;
+  for(const m of monsters){
+    const dxm=m.x-player.x, dym=m.y-player.y;
+    const dist=Math.hypot(dxm,dym);
+    if(dist>reach || dist===0) continue;
+    const ang=Math.acos((ndx*dxm+ndy*dym)/dist);
+    if(ang>cone/2) continue;
+    if(!clearPath8(player.x,player.y,m.x,m.y)) continue;
+    if(dist<bestDist){ target=m; bestDist=dist; }
+  }
+  if(target){
+    dealDamageToMonster(target,dmg,null,wasCrit);
+    tryApplyStatus(target,{k:'shock',dur:1200,power:0.5,chance:1},'shock');
+    if(ls>0){ const heal=Math.max(1,Math.floor(dmg*ls/100)); player.hp=Math.min(player.hpMax,player.hp+heal); addDamageText(player.x,player.y,`+${heal}`,'#76d38b'); }
+    if(md>0){ const gain=Math.max(1,Math.floor(dmg*md/100)); if(player.class==='mage'){ player.mp=Math.min(player.mpMax,player.mp+gain); } else { player.sp=Math.min(player.spMax,player.sp+gain); } addDamageText(player.x,player.y,`+${gain}`,'#4aa3ff'); updateResourceUI(); }
+    playAttack();
+  }
+  player.atkCD = prof.cooldown;
+}
+
+function toggleEscMenu(force){
+  const menu=document.getElementById('escMenu'); if(!menu) return;
+  const show=typeof force==='boolean'?force:(menu.style.display===''||menu.style.display==='none');
+  menu.style.display=show?'grid':'none';
+  updatePaused();
+}
+
+function saveGame(){
+  const data={ seed, floorNum, player, bag, potionBag, equip };
+  try{ localStorage.setItem('dungeonSave', JSON.stringify(data)); showToast('Game saved'); }
+  catch(e){ console.warn('Save failed', e); }
+}
+
+function loadGame(){
+  const raw=localStorage.getItem('dungeonSave'); if(!raw){ showToast('No saved game'); return; }
+  const data=JSON.parse(raw);
+  seed=data.seed; rng=new RNG(seed); floorNum=data.floorNum;
+  generate();
+  Object.assign(player, data.player||{});
+  if(!player.class) player.class = 'warrior';
+  if(player.sp===undefined) player.sp = player.spMax||60;
+  if(player.skillPoints===undefined) player.skillPoints=0;
+  if(player.score===undefined) player.score=0;
+  if(player.kills===undefined) player.kills=0;
+  if(player.timeSurvived===undefined) player.timeSurvived=0;
+  if(player.floorsCleared===undefined) player.floorsCleared=0;
+  for(const t of ['healing','damage','dot']){
+    player.magic[t] = player.magic[t] || [];
+    while(player.magic[t].length < magicTrees[t].abilities.length) player.magic[t].push(false);
+  }
+  player.skills = player.skills || {};
+  for(const t of ['offense','defense','techniques']){
+    player.skills[t] = player.skills[t] || [];
+    while(player.skills[t].length < skillTrees[t].abilities.length) player.skills[t].push(false);
+  }
+  if(player.boundSkill===undefined) player.boundSkill=null;
+  bag=data.bag||new Array(BAG_SIZE).fill(null);
+  potionBag=data.potionBag||new Array(POTION_BAG_SIZE).fill(null);
+  equip=data.equip||{helmet:null,chest:null,legs:null,hands:null,feet:null,weapon:null};
+  hudFloor.textContent=floorNum; hudSeed.textContent=seed>>>0; hudGold.textContent=player.gold; hudLvl.textContent=player.lvl;
+  player.rx=player.x; player.ry=player.y; player.fromX=player.x; player.fromY=player.y; player.toX=player.x; player.toY=player.y; player.moving=false; player.moveT=1;
+  recalcStats(); recomputeFOV(); redrawInventory();
+  hudAbilityLabel.textContent = player.class==='mage'?'Spell:':'Skill:';
+  hudSpell.textContent = player.class==='warrior'
+    ? (player.boundSkill ? skillTrees[player.boundSkill.tree].abilities[player.boundSkill.idx].name : 'None')
+    : (player.boundSpell ? magicTrees[player.boundSpell.tree].abilities[player.boundSpell.idx].name : 'None');
+  updateResourceUI();
+  updateScoreUI();
+  toggleEscMenu(false); showToast('Game loaded');
+}
+
+// ===== Loot helpers =====
+function dropGearNear(x,y){
+  const dirs=[[1,0],[-1,0],[0,1],[0,-1]];
+  for(const [dx,dy] of dirs){
+    const nx=x+dx, ny=y+dy;
+    if(!walkable(nx,ny)) continue;
+    const key=`${nx},${ny}`;
+    if(lootMap.has(key)) continue;
+    if(monsters.some(mm=>mm.x===nx && mm.y===ny)) continue;
+    if(nx===player.x && ny===player.y) continue;
+    if(nx===merchant.x && ny===merchant.y) continue;
+    lootMap.set(key, makeRandomGear());
+    return true;
+  }
+  return false;
+}
+
+function dropLoot(x,y){
+  if(rng.next()<0.25){
+    lootMap.set(`${x},${y}`, makeRandomPotion());
+    return;
+  }
+  const item = makeRandomGear();
+  lootMap.set(`${x},${y}`, item);
+}
+
+// ===== XP / Leveling =====
+function calcMonsterXP(m){
+  const avgDmg = (m.dmgMin + m.dmgMax) / 2;
+  const difficulty = m.hpMax + avgDmg * 10;
+  return Math.round(difficulty * 0.25);
+}
+function grantXP(x){
+  player.xp += Math.round(x * XP_GAIN_MULT);
+  while(player.xp>=player.xpToNext){ player.xp-=player.xpToNext; levelUp(); }
+}
+function levelUp(){
+  player.lvl++;
+  player.baseAtkBonus += 1;
+  player.xpToNext = Math.floor(50*Math.pow(1.35, player.lvl-1));
+  if(player.class==='mage') player.magicPoints++;
+  else player.skillPoints++;
+  recalcStats();
+  player.hp = player.hpMax;
+  if(player.class==='mage') player.mp = player.mpMax;
+  else player.sp = player.spMax;
+  hpFill.style.width = `${(player.hp/player.hpMax)*100}%`;
+  updateResourceUI();
+  hpLbl.textContent = `HP ${player.hp}/${player.hpMax}`;
+  showToast(`Level up! Lv ${player.lvl}`);
+  showToast(player.class==='mage'?'Gained magic point':'Gained skill point');
+}
+
+// ===== Toast =====
+function showToast(msg){
+  actionLog.push(msg);
+  if(actionLog.length>50) actionLog.shift();
+  const panel=document.getElementById('actionLog');
+  if(panel && panel.style.display==='block') renderActionLog();
+}
+function showBossAlert(){
+  const d=document.createElement('div');
+  d.id='bossAlert';
+  d.textContent='Boss floor — good luck!';
+  document.body.appendChild(d);
+  setTimeout(()=>d.remove(),4000);
+}
+function showRespawn(){
+  gameOver=true;
+  const d=document.getElementById('respawn');
+  if(d){
+    updateScoreUI();
+    const fs=document.getElementById('finalScore'); if(fs) fs.textContent=Math.floor(player.score);
+    const fk=document.getElementById('finalKills'); if(fk) fk.textContent=player.kills;
+    const ff=document.getElementById('finalFloors'); if(ff) ff.textContent=player.floorsCleared;
+    const ft=document.getElementById('finalTime'); if(ft) ft.textContent=Math.floor(player.timeSurvived/1000);
+    d.style.display='grid';
+  }
+}
+
+// ===== Stats =====
+function recalcStats(){
+  let dmgMin=2,dmgMax=4,crit=5,armor=0;
+  let hpGainPerLevel = 12, mpGainPerLevel = 6, spGainPerLevel = 6;
+  if(player.class==='mage') mpGainPerLevel = 10;
+  let hpMax = 150 + (player.lvl-1)*hpGainPerLevel;
+  let mpMax = 60 + (player.lvl-1)*mpGainPerLevel;
+  let spMax = 60 + (player.lvl-1)*spGainPerLevel;
+  let speedPct=0;
+  let resF=0,resI=0,resS=0,resM=0,resP=0;
+  let spellBonus=0;
+  // class bonuses
+  if(player.class==='warrior'){
+    hpMax += 40; spMax += 40; dmgMin += 2; dmgMax += 2;
+  }else if(player.class==='mage'){
+    mpMax += 40; hpMax += 20; spellBonus = 0.2;
+  }
+  // level bonus
+  const lvlBonus = Math.floor((player.lvl-1)*0.6) + (player.baseAtkBonus||0);
+  dmgMin += lvlBonus; dmgMax += lvlBonus;
+  const baseRes = Math.floor((player.lvl-1)*1.5); // 1-2% base resist per level
+  resF += baseRes; resI += baseRes; resS += baseRes; resM += baseRes; resP += baseRes;
+  for(const slot of SLOTS){
+    const it=equip[slot]; if(!it) continue; const m=it.mods;
+    if(m.dmgMin) dmgMin+=m.dmgMin; if(m.dmgMax) dmgMax+=m.dmgMax; if(m.crit) crit+=m.crit; if(m.armor) armor+=m.armor; if(m.hpMax) hpMax+=m.hpMax; if(m.mpMax){ mpMax+=m.mpMax; spMax+=m.mpMax; } if(m.speedPct) speedPct+=m.speedPct;
+    resF += m.resFire||0; resI += m.resIce||0; resS += m.resShock||0; resM += m.resMagic||0; resP += m.resPoison||0;
+  }
+  for(const treeName in skillTrees){
+    const arr=player.skills[treeName]||[];
+    arr.forEach((u,i)=>{
+      if(!u) return;
+      const b=skillTrees[treeName].abilities[i].bonus||{};
+      if(b.dmgMin) dmgMin+=b.dmgMin;
+      if(b.dmgMax) dmgMax+=b.dmgMax;
+      if(b.crit) crit+=b.crit;
+      if(b.armor) armor+=b.armor;
+      if(b.hpMax) hpMax+=b.hpMax;
+    });
+  }
+  player.hpMax=hpMax; player.mpMax=mpMax; player.spMax=spMax; player.speedPct=speedPct; player.spellBonus=spellBonus; if(player.hp>hpMax) player.hp=hpMax; if(player.mp>mpMax) player.mp=mpMax; if(player.sp>spMax) player.sp=spMax;
+  player.armor = armor;
+  player.resFire=resF; player.resIce=resI; player.resShock=resS; player.resMagic=resM; player.resPoison=resP;
+  currentStats={dmgMin,dmgMax,crit,armor,resF,resI,resS,resM,resP,hpMax,mpMax,spMax};
+  hudDmg.textContent = `ATK ${dmgMin}-${dmgMax} | CRIT ${crit}% | ARM ${armor} | RES F/I/S/M/P ${resF}/${resI}/${resS}/${resM}/${resP}`;
+  hpFill.style.width = `${(player.hp/player.hpMax)*100}%`;
+  updateResourceUI();
+  hpLbl.textContent = `HP ${player.hp}/${player.hpMax}`;
+}
+
+// ===== Main Loop =====
+let __last = performance.now();
+function loop(now){ const dt = Math.min(50, now - __last); __last = now; update(dt); draw(dt); requestAnimationFrame(loop); }
+
+// ===== Start =====
+function startGame(){
+  initAudio();
+  // class pick -> sprite & stats
+  const cSel = document.querySelector('input[name="class"]:checked');
+  player.class = (cSel?.value==='mage')?'mage':'warrior';
+  playerSpriteKey = player.class==='mage' ? 'player_mage' : 'player_warrior';
+  player.boundSpell=null; player.boundSkill=null;
+  player.score=0; player.kills=0; player.timeSurvived=0; player.floorsCleared=0; scoreUpdateTimer=0; updateScoreUI();
+  hudAbilityLabel.textContent = player.class==='mage'?'Spell:':'Skill:';
+  hudFloor.textContent=floorNum; hudSeed.textContent=seed>>>0; hudGold.textContent=player.gold; hudLvl.textContent=player.lvl;
+  generate(); recalcStats();
+  player.hp = player.hpMax;
+  if(player.class==='mage') player.mp = player.mpMax; else player.sp = player.spMax;
+  hpFill.style.width = `100%`; updateResourceUI();
+  hpLbl.textContent = `HP ${player.hp}/${player.hpMax}`;
+  recomputeFOV();
+  hudSpell.textContent = player.class==='warrior'
+    ? (player.boundSkill ? skillTrees[player.boundSkill.tree].abilities[player.boundSkill.idx].name : 'None')
+    : (player.boundSpell ? magicTrees[player.boundSpell.tree].abilities[player.boundSpell.idx].name : 'None');
+  const smoothToggle=document.getElementById('smoothToggle'); const speedRange=document.getElementById('speedRange');
+  if(smoothToggle){ smoothToggle.checked = smoothEnabled; smoothToggle.addEventListener('change', e=>{ smoothEnabled = e.target.checked; if(!smoothEnabled){ player.rx=player.x; player.ry=player.y; } }); }
+  if(speedRange){ baseStepDelay = player.stepDelay; speedRange.value = String(baseStepDelay); speedRange.addEventListener('input', e=>{ const v=parseInt(e.target.value,10); if(!isNaN(v)) baseStepDelay=v; }); }
+  requestAnimationFrame(loop);
+}
+
+document.getElementById('playBtn').onclick=()=>{ document.getElementById('start').style.display='none'; startGame(); };
+document.getElementById('respawnBtn').onclick=()=>{ location.reload(); };
+document.getElementById('resumeBtn').onclick=()=>{ toggleEscMenu(false); };
+document.getElementById('saveBtn').onclick=()=>{ saveGame(); };
+document.getElementById('loadBtn').onclick=()=>{ loadGame(); };
+
+// ===== Utils =====
+function clamp(a,b,x){ return Math.max(a, Math.min(b, x)); }
+function escapeHtml(s){ return String(s).replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c])); }
