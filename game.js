@@ -35,6 +35,8 @@ const ENEMY_SPEED_MULT = 1.5;
 // Global modifiers for monster stats
 const MONSTER_HP_MULT = 1.2;
 const MONSTER_DMG_MULT = 0.9;
+// Cap applied to resistance calculations (percentage)
+const RESIST_CAP = 75;
 let canvas=document.getElementById('gameCanvas'); let ctx=canvas.getContext('2d');
 let mouseX=0, mouseY=0;
 canvas.addEventListener('mousemove', e=>{ const r=canvas.getBoundingClientRect(); mouseX=e.clientX-r.left; mouseY=e.clientY-r.top; });
@@ -75,6 +77,14 @@ let smoothEnabled = true; let baseStepDelay = 140; // sync to player.stepDelay o
 function RNG(seed){ this.s=seed|0; }
 RNG.prototype.next=function(){ this.s=(this.s*1664525+1013904223)|0; return ((this.s>>>0)/4294967296); }
 RNG.prototype.int=function(a,b){ return Math.floor(a + (b-a+1)*this.next()); }
+
+function shuffle(arr){
+  for(let i=arr.length-1;i>0;i--){
+    const j=rng.int(0,i);
+    [arr[i],arr[j]]=[arr[j],arr[i]];
+  }
+  return arr;
+}
 
 // ===== Map / Gen =====
 const MIN_ROOM_SIZE = 2;
@@ -1091,7 +1101,7 @@ function toggleShop(show){ const el=document.getElementById('shop'); el.style.di
 function dealDamageToMonster(m, base, elem=null, crit=false){
   const vuln = getEffectPower(m,'shock') || 0;
   const dmgBase = Math.max(1, Math.floor(base * (1 + vuln)));
-  const cap = 75;
+  const cap = RESIST_CAP;
   const res = elem==='fire' ? clamp(0,cap,m.resFire||0)
             : elem==='ice'  ? clamp(0,cap,m.resIce||0)
             : elem==='shock'? clamp(0,cap,m.resShock||0)
@@ -1127,7 +1137,7 @@ function speedMultFromEffects(entity){
 }
 function resistAdjusted(target, elem, obj){
   if(target!==player || !elem) return obj;
-  const cap=75;
+  const cap=RESIST_CAP;
   const res = elem==='fire' ? clamp(0,cap,player.resFire||0)
             : elem==='ice' ? clamp(0,cap,player.resIce||0)
             : elem==='shock'? clamp(0,cap,player.resShock||0)
@@ -2341,9 +2351,10 @@ function loadGame(){
 }
 
 // ===== Loot helpers =====
-function dropGearNear(x,y){
-  const dirs=[[1,0],[-1,0],[0,1],[0,-1]];
+function dropItemNear(x, y, makeItem, includeCenter=true){
+  const dirs=shuffle([[0,0],[1,0],[-1,0],[0,1],[0,-1]]);
   for(const [dx,dy] of dirs){
+    if(!includeCenter && dx===0 && dy===0) continue;
     const nx=x+dx, ny=y+dy;
     if(!walkable(nx,ny)) continue;
     const key=`${nx},${ny}`;
@@ -2351,19 +2362,19 @@ function dropGearNear(x,y){
     if(monsters.some(mm=>mm.x===nx && mm.y===ny)) continue;
     if(nx===player.x && ny===player.y) continue;
     if(nx===merchant.x && ny===merchant.y) continue;
-    lootMap.set(key, makeRandomGear());
+    lootMap.set(key, makeItem());
     return true;
   }
   return false;
 }
 
+function dropGearNear(x,y){
+  return dropItemNear(x,y, makeRandomGear, false);
+}
+
 function dropLoot(x,y){
-  if(rng.next()<0.25){
-    lootMap.set(`${x},${y}`, makeRandomPotion());
-    return;
-  }
-  const item = makeRandomGear();
-  lootMap.set(`${x},${y}`, item);
+  const gen = rng.next()<0.25 ? makeRandomPotion : makeRandomGear;
+  dropItemNear(x,y, gen, true);
 }
 
 // ===== XP / Leveling =====
@@ -2397,35 +2408,58 @@ function levelUp(){
 // ===== Toast =====
 
 // ===== Stats =====
-function recalcStats(){
-  let dmgMin=2,dmgMax=4,crit=5,armor=0;
+function baseStats(){
   let hpGainPerLevel = 12, mpGainPerLevel = 6, spGainPerLevel = 6;
   if(player.class==='mage') mpGainPerLevel = 10;
   if(player.class==='rogue') spGainPerLevel = 8;
-  let hpMax = 150 + (player.lvl-1)*hpGainPerLevel;
-  let mpMax = 60 + (player.lvl-1)*mpGainPerLevel;
-  let spMax = 60 + (player.lvl-1)*spGainPerLevel;
-  let speedPct=0;
-  let resF=0,resI=0,resS=0,resM=0,resP=0;
-  let spellBonus=0;
-  // class bonuses
+  return {
+    dmgMin:2, dmgMax:4, crit:5, armor:0,
+    hpMax:150 + (player.lvl-1)*hpGainPerLevel,
+    mpMax:60 + (player.lvl-1)*mpGainPerLevel,
+    spMax:60 + (player.lvl-1)*spGainPerLevel,
+    speedPct:0,
+    resF:0,resI:0,resS:0,resM:0,resP:0,
+    spellBonus:0
+  };
+}
+
+function applyClassBonuses(stats){
   if(player.class==='warrior'){
-    hpMax += 40; spMax += 40; dmgMin += 2; dmgMax += 2;
+    stats.hpMax += 40; stats.spMax += 40; stats.dmgMin += 2; stats.dmgMax += 2;
   }else if(player.class==='mage'){
-    mpMax += 40; hpMax += 20; spellBonus = 0.2;
+    stats.mpMax += 40; stats.hpMax += 20; stats.spellBonus = 0.2;
   }else if(player.class==='rogue'){
-    spMax += 60; hpMax += 10; dmgMin += 1; dmgMax += 1; crit += 10; speedPct += 10;
+    stats.spMax += 60; stats.hpMax += 10; stats.dmgMin += 1; stats.dmgMax += 1; stats.crit += 10; stats.speedPct += 10;
   }
-  // level bonus
+}
+
+function applyLevelBonuses(stats){
   const lvlBonus = Math.floor((player.lvl-1)*0.6) + (player.baseAtkBonus||0);
-  dmgMin += lvlBonus; dmgMax += lvlBonus;
-  const baseRes = Math.floor((player.lvl-1)*1.5); // 1-2% base resist per level
-  resF += baseRes; resI += baseRes; resS += baseRes; resM += baseRes; resP += baseRes;
-  for(const slot of SLOTS){
-    const it=equip[slot]; if(!it) continue; const m=it.mods;
-    if(m.dmgMin) dmgMin+=m.dmgMin; if(m.dmgMax) dmgMax+=m.dmgMax; if(m.crit) crit+=m.crit; if(m.armor) armor+=m.armor; if(m.hpMax) hpMax+=m.hpMax; if(m.mpMax){ mpMax+=m.mpMax; spMax+=m.mpMax; } if(m.speedPct) speedPct+=m.speedPct;
-    resF += m.resFire||0; resI += m.resIce||0; resS += m.resShock||0; resM += m.resMagic||0; resP += m.resPoison||0;
+  stats.dmgMin += lvlBonus; stats.dmgMax += lvlBonus;
+  const baseRes = Math.floor((player.lvl-1)*1.5);
+  stats.resF += baseRes; stats.resI += baseRes; stats.resS += baseRes; stats.resM += baseRes; stats.resP += baseRes;
+}
+
+function accumulate(stats, mods){
+  for(const k in mods){
+    if(k==='mpMax'){ stats.mpMax += mods.mpMax; stats.spMax += mods.mpMax; }
+    else if(k==='resFire'){ stats.resF += mods.resFire; }
+    else if(k==='resIce'){ stats.resI += mods.resIce; }
+    else if(k==='resShock'){ stats.resS += mods.resShock; }
+    else if(k==='resMagic'){ stats.resM += mods.resMagic; }
+    else if(k==='resPoison'){ stats.resP += mods.resPoison; }
+    else if(k in stats){ stats[k] += mods[k]; }
   }
+}
+
+function applyGearBonuses(stats){
+  for(const slot of SLOTS){
+    const it=equip[slot]; if(!it) continue;
+    accumulate(stats, it.mods);
+  }
+}
+
+function applySkillBonuses(stats){
   for(const treeName in skillTrees){
     const tree=skillTrees[treeName];
     if(tree.class && tree.class!==player.class) continue;
@@ -2433,18 +2467,25 @@ function recalcStats(){
     arr.forEach((u,i)=>{
       if(!u) return;
       const b=skillTrees[treeName].abilities[i].bonus||{};
-      if(b.dmgMin) dmgMin+=b.dmgMin;
-      if(b.dmgMax) dmgMax+=b.dmgMax;
-      if(b.crit) crit+=b.crit;
-      if(b.armor) armor+=b.armor;
-      if(b.hpMax) hpMax+=b.hpMax;
+      accumulate(stats, b);
     });
   }
-  player.hpMax=hpMax; player.mpMax=mpMax; player.spMax=spMax; player.speedPct=speedPct; player.spellBonus=spellBonus; if(player.hp>hpMax) player.hp=hpMax; if(player.mp>mpMax) player.mp=mpMax; if(player.sp>spMax) player.sp=spMax;
-  player.armor = armor;
-  player.resFire=resF; player.resIce=resI; player.resShock=resS; player.resMagic=resM; player.resPoison=resP;
-  currentStats={dmgMin,dmgMax,crit,armor,resF,resI,resS,resM,resP,hpMax,mpMax,spMax};
-  hudDmg.textContent = `ATK ${dmgMin}-${dmgMax} | CRIT ${crit}% | ARM ${armor} | RES F/I/S/M/P ${resF}/${resI}/${resS}/${resM}/${resP}`;
+}
+
+function recalcStats(){
+  const stats=baseStats();
+  applyClassBonuses(stats);
+  applyLevelBonuses(stats);
+  applyGearBonuses(stats);
+  applySkillBonuses(stats);
+
+  player.hpMax=stats.hpMax; player.mpMax=stats.mpMax; player.spMax=stats.spMax;
+  player.speedPct=stats.speedPct; player.spellBonus=stats.spellBonus;
+  if(player.hp>stats.hpMax) player.hp=stats.hpMax; if(player.mp>stats.mpMax) player.mp=stats.mpMax; if(player.sp>stats.spMax) player.sp=stats.spMax;
+  player.armor = stats.armor;
+  player.resFire=stats.resF; player.resIce=stats.resI; player.resShock=stats.resS; player.resMagic=stats.resM; player.resPoison=stats.resP;
+  currentStats={dmgMin:stats.dmgMin,dmgMax:stats.dmgMax,crit:stats.crit,armor:stats.armor,resF:stats.resF,resI:stats.resI,resS:stats.resS,resM:stats.resM,resP:stats.resP,hpMax:stats.hpMax,mpMax:stats.mpMax,spMax:stats.spMax};
+  hudDmg.textContent = `ATK ${stats.dmgMin}-${stats.dmgMax} | CRIT ${stats.crit}% | ARM ${stats.armor} | RES F/I/S/M/P ${stats.resF}/${stats.resI}/${stats.resS}/${stats.resM}/${stats.resP}`;
   hpFill.style.width = `${(player.hp/player.hpMax)*100}%`;
   updateResourceUI();
   hpLbl.textContent = `HP ${player.hp}/${player.hpMax}`;
