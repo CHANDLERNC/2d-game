@@ -136,6 +136,46 @@ function genSprites(){
   SPRITES.player_mage_shock = makePlayerMageAnim('#facc15','#fde047');
   SPRITES.player_mage_poison = makePlayerMageAnim('#76d38b','#9fe2a1');
 
+  // Rogue animation 24x24
+  function makePlayerRogueAnim(){
+    function drawFrame(g, oy, step){
+      // boots
+      px(g,5,18+oy,14,3,'#2b2b2b');
+      // legs
+      px(g,6+step,14+oy,4,4,'#3a3a3a');
+      px(g,14-step,14+oy,4,4,'#3a3a3a');
+      // torso
+      px(g,6,8+oy,12,6,'#555');
+      // arms
+      px(g,4-step,12+oy,2,4,'#c0c0c0');
+      px(g,18+step,12+oy,2,4,'#c0c0c0');
+      // head & hood
+      px(g,8,2+oy,8,6,'#e3c6a6');
+      px(g,9,4+oy,2,2,'#000'); px(g,13,4+oy,2,2,'#000');
+      px(g,7,1+oy,10,2,'#3a3a3a');
+      // dagger
+      px(g,20+step,13+oy,2,5,'#c0c0c0');
+      px(g,19+step,17+oy,4,2,'#6b4b2a');
+      outline(g,24);
+    }
+    const idle=[], move=[];
+    for(let i=0;i<2;i++){
+      const c=document.createElement('canvas'); c.width=c.height=24;
+      const g=c.getContext('2d'); g.imageSmoothingEnabled=false;
+      drawFrame(g,i%2,0);
+      idle.push(c);
+    }
+    for(let i=0;i<4;i++){
+      const c=document.createElement('canvas'); c.width=c.height=24;
+      const g=c.getContext('2d'); g.imageSmoothingEnabled=false;
+      const step=(i<2?-1:1);
+      drawFrame(g,i%2,step);
+      move.push(c);
+    }
+    return { idle, move };
+  }
+  SPRITES.player_rogue = makePlayerRogueAnim();
+
   // Slime idle animations 24x24
   function makeSlimeAnim(c1, c2, c3){
     const frames = [];
@@ -929,8 +969,10 @@ function genSprites(){
   // previews on start screen
   const prevWarrior=document.getElementById('prevWarrior');
   const prevMage=document.getElementById('prevMage');
+  const prevRogue=document.getElementById('prevRogue');
   if(prevWarrior){ const c=SPRITES.player_warrior.idle[0]; prevWarrior.width=c.width; prevWarrior.height=c.height; prevWarrior.getContext('2d').drawImage(c,0,0);}
   if(prevMage){ const c=SPRITES.player_mage.idle[0]; prevMage.width=c.width; prevMage.height=c.height; prevMage.getContext('2d').drawImage(c,0,0);}
+  if(prevRogue){ const c=SPRITES.player_rogue.idle[0]; prevRogue.width=c.width; prevRogue.height=c.height; prevRogue.getContext('2d').drawImage(c,0,0);}
 }
 
 // generate immediately so previews show on start

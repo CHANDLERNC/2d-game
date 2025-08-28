@@ -1,6 +1,6 @@
 # 2D Dungeon Game
 
-An offline HTML5 dungeon crawler with inline sprites, now featuring class selection, a warrior skill tree, consumable potions and legendary gear.
+An offline HTML5 dungeon crawler with inline sprites, now featuring warrior, mage and rogue classes, a warrior skill tree, consumable potions and legendary gear.
 
 Recent updates add varied combat sound effects and multiple music tracks that rotate every floor.
 
@@ -17,9 +17,9 @@ Then visit [http://localhost:8000](http://localhost:8000).
 ## Controls
 - **WASD or Arrow Keys** – Move in eight directions
 - **I** – Toggle inventory
-- **K** – Toggle magic menu
-- **L** – Toggle warrior skills
-- **Q** – Use bound ability (spell or warrior skill)
+- **K** – Toggle magic or skills menu
+- **L** – Toggle skills menu
+- **Q** – Use bound ability (spell or skill)
 - **E** – Use portal or the merchant
 - **1/2/3** – Quick-use potion from potion bag slot 1–3
 - **Esc** – Close open menus or open pause menu

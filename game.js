@@ -100,15 +100,20 @@ const skillTrees={
   ]}
 };
 
-function updateMageSprite(){
-  if(player.class!=='mage'){ playerSpriteKey='player_warrior'; return; }
-  let elem='magic';
-  if(player.boundSpell){
-    const ab=magicTrees[player.boundSpell.tree].abilities[player.boundSpell.idx];
-    elem = ab.elem || 'magic';
+function updatePlayerSprite(){
+  if(player.class==='mage'){
+    let elem='magic';
+    if(player.boundSpell){
+      const ab=magicTrees[player.boundSpell.tree].abilities[player.boundSpell.idx];
+      elem = ab.elem || 'magic';
+    }
+    const key = elem==='magic' ? 'player_mage' : `player_mage_${elem}`;
+    playerSpriteKey = ASSETS.sprites[key] ? key : 'player_mage';
+  }else if(player.class==='rogue'){
+    playerSpriteKey='player_rogue';
+  }else{
+    playerSpriteKey='player_warrior';
   }
-  const key = elem==='magic' ? 'player_mage' : `player_mage_${elem}`;
-  playerSpriteKey = ASSETS.sprites[key] ? key : 'player_mage';
 }
 
 // Monsters now have richer AI with per-type patterns and scaling
@@ -1991,7 +1996,7 @@ function handleKeyAction(key, e){
   if(key==='l') toggleSkills();
   if(key==='q'){
     if(player.class==='mage') castSelectedSpell();
-    else if(player.class==='warrior') castBoundSkill();
+    else castBoundSkill();
   }
   if(key==='c') toggleCharPage();
   if(key==='/') toggleActionLog();
@@ -2146,7 +2151,7 @@ function redrawMagic(){
 function toggleMagic(){ if(player.class!=='mage') return; let panel=document.getElementById('magic'); if(!panel){ redrawMagic(); panel=document.getElementById('magic'); } if(!panel) return; const show=panel.style.display===''||panel.style.display==='none'; panel.style.display=show?'block':'none'; if(show) redrawMagic(); updatePaused(); }
 
 function redrawSkills(){
-  if(player.class!=='warrior') return;
+  if(player.class!=='warrior' && player.class!=='rogue') return;
   let panel=document.getElementById('skills');
   if(!panel){ panel=document.createElement('div'); panel.id='skills'; panel.className='panel'; document.body.appendChild(panel); }
   let html = `<div class="section-title">Skill Points: ${player.skillPoints}</div>`;
@@ -2178,7 +2183,7 @@ function redrawSkills(){
   };
 }
 
-function toggleSkills(){ if(player.class!=='warrior') return; let panel=document.getElementById('skills'); if(!panel){ redrawSkills(); panel=document.getElementById('skills'); } if(!panel) return; const show=panel.style.display===''||panel.style.display==='none'; panel.style.display=show?'block':'none'; if(show) redrawSkills(); updatePaused(); }
+function toggleSkills(){ if(player.class!=='warrior' && player.class!=='rogue') return; let panel=document.getElementById('skills'); if(!panel){ redrawSkills(); panel=document.getElementById('skills'); } if(!panel) return; const show=panel.style.display===''||panel.style.display==='none'; panel.style.display=show?'block':'none'; if(show) redrawSkills(); updatePaused(); }
 
 function unlockSkill(treeName, idx){
   const ab=skillTrees[treeName].abilities[idx];
@@ -2209,7 +2214,7 @@ function bindSpell(treeName, idx){
   player.boundSpell={tree:treeName, idx};
   const ab=magicTrees[treeName].abilities[idx];
   hudSpell.textContent=ab.name;
-  updateMageSprite();
+  updatePlayerSprite();
   showToast(`Bound ${ab.name} to Q`);
 }
 
@@ -2345,6 +2350,7 @@ function loadGame(){
     while(player.skills[t].length < skillTrees[t].abilities.length) player.skills[t].push(false);
   }
   if(player.boundSkill===undefined) player.boundSkill=null;
+  updatePlayerSprite();
   bag=data.bag||new Array(BAG_SIZE).fill(null);
   potionBag=data.potionBag||new Array(POTION_BAG_SIZE).fill(null);
   equip=data.equip||{helmet:null,chest:null,legs:null,hands:null,feet:null,weapon:null};
@@ -2352,9 +2358,9 @@ function loadGame(){
   player.rx=player.x; player.ry=player.y; player.fromX=player.x; player.fromY=player.y; player.toX=player.x; player.toY=player.y; player.moving=false; player.moveT=1;
   recalcStats(); recomputeFOV(); redrawInventory();
   hudAbilityLabel.textContent = player.class==='mage'?'Spell:':'Skill:';
-  hudSpell.textContent = player.class==='warrior'
-    ? (player.boundSkill ? skillTrees[player.boundSkill.tree].abilities[player.boundSkill.idx].name : 'None')
-    : (player.boundSpell ? magicTrees[player.boundSpell.tree].abilities[player.boundSpell.idx].name : 'None');
+  hudSpell.textContent = player.class==='mage'
+    ? (player.boundSpell ? magicTrees[player.boundSpell.tree].abilities[player.boundSpell.idx].name : 'None')
+    : (player.boundSkill ? skillTrees[player.boundSkill.tree].abilities[player.boundSkill.idx].name : 'None');
   updateResourceUI();
   updateScoreUI();
   toggleEscMenu(false); showToast('Game loaded');
@@ -2445,6 +2451,7 @@ function recalcStats(){
   let dmgMin=2,dmgMax=4,crit=5,armor=0;
   let hpGainPerLevel = 12, mpGainPerLevel = 6, spGainPerLevel = 6;
   if(player.class==='mage') mpGainPerLevel = 10;
+  if(player.class==='rogue') spGainPerLevel = 8;
   let hpMax = 150 + (player.lvl-1)*hpGainPerLevel;
   let mpMax = 60 + (player.lvl-1)*mpGainPerLevel;
   let spMax = 60 + (player.lvl-1)*spGainPerLevel;
@@ -2456,6 +2463,8 @@ function recalcStats(){
     hpMax += 40; spMax += 40; dmgMin += 2; dmgMax += 2;
   }else if(player.class==='mage'){
     mpMax += 40; hpMax += 20; spellBonus = 0.2;
+  }else if(player.class==='rogue'){
+    spMax += 60; hpMax += 10; dmgMin += 1; dmgMax += 1; crit += 10; speedPct += 10;
   }
   // level bonus
   const lvlBonus = Math.floor((player.lvl-1)*0.6) + (player.baseAtkBonus||0);
@@ -2498,9 +2507,9 @@ function startGame(){
   initAudio();
   // class pick -> sprite & stats
   const cSel = document.querySelector('input[name="class"]:checked');
-  player.class = (cSel?.value==='mage')?'mage':'warrior';
+  player.class = cSel ? cSel.value : 'warrior';
   player.boundSpell=null; player.boundSkill=null;
-  updateMageSprite();
+  updatePlayerSprite();
   player.score=0; player.kills=0; player.timeSurvived=0; player.floorsCleared=0; scoreUpdateTimer=0; updateScoreUI();
   hudAbilityLabel.textContent = player.class==='mage'?'Spell:':'Skill:';
   hudFloor.textContent=floorNum; hudSeed.textContent=seed>>>0; hudGold.textContent=player.gold; hudLvl.textContent=player.lvl;
@@ -2510,9 +2519,9 @@ function startGame(){
   hpFill.style.width = `100%`; updateResourceUI();
   hpLbl.textContent = `HP ${player.hp}/${player.hpMax}`;
   recomputeFOV();
-  hudSpell.textContent = player.class==='warrior'
-    ? (player.boundSkill ? skillTrees[player.boundSkill.tree].abilities[player.boundSkill.idx].name : 'None')
-    : (player.boundSpell ? magicTrees[player.boundSpell.tree].abilities[player.boundSpell.idx].name : 'None');
+  hudSpell.textContent = player.class==='mage'
+    ? (player.boundSpell ? magicTrees[player.boundSpell.tree].abilities[player.boundSpell.idx].name : 'None')
+    : (player.boundSkill ? skillTrees[player.boundSkill.tree].abilities[player.boundSkill.idx].name : 'None');
   const smoothToggle=document.getElementById('smoothToggle'); const speedRange=document.getElementById('speedRange');
   if(smoothToggle){ smoothToggle.checked = smoothEnabled; smoothToggle.addEventListener('change', e=>{ smoothEnabled = e.target.checked; if(!smoothEnabled){ player.rx=player.x; player.ry=player.y; } }); }
   if(speedRange){ baseStepDelay = player.stepDelay; speedRange.value = String(baseStepDelay); speedRange.addEventListener('input', e=>{ const v=parseInt(e.target.value,10); if(!isNaN(v)) baseStepDelay=v; }); }
