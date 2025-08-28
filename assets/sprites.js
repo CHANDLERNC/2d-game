@@ -601,6 +601,46 @@ function genSprites(){
   }
   SPRITES.goblin = makeGoblinAnim();
 
+  // Goblin Spirit idle animations 24x24
+  function makeGoblinSpiritAnim(){
+    const frames=[];
+    const bob=[0,1,0,-1];
+    for(let i=0;i<4;i++){
+      const c=document.createElement('canvas');
+      c.width=c.height=24;
+      const g=c.getContext('2d');
+      g.imageSmoothingEnabled=false;
+      const oy=bob[i];
+      // head
+      px(g,7,2+oy,10,6,'#6fcf5a');
+      // ears
+      px(g,5,3+oy,2,2,'#6fcf5a');
+      px(g,17,3+oy,2,2,'#6fcf5a');
+      // eyes (red)
+      px(g,9,4+oy,2,2,'#ff0000');
+      px(g,13,4+oy,2,2,'#ff0000');
+      // body
+      px(g,7,8+oy,10,8,'#6fcf5a');
+      px(g,5,10+oy,2,6,'#6fcf5a');
+      px(g,17,10+oy,2,6,'#6fcf5a');
+      // tunic
+      px(g,7,12+oy,10,6,'#6b4b2a');
+      px(g,8,12+oy,8,2,'#7a5a37');
+      // belt
+      px(g,7,16+oy,10,2,'#3a2a1a');
+      // dagger
+      px(g,18,8+oy,2,8,'#c0c0c0');
+      px(g,17,15+oy,4,2,'#3a2d1a');
+      // legs / feet
+      px(g,8,18+oy,3,4,'#4b3621');
+      px(g,13,18+oy,3,4,'#4b3621');
+      outline(g,24);
+      frames.push(c);
+    }
+    return { cv: frames[0], frames };
+  }
+  SPRITES.goblin_spirit = makeGoblinSpiritAnim();
+
   // Ghost idle animations 24x24
   // Inspired by OpenGameArt ghost sprites: https://opengameart.org/content/ghost-pixel-art
   function makeGhostAnim(){
