@@ -11,19 +11,24 @@ function initAudio() {
   if (audioCtx.state === 'suspended') audioCtx.resume();
 }
 
-function playFootstep() {
+function playTone(type, freq, { attack = 0.01, decay = 0.3, volume = 0.2 } = {}) {
   initAudio();
   if (!audioCtx) return;
   const osc = audioCtx.createOscillator();
   const gain = audioCtx.createGain();
-  osc.type = 'sine';
-  osc.frequency.setValueAtTime(120 + Math.random() * 30, audioCtx.currentTime);
+  osc.type = type;
+  osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
   gain.gain.setValueAtTime(0.001, audioCtx.currentTime);
-  gain.gain.linearRampToValueAtTime(0.15, audioCtx.currentTime + 0.01);
-  gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.25);
+  gain.gain.linearRampToValueAtTime(volume, audioCtx.currentTime + attack);
+  gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + decay);
   osc.connect(gain).connect(audioCtx.destination);
   osc.start();
-  osc.stop(audioCtx.currentTime + 0.25);
+  osc.stop(audioCtx.currentTime + decay);
+}
+
+function playFootstep() {
+  const freq = 120 + Math.random() * 30;
+  playTone('sine', freq, { attack: 0.01, decay: 0.25, volume: 0.15 });
 }
 
 const attackSounds = [
@@ -33,18 +38,8 @@ const attackSounds = [
 ];
 
 function playAttack() {
-  initAudio();
-  if (!audioCtx) return;
   const variant = attackSounds[Math.floor(Math.random() * attackSounds.length)];
-  const osc = audioCtx.createOscillator();
-  const gain = audioCtx.createGain();
-  osc.type = variant.type;
-  osc.frequency.setValueAtTime(variant.freq, audioCtx.currentTime);
-  gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
-  gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.15);
-  osc.connect(gain).connect(audioCtx.destination);
-  osc.start();
-  osc.stop(audioCtx.currentTime + 0.15);
+  playTone(variant.type, variant.freq, { attack: 0, decay: 0.15, volume: 0.2 });
 }
 
 const hitSounds = [
@@ -54,18 +49,8 @@ const hitSounds = [
 ];
 
 function playHit() {
-  initAudio();
-  if (!audioCtx) return;
   const variant = hitSounds[Math.floor(Math.random() * hitSounds.length)];
-  const osc = audioCtx.createOscillator();
-  const gain = audioCtx.createGain();
-  osc.type = variant.type;
-  osc.frequency.setValueAtTime(variant.freq, audioCtx.currentTime);
-  gain.gain.setValueAtTime(0.25, audioCtx.currentTime);
-  gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.2);
-  osc.connect(gain).connect(audioCtx.destination);
-  osc.start();
-  osc.stop(audioCtx.currentTime + 0.2);
+  playTone(variant.type, variant.freq, { attack: 0, decay: 0.2, volume: 0.25 });
 }
 
 function startMusic(packIdx) {
