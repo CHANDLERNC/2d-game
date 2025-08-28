@@ -4,6 +4,7 @@ import { player, playerSpriteKey, magicTrees, skillTrees, updatePlayerSprite } f
 import { hpFill, mpFill, hpLbl, mpLbl, hudFloor, hudSeed, hudGold, hudDmg, hudScore, hudKills, xpFill, xpLbl, hudLvl, hudSpell, hudAbilityLabel, updateResourceUI, updateScoreUI, toggleActionLog, showToast, showBossAlert, showRespawn } from './modules/ui.js';
 import { TILE, MAP_W, MAP_H, T_EMPTY, T_FLOOR, T_WALL, T_TRAP, T_LAVA, TRAP_CHANCE, LAVA_CHANCE, map, fog, vis, rooms, stairs, merchant, merchantStyle, torches, lavaTiles, spikeTraps, walkable, canMoveFrom } from './modules/map.js';
 import { startLoop } from './modules/loop.js';
+import { applyDamageToPlayer as coreApplyDamageToPlayer } from './modules/combat.js';
 
 // ===== Config / Globals =====
 let VIEW_W=window.innerWidth, VIEW_H=window.innerHeight;
@@ -1185,31 +1186,16 @@ function currentAtk(){
 }
 
 function applyDamageToPlayer(dmg, type='physical'){
-  player.combatTimer = 0; player.healAcc = 0;
-  // Armor DR (applies to physical/ranged only)
-  const armor = player.armor||0;
-  const K = 50 + 10 * Math.max(0, floorNum-1);
-  const armorDR = Math.max(0, Math.min(0.8, armor / (armor + K)));
-  let afterArmor = dmg;
-  if(type==='physical' || type==='ranged'){ afterArmor = Math.max(1, Math.floor(dmg * (1 - armorDR))); }
-
-  // Elemental/magic resist (percentage, capped)
-  const cap = 75;
-  const rF = clamp(0, cap, player.resFire||0);
-  const rI = clamp(0, cap, player.resIce||0);
-  const rS = clamp(0, cap, player.resShock||0);
-  const rM = clamp(0, cap, player.resMagic||0);
-  const rP = clamp(0, cap, player.resPoison||0);
-  const resPct = (type==='fire')?rF : (type==='ice')?rI : (type==='shock')?rS : (type==='magic')?rM : (type==='poison')?rP : 0;
-  const sv = getEffectPower(player,'shock') || 0; // percent
-  const eff = Math.max(1, Math.floor(afterArmor * (1 - resPct/100) * (1 + sv)));
-
-  player.hp = Math.max(0, player.hp - eff);
-  const dmgCol = type==='magic'?'#b84aff' : type==='poison'?'#76d38b' : '#ff6b6b';
-  damageTexts.push({ tx:player.x, ty:player.y, text:`-${eff}`, color:dmgCol, age:0, ttl:900 });
-  playHit();
-  if(player.hp===0){ showRespawn(); }
+  coreApplyDamageToPlayer(player, dmg, {
+    type,
+    floor: floorNum,
+    damageTexts,
+    getEffectPower,
+    playHit,
+    showRespawn
+  });
 }
+
 
 // ===== Player weapon profiles & directional attacks =====
 const WEAPON_RULES = {
