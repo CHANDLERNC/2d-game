@@ -119,7 +119,8 @@ let monsters=[];
 let projectiles=[];
 // floating combat text
 let damageTexts=[];
-function addDamageText(tx,ty,text,color){ damageTexts.push({ tx, ty, text, color, age:0, ttl:800 }); }
+function addDamageText(tx,ty,text,color,ttl=800){ damageTexts.push({ tx, ty, text, color, age:0, ttl }); }
+let levelUpFx=null;
 const SLOTS=["helmet","chest","legs","hands","feet","weapon"];
 let equip={helmet:null,chest:null,legs:null,hands:null,feet:null,weapon:null};
 const BAG_SIZE=12; let bag=new Array(BAG_SIZE).fill(null);
@@ -1829,6 +1830,25 @@ function draw(dt){
   ctx.drawImage(frame, px, py);
   // player status pips
   drawStatusPips(ctx, player, px+12, py-9);
+  // level up sparkles
+  if(levelUpFx){
+    const cx = px+12, cy = py+12;
+    const radius = 20, count = 6;
+    for(let i=0;i<count;i++){
+      const ang = now*0.008 + i*(Math.PI*2/count);
+      const sx = cx + Math.cos(ang)*radius;
+      const sy = cy + Math.sin(ang)*radius;
+      ctx.fillStyle='#ffff66';
+      ctx.beginPath(); ctx.arc(sx, sy, 2, 0, Math.PI*2); ctx.fill();
+    }
+    if(levelUpFx.t > levelUpFx.duration-200){
+      const f=(levelUpFx.t-(levelUpFx.duration-200))/200;
+      ctx.fillStyle=`rgba(255,255,255,${1-f})`;
+      ctx.beginPath(); ctx.arc(cx, cy, radius+10, 0, Math.PI*2); ctx.fill();
+    }
+    levelUpFx.t += dt;
+    if(levelUpFx.t >= levelUpFx.duration) levelUpFx=null;
+  }
 
   // floating damage texts
   for(const t of damageTexts){
@@ -2409,6 +2429,8 @@ function levelUp(){
   hpFill.style.width = `${(player.hp/player.hpMax)*100}%`;
   updateResourceUI();
   hpLbl.textContent = `HP ${player.hp}/${player.hpMax}`;
+  levelUpFx = { t:0, duration:1200 };
+  addDamageText(player.x, player.y, 'Level up +1', '#ffff66', 1800);
   showToast(`Level up! Lv ${player.lvl}`);
   showToast(player.class==='mage'?'Gained magic point':'Gained skill point');
 }
