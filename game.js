@@ -1,9 +1,12 @@
 import { initAudio, playFootstep, playAttack, playHit, startMusic, nextMusic } from './modules/audio.js';
 import { keys, initInput } from './modules/input.js';
+import { player, playerSpriteKey, magicTrees, skillTrees, updatePlayerSprite } from './modules/player.js';
+import { hpFill, mpFill, hpLbl, mpLbl, hudFloor, hudSeed, hudGold, hudDmg, hudScore, hudKills, xpFill, xpLbl, hudLvl, hudSpell, hudAbilityLabel, updateResourceUI, updateScoreUI, toggleActionLog, showToast, showBossAlert, showRespawn } from './modules/ui.js';
+import { TILE, MAP_W, MAP_H, T_EMPTY, T_FLOOR, T_WALL, T_TRAP, T_LAVA, TRAP_CHANCE, LAVA_CHANCE, map, fog, vis, rooms, stairs, merchant, merchantStyle, torches, lavaTiles, spikeTraps, walkable, canMoveFrom } from './modules/map.js';
+import { startLoop } from './modules/loop.js';
 
 // ===== Config / Globals =====
 let VIEW_W=window.innerWidth, VIEW_H=window.innerHeight;
-const TILE=32, MAP_W=48, MAP_H=48;
 const MONSTER_BASE_COUNT=6, MONSTER_MIN_COUNT=6, MONSTER_COUNT_GROWTH=2, MONSTER_COUNT_VARIANCE=3;
 const FOV_RADIUS=8; const LOOT_CHANCE=0.18;
 const MONSTER_LOOT_CHANCE=0.5; const AGGRO_RANGE=6;
@@ -37,84 +40,11 @@ function resizeCanvas(){ canvas.width = VIEW_W = window.innerWidth; canvas.heigh
 window.addEventListener('resize', resizeCanvas); resizeCanvas();
 let camX=0, camY=0; let floorLayer=null, wallLayer=null;
 let floorTint='#ffffff', wallTint='#ffffff';
-let torches=[];
-let lavaTiles=[];
-let spikeTraps=[];
 let gameOver=false;
 let paused=false;
-let actionLog=[];
 let scoreUpdateTimer=0;
 
 let seed=(Math.random()*1e9)|0, floorNum=1, rng=new RNG(seed);
-let map=[], fog=[], vis=[]; let rooms=[]; let stairs={x:0,y:0};
-let merchant={x:0,y:0}; let merchantStyle = Math.random()<0.5 ? 'goblin' : 'stall';
-let player={x:0,y:0,hp:150,hpMax:150,mp:60,mpMax:60,sp:60,spMax:60,gold:0,stepCD:0,stepDelay:140,speedPct:0,lvl:1,xp:0,xpToNext:50,baseAtkBonus:0,class:'warrior', atkCD:0, combatTimer:0, healAcc:0, faceDx:1, faceDy:0, effects:[], magicPoints:0, skillPoints:0, score:0, kills:0, timeSurvived:0, floorsCleared:0, magic:{healing:[false,false,false,false,false,false],damage:[false,false,false,false,false,false],dot:[false,false,false,false,false,false]}, skills:{offense:[false,false,false,false,false,false],defense:[false,false,false,false,false,false],techniques:[false,false,false]}, boundSpell:null, boundSkill:null};
-let playerSpriteKey = 'player_warrior';
-const magicTrees={
-  healing:{display:'Healing',abilities:[
-    {name:'Heal I',type:'heal',value:30,mp:10,cost:1},
-    {name:'Heal II',type:'heal',value:60,mp:20,cost:2},
-    {name:'Heal III',type:'heal',value:120,mp:30,cost:3},
-    {name:'Heal IV',type:'heal',value:null,mp:40,cost:4},
-    {name:'Heal V',type:'heal',value:null,mp:60,cost:5},
-    {name:'Divine Light',type:'heal',value:null,mp:80,cost:9}
-  ]},
-  damage:{display:'Damage',abilities:[
-    {name:'Fire Bolt',type:'damage',dmg:15,mp:10,cost:1,range:8,elem:'fire',status:{k:'burn',dur:2000,power:1.0,chance:1}},
-    {name:'Ice Spike',type:'damage',dmg:40,mp:15,cost:2,range:8,elem:'ice',status:{k:'freeze',dur:1800,power:0.4,chance:1}},
-    {name:'Lightning Bolt',type:'damage',dmg:65,mp:20,cost:3,range:9,elem:'shock',status:{k:'shock',dur:2000,power:0.25,chance:1}},
-    {name:'Arcane Blast',type:'damage',dmg:90,mp:30,cost:4,range:9,elem:'magic'},
-    {name:'Meteor',type:'damage',dmg:120,mp:40,cost:5,range:9,elem:'fire',status:{k:'burn',dur:3000,power:1.5,chance:1}},
-    {name:'Void Ray',type:'damage',dmg:150,mp:60,cost:9,range:10,elem:'magic'}
-  ]},
-  dot:{display:'Damage Over Time',abilities:[
-    {name:'Ignite',type:'dot',dmg:8,mp:12,cost:1,range:8,elem:'fire',status:{k:'burn',dur:2200,power:1.0,chance:1}},
-    {name:'Scorch',type:'dot',dmg:18,mp:16,cost:2,range:8,elem:'fire',status:{k:'burn',dur:2600,power:1.1,chance:1}},
-    {name:'Sear',type:'dot',dmg:28,mp:20,cost:3,range:8,elem:'fire',status:{k:'burn',dur:3000,power:1.2,chance:1}},
-    {name:'Inferno',type:'dot',dmg:38,mp:25,cost:4,range:8,elem:'fire',status:{k:'burn',dur:3400,power:1.3,chance:1}},
-    {name:'Conflagrate',type:'dot',dmg:48,mp:28,cost:5,range:8,elem:'fire',status:{k:'burn',dur:3800,power:1.4,chance:1}},
-    {name:'Hellfire',type:'dot',dmg:60,mp:35,cost:9,range:8,elem:'fire',status:{k:'burn',dur:4200,power:1.5,chance:1}}
-  ]}
-};
-const skillTrees={
-  offense:{display:'Offense',abilities:[
-    {name:'Precision',desc:'Increase critical chance by 5%.',bonus:{crit:5},cost:1},
-    {name:'Berserk',desc:'Increase attack damage by 2.',bonus:{dmgMin:2,dmgMax:2},cost:2},
-    {name:'Cleave',desc:'Increase attack damage by 3.',bonus:{dmgMin:3,dmgMax:3},cost:3},
-    {name:'Earthshatter',desc:'Increase attack damage by 4.',bonus:{dmgMin:4,dmgMax:4},cost:4},
-    {name:'Bloodlust',desc:'Increase attack damage by 5.',bonus:{dmgMin:5,dmgMax:5},cost:5},
-    {name:'Dominance',desc:'Increase attack damage by 6.',bonus:{dmgMin:6,dmgMax:6},cost:9}
-  ]},
-  defense:{display:'Defense',abilities:[
-    {name:'Toughness',desc:'Increase max HP by 20.',bonus:{hpMax:20},cost:1},
-    {name:'Shield Wall',desc:'Increase armor by 2.',bonus:{armor:2},cost:2},
-    {name:'Fortify',desc:'Increase max HP by 20.',bonus:{hpMax:20},cost:3},
-    {name:'Stone Skin',desc:'Increase armor by 2.',bonus:{armor:2},cost:4},
-    {name:'Guardian',desc:'Increase max HP by 30.',bonus:{hpMax:30},cost:5},
-    {name:'Unbreakable',desc:'Increase armor by 3.',bonus:{armor:3},cost:9}
-  ]},
-  techniques:{display:'Techniques',abilities:[
-    {name:'Power Strike',desc:'Spend 20 stamina to strike for 40% more damage.',cost:1,cast:'powerStrike'},
-    {name:'Whirlwind',desc:'Spin and hit nearby foes for 60% more damage (30 stamina).',cost:2,cast:'whirlwind'},
-    {name:'Shield Bash',desc:'Bash an enemy for 80% more damage and shock them (15 stamina).',cost:3,cast:'shieldBash'}
-  ]}
-};
-
-function updatePlayerSprite(){
-  if(player.class==='mage'){
-    let elem='magic';
-    if(player.boundSpell){
-      const ab=magicTrees[player.boundSpell.tree].abilities[player.boundSpell.idx];
-      elem = ab.elem || 'magic';
-    }
-    const key = elem==='magic' ? 'player_mage' : `player_mage_${elem}`;
-    playerSpriteKey = ASSETS.sprites[key] ? key : 'player_mage';
-  }else if(player.class==='rogue'){
-    playerSpriteKey='player_rogue';
-  }else{
-    playerSpriteKey='player_warrior';
-  }
-}
 
 // Monsters now have richer AI with per-type patterns and scaling
 // {x,y,rx,ry,type,hp,hpMax,dmgMin,dmgMax,atkCD,moveCD,xp,state:{...},hitFlash,effects:[]}
@@ -132,38 +62,10 @@ const POTION_BAG_SIZE=3; let potionBag=new Array(POTION_BAG_SIZE).fill(null);
 let shopStock=[];
 let currentStats={dmgMin:0,dmgMax:0,crit:0,armor:0,resF:0,resI:0,resS:0,resM:0,resP:0,hpMax:0,mpMax:0,spMax:0};
 
-// HUD refs
-const hpFill=document.getElementById('hpFill'); const mpFill=document.getElementById('mpFill');
-const hpLbl=document.getElementById('hpLbl'); const mpLbl=document.getElementById('mpLbl');
-const hudFloor=document.getElementById('hudFloor'); const hudSeed=document.getElementById('hudSeed'); const hudGold=document.getElementById('hudGold'); const hudDmg=document.getElementById('hudDmg');
-const hudScore=document.getElementById('hudScore'); const hudKills=document.getElementById('hudKills');
-const xpFill=document.getElementById('xpFill'); const xpLbl=document.getElementById('xpLbl'); const hudLvl=document.getElementById('hudLvl'); const hudSpell=document.getElementById('hudSpell'); const hudAbilityLabel=document.getElementById('hudAbilityLabel');
-
-function updateResourceUI(){
-  if(player.class==='mage'){
-    mpFill.style.width=`${(player.mp/player.mpMax)*100}%`;
-    mpLbl.textContent=`Mana ${player.mp}/${player.mpMax}`;
-  }else{
-    mpFill.style.width=`${(player.sp/player.spMax)*100}%`;
-    mpLbl.textContent=`Stamina ${player.sp}/${player.spMax}`;
-  }
-}
-
-function updateScoreUI(){
-  if(hudScore) hudScore.textContent = Math.floor(player.score);
-  if(hudKills) hudKills.textContent = player.kills;
-}
 
 // --- Smooth helpers & settings ---
 function smoothstep01(t){ return t*t*(3-2*t); }
 function lerp(a,b,t){ return a + (b-a)*t; }
-function walkable(x,y){ if(x<0||y<0||x>=MAP_W||y>=MAP_H) return false; const t=map[y*MAP_W+x]; return t!==T_WALL && t!==T_EMPTY; }
-function canMoveFrom(x,y,dx,dy){
-  const nx=x+dx, ny=y+dy;
-  if(!walkable(nx,ny)) return false;
-  if(dx!==0 && dy!==0){ if(!walkable(x+dx,y) && !walkable(x,y+dy)) return false; }
-  return true;
-}
 let smoothEnabled = true; let baseStepDelay = 140; // sync to player.stepDelay on start
 
 // ===== RNG =====
@@ -172,9 +74,6 @@ RNG.prototype.next=function(){ this.s=(this.s*1664525+1013904223)|0; return ((th
 RNG.prototype.int=function(a,b){ return Math.floor(a + (b-a+1)*this.next()); }
 
 // ===== Map / Gen =====
-const T_EMPTY=0, T_FLOOR=1, T_WALL=2, T_TRAP=3, T_LAVA=4;
-const TRAP_CHANCE=0.01, LAVA_CHANCE=0.02;
-
 function generateRooms(){
   rooms = [];
   map.fill(T_EMPTY);
@@ -2079,22 +1978,6 @@ function toggleCharPage(){
   updatePaused();
 }
 
-function renderActionLog(){
-  const panel=document.getElementById('actionLog');
-  if(!panel) return;
-  let html='<div class="section-title">Action Log</div>';
-  for(const msg of actionLog){ html+=`<div class="kv">${msg}</div>`; }
-  panel.innerHTML=html;
-}
-
-function toggleActionLog(){
-  const panel=document.getElementById('actionLog');
-  if(!panel) return;
-  const show=panel.style.display===''||panel.style.display==='none';
-  panel.style.display=show?'block':'none';
-  if(show) renderActionLog();
-  updatePaused();
-}
 
 function closeMenus(){
   let closed=false;
@@ -2417,31 +2300,6 @@ function levelUp(){
 }
 
 // ===== Toast =====
-function showToast(msg){
-  actionLog.push(msg);
-  if(actionLog.length>50) actionLog.shift();
-  const panel=document.getElementById('actionLog');
-  if(panel && panel.style.display==='block') renderActionLog();
-}
-function showBossAlert(){
-  const d=document.createElement('div');
-  d.id='bossAlert';
-  d.textContent='Boss floor — good luck!';
-  document.body.appendChild(d);
-  setTimeout(()=>d.remove(),4000);
-}
-function showRespawn(){
-  gameOver=true;
-  const d=document.getElementById('respawn');
-  if(d){
-    updateScoreUI();
-    const fs=document.getElementById('finalScore'); if(fs) fs.textContent=Math.floor(player.score);
-    const fk=document.getElementById('finalKills'); if(fk) fk.textContent=player.kills;
-    const ff=document.getElementById('finalFloors'); if(ff) ff.textContent=player.floorsCleared;
-    const ft=document.getElementById('finalTime'); if(ft) ft.textContent=Math.floor(player.timeSurvived/1000);
-    d.style.display='grid';
-  }
-}
 
 // ===== Stats =====
 function recalcStats(){
@@ -2496,8 +2354,7 @@ function recalcStats(){
 }
 
 // ===== Main Loop =====
-let __last = performance.now();
-function loop(now){ const dt = Math.min(50, now - __last); __last = now; update(dt); draw(dt); requestAnimationFrame(loop); }
+// main loop handled by modules/loop.js
 
 // ===== Start =====
 function startGame(){
@@ -2522,8 +2379,8 @@ function startGame(){
   const smoothToggle=document.getElementById('smoothToggle'); const speedRange=document.getElementById('speedRange');
   if(smoothToggle){ smoothToggle.checked = smoothEnabled; smoothToggle.addEventListener('change', e=>{ smoothEnabled = e.target.checked; if(!smoothEnabled){ player.rx=player.x; player.ry=player.y; } }); }
   if(speedRange){ baseStepDelay = player.stepDelay; speedRange.value = String(baseStepDelay); speedRange.addEventListener('input', e=>{ const v=parseInt(e.target.value,10); if(!isNaN(v)) baseStepDelay=v; }); }
-  requestAnimationFrame(loop);
-}
+    startLoop(update, draw);
+  }
 
 document.getElementById('playBtn').onclick=()=>{ document.getElementById('start').style.display='none'; startGame(); };
 document.getElementById('respawnBtn').onclick=()=>{ location.reload(); };
