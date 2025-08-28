@@ -77,22 +77,55 @@ RNG.prototype.next=function(){ this.s=(this.s*1664525+1013904223)|0; return ((th
 RNG.prototype.int=function(a,b){ return Math.floor(a + (b-a+1)*this.next()); }
 
 // ===== Map / Gen =====
+const MIN_ROOM_SIZE = 2;
+
+function connectRooms(){
+  for(let i=1;i<rooms.length;i++){
+    const a=rooms[i-1], b=rooms[i];
+    const ax=a.x+((a.w/2)|0), ay=a.y+((a.h/2)|0);
+    const bx=b.x+((b.w/2)|0), by=b.y+((b.h/2)|0);
+    for(let x=Math.min(ax,bx); x<=Math.max(ax,bx); x++) map[ay*MAP_W+x]=T_FLOOR;
+    for(let y=Math.min(ay,by); y<=Math.max(ay,by); y++) map[y*MAP_W+bx]=T_FLOOR;
+  }
+}
+
+function pruneSmallAreas(){
+  const visited=new Set();
+  for(let y=0;y<MAP_H;y++){
+    for(let x=0;x<MAP_W;x++){
+      const idx=y*MAP_W+x;
+      if(map[idx]!==T_FLOOR || visited.has(idx)) continue;
+      const stack=[[x,y]]; const tiles=[]; visited.add(idx);
+      let minX=x, maxX=x, minY=y, maxY=y;
+      while(stack.length){
+        const [cx,cy]=stack.pop(); tiles.push([cx,cy]);
+        if(cx<minX) minX=cx; if(cx>maxX) maxX=cx;
+        if(cy<minY) minY=cy; if(cy>maxY) maxY=cy;
+        for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){
+          const nx=cx+dx, ny=cy+dy; if(nx<0||ny<0||nx>=MAP_W||ny>=MAP_H) continue;
+          const nIdx=ny*MAP_W+nx; if(map[nIdx]!==T_FLOOR || visited.has(nIdx)) continue;
+          visited.add(nIdx); stack.push([nx,ny]);
+        }
+      }
+      const width=maxX-minX+1, height=maxY-minY+1;
+      if(width<MIN_ROOM_SIZE || height<MIN_ROOM_SIZE){
+        for(const [tx,ty] of tiles) map[ty*MAP_W+tx]=T_WALL;
+      }
+    }
+  }
+}
+
 function generateRooms(){
   rooms.length = 0;
   map.fill(T_EMPTY);
   // rooms
   for(let i=0;i<28;i++){
-    const w=rng.int(6,11), h=rng.int(6,11);
+    const w=rng.int(MIN_ROOM_SIZE,11), h=rng.int(MIN_ROOM_SIZE,11);
     const x=rng.int(1,MAP_W-w-1), y=rng.int(1,MAP_H-h-1);
     rooms.push({x,y,w,h});
     for(let yy=y; yy<y+h; yy++) for(let xx=x; xx<x+w; xx++) map[yy*MAP_W+xx]=T_FLOOR;
   }
-  // corridors
-  for(let i=1;i<rooms.length;i++){
-    const a=rooms[i-1], b=rooms[i];
-    for(let x=Math.min(a.x,b.x); x<=Math.max(a.x,b.x); x++) map[(a.y+((a.h/2)|0))*MAP_W+x]=T_FLOOR;
-    for(let y=Math.min(a.y,b.y); y<=Math.max(a.y,b.y); y++) map[y*MAP_W+(b.x+((b.w/2)|0))]=T_FLOOR;
-  }
+  connectRooms();
   // ensure connectivity by removing unreachable floors
   if(rooms.length){
     const start=rooms[0];
@@ -115,6 +148,7 @@ function generateRooms(){
     rooms.length = 0;
     rooms.push(...filtered);
   }
+  pruneSmallAreas();
   // walls
   for(let y=0;y<MAP_H;y++) for(let x=0;x<MAP_W;x++) if(map[y*MAP_W+x]===T_FLOOR){ for(const d of [[1,0],[-1,0],[0,1],[0,-1]]){ const nx=x+d[0], ny=y+d[1]; if(nx>=0&&ny>=0&&nx<MAP_W&&ny<MAP_H && map[ny*MAP_W+nx]===T_EMPTY) map[ny*MAP_W+nx]=T_WALL; } }
   // torches along walls facing floors
