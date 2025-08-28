@@ -685,7 +685,7 @@ function buildLayers(){
   floorLayer=document.createElement('canvas'); floorLayer.width=MAP_W*TILE; floorLayer.height=MAP_H*TILE;
   wallLayer=document.createElement('canvas'); wallLayer.width=MAP_W*TILE; wallLayer.height=MAP_H*TILE;
   const f=floorLayer.getContext('2d'), w=wallLayer.getContext('2d');
-  f.fillStyle=f.createPattern(floorTex,'repeat'); f.fillRect(0,0,floorLayer.width,floorLayer.height);
+  f.fillStyle=f.createPattern(ASSETS.textures.floor,'repeat'); f.fillRect(0,0,floorLayer.width,floorLayer.height);
   // mask non-floor
   const mask=document.createElement('canvas'); mask.width=floorLayer.width; mask.height=floorLayer.height;
   const mg=mask.getContext('2d'); mg.fillStyle='#000'; mg.fillRect(0,0,mask.width,mask.height);
@@ -698,7 +698,7 @@ function buildLayers(){
   f.fillRect(0,0,floorLayer.width,floorLayer.height);
   f.globalCompositeOperation='source-over';
   // walls
-  w.fillStyle=w.createPattern(wallTex,'repeat');
+  w.fillStyle=w.createPattern(ASSETS.textures.wall,'repeat');
   for(let y=0;y<MAP_H;y++) for(let x=0;x<MAP_W;x++) if(map[y*MAP_W+x]===T_WALL) w.fillRect(x*TILE,y*TILE,TILE,TILE);
   w.globalCompositeOperation='multiply';
   w.fillStyle=wallTint;
@@ -1655,11 +1655,11 @@ function drawLootIcon(it, x, y){
   ctx.strokeStyle = '#000';
   ctx.lineWidth = 1;
   if(it.type==='gold'){
-    const frames = SPRITES.coin.frames;
+    const frames = ASSETS.sprites.coin.frames;
     const idx = Math.floor(performance.now()/100) % frames.length;
     ctx.drawImage(frames[idx], x, y);
   }else if(it.type==='potion'){
-    const spr = it.hp ? SPRITES.potion_hp : SPRITES.potion_mp;
+    const spr = it.hp ? ASSETS.sprites.potion_hp : ASSETS.sprites.potion_mp;
     const frames = spr.frames;
     const idx = frames.length ? Math.floor(performance.now()/100)%frames.length : 0;
     ctx.drawImage(frames[idx]||spr.cv, x+1, y+1);
@@ -1667,12 +1667,12 @@ function drawLootIcon(it, x, y){
     switch(it.slot){
       case 'weapon':
         if(it.wclass === 'bow'){
-          const spr = SPRITES.bow_loot;
+          const spr = ASSETS.sprites.bow_loot;
           const frames = spr.frames;
           const idx = frames.length ? Math.floor(performance.now()/100)%frames.length : 0;
           ctx.drawImage(frames[idx]||spr.cv, x, y);
         }else if(it.wclass === 'sword'){
-          const spr = SPRITES.sword_loot;
+          const spr = ASSETS.sprites.sword_loot;
           const frames = spr.frames;
           const idx = frames.length ? Math.floor(performance.now()/100)%frames.length : 0;
           ctx.drawImage(frames[idx]||spr.cv, x, y);
@@ -1692,7 +1692,7 @@ function drawLootIcon(it, x, y){
         ctx.strokeRect(x+2, y+6, 10, 6);
         break;
       case 'chest': {
-        const spr = SPRITES.chest_loot;
+        const spr = ASSETS.sprites.chest_loot;
         const frames = spr.frames;
         const idx = frames.length ? Math.floor(performance.now()/100)%frames.length : 0;
         ctx.drawImage(frames[idx]||spr.cv, x, y);
@@ -1737,16 +1737,16 @@ function draw(dt){
 
   // hazards
   const now = performance.now();
-  if(SPRITES.lava){
-    const lframes = SPRITES.lava.frames;
+  if(ASSETS.sprites.lava){
+    const lframes = ASSETS.sprites.lava.frames;
     const lidx = Math.floor(now/200)%lframes.length;
     for(const h of lavaTiles){
       const idx=h.y*MAP_W + h.x; if(!vis[idx]) continue;
       ctx.drawImage(lframes[lidx], h.x*TILE - camX, h.y*TILE - camY);
     }
   }
-  if(SPRITES.spike){
-    const sframes = SPRITES.spike.frames;
+  if(ASSETS.sprites.spike){
+    const sframes = ASSETS.sprites.spike.frames;
     const sidx = Math.floor(now/200)%sframes.length;
     for(const h of spikeTraps){
       const idx=h.y*MAP_W + h.x; if(!vis[idx]) continue;
@@ -1777,13 +1777,13 @@ function draw(dt){
 
   // portal (stairs replacement) sprite
   const stairsX = stairs.x*TILE - camX + (TILE-48)/2; const stairsY = stairs.y*TILE - camY + (TILE-48)/2;
-  SPRITES.stairs.draw(performance.now());
-  ctx.drawImage(SPRITES.stairs.cv, stairsX, stairsY);
+  ASSETS.sprites.stairs.draw(performance.now());
+  ctx.drawImage(ASSETS.sprites.stairs.cv, stairsX, stairsY);
 
   // merchant (sprite)
   if(vis[merchant.y*MAP_W+merchant.x]){
     const mx = merchant.x*TILE - camX + (TILE-24)/2; const my = merchant.y*TILE - camY + (TILE-24)/2;
-    const sprite = merchantStyle==='goblin'? SPRITES.shop_goblin.cv : SPRITES.shop_stall.cv;
+    const sprite = merchantStyle==='goblin'? ASSETS.sprites.shop_goblin.cv : ASSETS.sprites.shop_stall.cv;
     ctx.drawImage(sprite, mx, my);
   }
 
@@ -1805,7 +1805,7 @@ function draw(dt){
     const size = m.spriteSize || 24;
     const mx = mtx*TILE - camX + (TILE-size)/2; const my = mty*TILE - camY + (TILE-size)/2;
     const key = m.spriteKey || (m.type===0?'slime' : m.type===1?'bat' : m.type===2?'skeleton' : m.type===5?'goblin' : m.type===6?'ghost' : 'mage');
-    const spr = SPRITES[key];
+    const spr = ASSETS.sprites[key];
     let frame = spr.cv;
     if(spr.frames && spr.frames.length>0){
       const animIdx = Math.floor(now/200) % spr.frames.length;
@@ -1868,7 +1868,7 @@ function draw(dt){
       else if(p.elem==='blast') key='proj_blast';
       else key='proj_magic';
     }
-    const spr = SPRITES[key];
+    const spr = ASSETS.sprites[key];
     const frame = spr.frames[Math.floor(now/150) % spr.frames.length];
     const size = spr.cv.width;
     const px = p.x*TILE - camX - size/2;
@@ -1889,7 +1889,7 @@ function draw(dt){
   const ptx = (smoothEnabled && player.rx!==undefined ? player.rx : player.x);
   const pty = (smoothEnabled && player.ry!==undefined ? player.ry : player.y);
   const px = ptx*TILE - camX + (TILE-24)/2; const py = pty*TILE - camY + (TILE-24)/2;
-  const pspr = SPRITES[playerSpriteKey];
+  const pspr = ASSETS.sprites[playerSpriteKey];
   const anim = player.moving ? pspr.move : pspr.idle;
   const frame = anim[Math.floor(now/200) % anim.length];
   ctx.drawImage(frame, px, py);
