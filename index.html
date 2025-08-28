@@ -1307,70 +1307,21 @@ const T_EMPTY=0, T_FLOOR=1, T_WALL=2, T_TRAP=3, T_LAVA=4;
 const TRAP_CHANCE=0.01, LAVA_CHANCE=0.02;
 
 function generateRooms(){
-  // start fresh
   rooms = [];
   map.fill(T_EMPTY);
-  function carveCorridor(x1,y1,x2,y2){
-    if(rng.next()<0.5){
-      for(let xx=Math.min(x1,x2); xx<=Math.max(x1,x2); xx++) map[y1*MAP_W+xx]=T_FLOOR;
-      for(let yy=Math.min(y1,y2); yy<=Math.max(y1,y2); yy++) map[yy*MAP_W+x2]=T_FLOOR;
-    }else{
-      for(let yy=Math.min(y1,y2); yy<=Math.max(y1,y2); yy++) map[yy*MAP_W+x1]=T_FLOOR;
-      for(let xx=Math.min(x1,x2); xx<=Math.max(x1,x2); xx++) map[y2*MAP_W+xx]=T_FLOOR;
-    }
-  }
-  // attempt to place non-overlapping rooms of varied sizes
-  const roomAttempts = 32;
-  for(let i=0;i<roomAttempts;i++){
-    let w,h;
-    const sizeRoll = rng.next();
-    if(sizeRoll < 0.4){
-      w=rng.int(8,12); h=rng.int(8,12); // small
-    }else if(sizeRoll < 0.8){
-      w=rng.int(12,18); h=rng.int(12,18); // medium
-    }else{
-      w=rng.int(18,24); h=rng.int(18,24); // large
-    }
+  // rooms
+  for(let i=0;i<28;i++){
+    const w=rng.int(6,11), h=rng.int(6,11);
     const x=rng.int(1,MAP_W-w-1), y=rng.int(1,MAP_H-h-1);
-    const candidate={x,y,w,h,exits:0};
-    let overlaps=false;
-    for(const r of rooms){
-      if(x<r.x+r.w+1 && x+w+1>r.x && y<r.y+r.h+1 && y+h+1>r.y){ overlaps=true; break; }
-    }
-    if(overlaps) continue;
-    // carve room
+    rooms.push({x,y,w,h});
     for(let yy=y; yy<y+h; yy++) for(let xx=x; xx<x+w; xx++) map[yy*MAP_W+xx]=T_FLOOR;
-    // connect to a random previous room to ensure exits
-    if(rooms.length){
-      const target=rooms[rng.int(0,rooms.length-1)];
-      const x1=x+((w/2)|0), y1=y+((h/2)|0);
-      const x2=target.x+((target.w/2)|0), y2=target.y+((target.h/2)|0);
-      carveCorridor(x1,y1,x2,y2);
-      candidate.exits++;
-      target.exits=(target.exits||0)+1;
-    }
-    rooms.push(candidate);
   }
-  // ensure every room has at least one exit
-  for(const room of rooms){
-    if(room.exits>0) continue;
-    let nearest=null, best=Infinity;
-    const cx=room.x+((room.w/2)|0), cy=room.y+((room.h/2)|0);
-    for(const other of rooms){
-      if(other===room) continue;
-      const ox=other.x+((other.w/2)|0), oy=other.y+((other.h/2)|0);
-      const dist=Math.abs(cx-ox)+Math.abs(cy-oy);
-      if(dist<best){ best=dist; nearest=other; }
-    }
-    if(nearest){
-      const ox=nearest.x+((nearest.w/2)|0), oy=nearest.y+((nearest.h/2)|0);
-      carveCorridor(cx,cy,ox,oy);
-      room.exits++;
-      nearest.exits=(nearest.exits||0)+1;
-    }
+  // corridors
+  for(let i=1;i<rooms.length;i++){
+    const a=rooms[i-1], b=rooms[i];
+    for(let x=Math.min(a.x,b.x); x<=Math.max(a.x,b.x); x++) map[(a.y+((a.h/2)|0))*MAP_W+x]=T_FLOOR;
+    for(let y=Math.min(a.y,b.y); y<=Math.max(a.y,b.y); y++) map[y*MAP_W+(b.x+((b.w/2)|0))]=T_FLOOR;
   }
-  // sort rooms by size so largest room is first
-  rooms.sort((a,b)=>(b.w*b.h)-(a.w*a.h));
   // ensure connectivity by removing unreachable floors
   if(rooms.length){
     const start=rooms[0];
@@ -1403,8 +1354,8 @@ function generateRooms(){
     }
     if(adj && rng.next()<TORCH_CHANCE){ torches.push({x,y,phase:rng.next()*Math.PI*2}); }
   }
-  // place player in largest room, stairs and merchant in random rooms
-  const startRoom=rooms[0]; player.x=startRoom.x+((startRoom.w/2)|0); player.y=startRoom.y+((startRoom.h/2)|0);
+  // place player + stairs + merchant
+  const r=rooms[rng.int(0,rooms.length-1)]; player.x=r.x+((r.w/2)|0); player.y=r.y+((r.h/2)|0);
   let rr=rooms[rng.int(0,rooms.length-1)]; stairs.x=rr.x+((rr.w/2)|0); stairs.y=rr.y+((rr.h/2)|0);
   let rm=rooms[rng.int(0,rooms.length-1)];
   merchant.x=rm.x+((rm.w/2)|0); merchant.y=rm.y+((rm.h/2)|0);
@@ -1420,8 +1371,12 @@ function generateRooms(){
     while(!placed && tries<25){
       const r=rooms[rng.int(0,rooms.length-1)];
       const x=rng.int(r.x+1,r.x+r.w-2), y=rng.int(r.y+1,r.y+r.h-2);
-      if(Math.abs(x-player.x)+Math.abs(y-player.y)<2 || (x===merchant.x && y===merchant.y) || (x===stairs.x && y===stairs.y)){ tries++; continue; }
-      if(monsters.some(m=>Math.abs(m.x-x)+Math.abs(m.y-y)<4)){ tries++; continue; }
+      if((x===player.x && y===player.y) || (x===merchant.x && y===merchant.y)){
+        tries++; continue;
+      }
+      if(monsters.some(m=>Math.abs(m.x-x)+Math.abs(m.y-y)<4)){
+        tries++; continue;
+      }
       const t = chooseMonsterType(floorNum);
       monsters.push(spawnMonster(t,x,y, shouldSpawnElite(floorNum)));
       placed=true;
@@ -1434,8 +1389,12 @@ function generateRooms(){
     while(!placed && tries<25){
       const r=rooms[rng.int(0,rooms.length-1)];
       const x=rng.int(r.x+1,r.x+r.w-2), y=rng.int(r.y+1,r.y+r.h-2);
-      if(Math.abs(x-player.x)+Math.abs(y-player.y)<2 || (x===merchant.x && y===merchant.y) || (x===stairs.x && y===stairs.y)){ tries++; continue; }
-      if(monsters.some(m=>Math.abs(m.x-x)+Math.abs(m.y-y)<4)){ tries++; continue; }
+      if((x===player.x && y===player.y) || (x===merchant.x && y===merchant.y)){
+        tries++; continue;
+      }
+      if(monsters.some(m=>Math.abs(m.x-x)+Math.abs(m.y-y)<4)){
+        tries++; continue;
+      }
       monsters.push(spawnMonster(3,x,y, shouldSpawnElite(floorNum)));
       placed=true;
     }
@@ -1450,8 +1409,12 @@ function generateRooms(){
     while(!placed && tries<50){
       const r=rooms[rng.int(0,rooms.length-1)];
       const x=rng.int(r.x+1,r.x+r.w-2), y=rng.int(r.y+1,r.y+r.h-2);
-      if(Math.abs(x-player.x)+Math.abs(y-player.y)<2 || (x===merchant.x && y===merchant.y) || (x===stairs.x && y===stairs.y)){ tries++; continue; }
-      if(monsters.some(m=>Math.abs(m.x-x)+Math.abs(m.y-y)<4)){ tries++; continue; }
+      if((x===player.x && y===player.y) || (x===merchant.x && y===merchant.y)){
+        tries++; continue;
+      }
+      if(monsters.some(m=>Math.abs(m.x-x)+Math.abs(m.y-y)<4)){
+        tries++; continue;
+      }
       const mb=spawnMonster(strongest.type,x,y);
       mb.hpMax = mb.hp = Math.round(strongest.hpMax * 1.8);
       mb.miniBoss = true;
@@ -1468,8 +1431,12 @@ function generateRooms(){
       while(!placed && tries<50){
         const r=rooms[rng.int(0,rooms.length-1)];
         const x=rng.int(r.x+1,r.x+r.w-2), y=rng.int(r.y+1,r.y+r.h-2);
-        if(Math.abs(x-player.x)+Math.abs(y-player.y)<2 || (x===merchant.x && y===merchant.y) || (x===stairs.x && y===stairs.y)){ tries++; continue; }
-        if(monsters.some(m=>Math.abs(m.x-x)+Math.abs(m.y-y)<4)){ tries++; continue; }
+        if((x===player.x && y===player.y) || (x===merchant.x && y===merchant.y)){
+          tries++; continue;
+        }
+        if(monsters.some(m=>Math.abs(m.x-x)+Math.abs(m.y-y)<4)){
+          tries++; continue;
+        }
         const bb=spawnMonster(strongest.type,x,y);
         bb.hpMax = bb.hp = Math.round(strongest.hpMax * hpMult);
         bb.dmgMin = Math.round(bb.dmgMin * 2);
