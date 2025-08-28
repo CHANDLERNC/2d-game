@@ -21,11 +21,23 @@ function canMoveFrom(x,y,dx,dy){
   return true;
 }
 
+// reset map-related arrays without changing their references
+function resetMapState(){
+  map.length = MAP_W * MAP_H; map.fill(T_EMPTY);
+  fog.length = MAP_W * MAP_H; fog.fill(0);
+  vis.length = MAP_W * MAP_H; vis.fill(0);
+  rooms.length = 0;
+  torches.length = 0;
+  lavaTiles.length = 0;
+  spikeTraps.length = 0;
+}
+
 export {
   TILE, MAP_W, MAP_H,
   T_EMPTY, T_FLOOR, T_WALL, T_TRAP, T_LAVA,
   TRAP_CHANCE, LAVA_CHANCE,
   map, fog, vis, rooms, stairs, merchant, merchantStyle,
   torches, lavaTiles, spikeTraps,
-  walkable, canMoveFrom
+  walkable, canMoveFrom,
+  resetMapState
 };

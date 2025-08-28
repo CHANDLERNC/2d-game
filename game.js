@@ -2,7 +2,7 @@ import { initAudio, playFootstep, playAttack, playHit, startMusic, nextMusic } f
 import { keys, initInput } from './modules/input.js';
 import { player, playerSpriteKey, magicTrees, skillTrees, updatePlayerSprite } from './modules/player.js';
 import { hpFill, mpFill, hpLbl, mpLbl, hudFloor, hudSeed, hudGold, hudDmg, hudScore, hudKills, xpFill, xpLbl, hudLvl, hudSpell, hudAbilityLabel, updateResourceUI, updateScoreUI, toggleActionLog, showToast, showBossAlert, showRespawn } from './modules/ui.js';
-import { TILE, MAP_W, MAP_H, T_EMPTY, T_FLOOR, T_WALL, T_TRAP, T_LAVA, TRAP_CHANCE, LAVA_CHANCE, map, fog, vis, rooms, stairs, merchant, merchantStyle, torches, lavaTiles, spikeTraps, walkable, canMoveFrom } from './modules/map.js';
+import { TILE, MAP_W, MAP_H, T_EMPTY, T_FLOOR, T_WALL, T_TRAP, T_LAVA, TRAP_CHANCE, LAVA_CHANCE, map, fog, vis, rooms, stairs, merchant, merchantStyle, torches, lavaTiles, spikeTraps, walkable, canMoveFrom, resetMapState } from './modules/map.js';
 import { startLoop } from './modules/loop.js';
 import { applyDamageToPlayer as coreApplyDamageToPlayer } from './modules/combat.js';
 
@@ -76,7 +76,7 @@ RNG.prototype.int=function(a,b){ return Math.floor(a + (b-a+1)*this.next()); }
 
 // ===== Map / Gen =====
 function generateRooms(){
-  rooms = [];
+  rooms.length = 0;
   map.fill(T_EMPTY);
   // rooms
   for(let i=0;i<28;i++){
@@ -106,10 +106,12 @@ function generateRooms(){
       }
     }
     for(let i=0;i<map.length;i++) if(map[i]===T_FLOOR && !seen.has(i)) map[i]=T_WALL;
-    rooms=rooms.filter(r=>{
+    const filtered = rooms.filter(r=>{
       const cx=r.x+((r.w/2)|0), cy=r.y+((r.h/2)|0);
       return seen.has(cy*MAP_W+cx);
     });
+    rooms.length = 0;
+    rooms.push(...filtered);
   }
   // walls
   for(let y=0;y<MAP_H;y++) for(let x=0;x<MAP_W;x++) if(map[y*MAP_W+x]===T_FLOOR){ for(const d of [[1,0],[-1,0],[0,1],[0,-1]]){ const nx=x+d[0], ny=y+d[1]; if(nx>=0&&ny>=0&&nx<MAP_W&&ny<MAP_H && map[ny*MAP_W+nx]===T_EMPTY) map[ny*MAP_W+nx]=T_WALL; } }
@@ -242,7 +244,7 @@ function generateCave(){
         else next[idx]=cnt>=5?T_FLOOR:T_WALL;
       }
     }
-    map=next;
+    for(let i=0;i<map.length;i++) map[i]=next[i];
   }
   // connectivity
   let startIdx=map.findIndex(t=>t===T_FLOOR);
@@ -369,11 +371,8 @@ function checkHazard(x,y){
 }
 
 function generate(){
-  map=new Array(MAP_W*MAP_H).fill(T_EMPTY);
-  fog=new Array(MAP_W*MAP_H).fill(0);
-  vis=new Array(MAP_W*MAP_H).fill(0);
-  rooms=[]; monsters=[]; projectiles=[]; lootMap.clear(); player.effects = [];
-  torches=[]; lavaTiles=[]; spikeTraps=[];
+  resetMapState();
+  monsters=[]; projectiles=[]; lootMap.clear(); player.effects = [];
   const hue=rng.int(0,360);
   const sat=8+rng.int(0,8);
   const baseLight=35+rng.int(-5,5);
