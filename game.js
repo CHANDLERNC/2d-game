@@ -1,4 +1,4 @@
-import { initAudio, playFootstep, playAttack, playHit, startMusic, nextMusic } from './modules/audio.js';
+import { initAudio, playFootstep, playAttack, playHit, playCalmMusic, playCombatMusic, playBossMusic } from './modules/audio.js';
 import { keys, initInput } from './modules/input.js';
 import { player, playerSpriteKey, magicTrees, skillTrees, updatePlayerSprite } from './modules/player.js';
 import { hpFill, mpFill, hpLbl, mpLbl, hudFloor, hudSeed, hudGold, hudDmg, hudScore, hudKills, xpFill, xpLbl, hudLvl, hudSpell, hudAbilityLabel, updateResourceUI, updateXPUI, updateScoreUI, toggleActionLog, showToast, showBossAlert, showRespawn } from './modules/ui.js';
@@ -391,7 +391,7 @@ function generate(){
   genShopStock();
   redrawInventory();
   renderShop();
-  nextMusic();
+  playCalmMusic();
 }
 
 // ===== Difficulty scaling & Monster factory =====
@@ -1766,6 +1766,16 @@ function update(dt){
   player.score += SCORE_PER_SECOND * (dt/1000);
   scoreUpdateTimer += dt;
   player.combatTimer += dt;
+  // Dynamic music based on combat intensity
+  const threatNearby = monsters.some(m => Math.abs(m.x - player.x) + Math.abs(m.y - player.y) < 8);
+  const bossNearby = monsters.some(m => (m.bigBoss || m.miniBoss) && Math.abs(m.x - player.x) + Math.abs(m.y - player.y) < 10);
+  if (bossNearby && (player.combatTimer < OUT_OF_COMBAT_HEAL_DELAY || threatNearby)) {
+    playBossMusic();
+  } else if (player.combatTimer < OUT_OF_COMBAT_HEAL_DELAY || threatNearby) {
+    playCombatMusic();
+  } else {
+    playCalmMusic();
+  }
   if(player.combatTimer > OUT_OF_COMBAT_HEAL_DELAY && player.hp < player.hpMax){
     player.healAcc += OUT_OF_COMBAT_HEAL_RATE * dt/1000;
     const heal = Math.floor(player.healAcc);
