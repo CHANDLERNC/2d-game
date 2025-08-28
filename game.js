@@ -1,7 +1,7 @@
 import { initAudio, playFootstep, playAttack, playHit, startMusic, nextMusic } from './modules/audio.js';
 import { keys, initInput } from './modules/input.js';
 import { player, playerSpriteKey, magicTrees, skillTrees, updatePlayerSprite } from './modules/player.js';
-import { hpFill, mpFill, hpLbl, mpLbl, hudFloor, hudSeed, hudGold, hudDmg, hudScore, hudKills, xpFill, xpLbl, hudLvl, hudSpell, hudAbilityLabel, updateResourceUI, updateScoreUI, toggleActionLog, showToast, showBossAlert, showRespawn } from './modules/ui.js';
+import { hpFill, mpFill, hpLbl, mpLbl, hudFloor, hudSeed, hudGold, hudDmg, hudScore, hudKills, xpFill, xpLbl, hudLvl, hudSpell, hudAbilityLabel, updateResourceUI, updateXPUI, updateScoreUI, toggleActionLog, showToast, showBossAlert, showRespawn } from './modules/ui.js';
 import { TILE, MAP_W, MAP_H, T_EMPTY, T_FLOOR, T_WALL, T_TRAP, T_LAVA, TRAP_CHANCE, LAVA_CHANCE, map, fog, vis, rooms, stairs, merchant, merchantStyle, torches, lavaTiles, spikeTraps, walkable, canMoveFrom, resetMapState } from './modules/map.js';
 import { startLoop } from './modules/loop.js';
 import { applyDamageToPlayer as coreApplyDamageToPlayer } from './modules/combat.js';
@@ -1749,8 +1749,7 @@ function draw(dt){
   // HUD
   hpFill.style.width=(100*player.hp/player.hpMax).toFixed(0)+'%';
   updateResourceUI();
-  const xpPct = Math.min(100, Math.floor(100*player.xp/Math.max(1,player.xpToNext)));
-  xpFill.style.width = xpPct+'%'; xpLbl.textContent=`XP ${player.xp}/${player.xpToNext}`; hudLvl.textContent=player.lvl;
+  updateXPUI();
   hpLbl.textContent=`HP ${player.hp}/${player.hpMax}`;
 }
 
@@ -2336,6 +2335,7 @@ function levelUp(){
   else player.sp = player.spMax;
   hpFill.style.width = `${(player.hp/player.hpMax)*100}%`;
   updateResourceUI();
+  updateXPUI();
   hpLbl.textContent = `HP ${player.hp}/${player.hpMax}`;
   showToast(`Level up! Lv ${player.lvl}`);
   showToast(player.class==='mage'?'Gained magic point':'Gained skill point');
