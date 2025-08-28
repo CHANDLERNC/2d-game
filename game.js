@@ -2236,6 +2236,9 @@ function castVanish(){
   if(player.sp<cost){ showToast('Not enough stamina'); return; }
   player.sp-=cost; updateResourceUI();
   applyStatus(player,'invis',4000);
+  // Instantly disengage from combat so the rogue can heal while invisible
+  player.combatTimer = OUT_OF_COMBAT_HEAL_DELAY;
+  player.healAcc = 0;
 }
 
 function toggleEscMenu(force){
