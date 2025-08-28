@@ -5,6 +5,7 @@ import { hpFill, mpFill, hpLbl, mpLbl, hudFloor, hudSeed, hudGold, hudDmg, hudSc
 import { TILE, MAP_W, MAP_H, T_EMPTY, T_FLOOR, T_WALL, T_TRAP, T_LAVA, TRAP_CHANCE, LAVA_CHANCE, map, fog, vis, rooms, stairs, merchant, merchantStyle, torches, lavaTiles, spikeTraps, walkable, canMoveFrom, resetMapState } from './modules/map.js';
 import { startLoop } from './modules/loop.js';
 import { applyDamageToPlayer as coreApplyDamageToPlayer } from './modules/combat.js';
+import { renderLayers } from './modules/rendering.js';
 
 // ===== Config / Globals =====
 let VIEW_W=window.innerWidth, VIEW_H=window.innerHeight;
@@ -1561,8 +1562,7 @@ function draw(dt){
   ctx.clearRect(0,0,VIEW_W,VIEW_H);
   ctx.save();
   ctx.scale(zoom, zoom);
-  ctx.drawImage(floorLayer, -camX, -camY);
-  ctx.drawImage(wallLayer, -camX, -camY);
+  renderLayers(ctx, floorLayer, wallLayer, camX, camY);
 
   // hazards
   const now = performance.now();
