@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { calculateDamage, applyDamageToPlayer } from '../modules/combat.js';
+import { calculateDamage, applyDamageToPlayer, RESIST_CAP } from '../modules/combat.js';
 
 test('armor reduces physical damage', () => {
   const result = calculateDamage(100, { type: 'physical', armor: 50, floor: 1 });
@@ -10,6 +10,20 @@ test('armor reduces physical damage', () => {
 test('resistance reduces elemental damage', () => {
   const result = calculateDamage(100, { type: 'fire', resFire: 25 });
   assert.equal(result, 75);
+});
+
+test('custom resistance cap can be provided', () => {
+  const result = calculateDamage(100, { type: 'fire', resFire: 100, resistCap: 50 });
+  assert.equal(result, 50);
+});
+
+test('armor scaling constants are tunable', () => {
+  const result = calculateDamage(100, { type: 'physical', armor: 50, floor: 1, armorKBase: 100 });
+  assert.equal(result, 66);
+});
+
+test('constants are exposed', () => {
+  assert.equal(RESIST_CAP, 75);
 });
 
 test('applyDamageToPlayer updates hp and returns damage', () => {
