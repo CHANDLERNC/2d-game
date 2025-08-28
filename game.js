@@ -1938,8 +1938,6 @@ function handleKeyAction(key, e){
   }
 }
 
-initInput(handleKeyAction);
-
 // ===== Inventory UI (toggle only) =====
 function updatePaused(){
   const inv=document.getElementById('inventory');
@@ -2359,6 +2357,10 @@ function recalcStats(){
 // ===== Start =====
 function startGame(){
   initAudio();
+  initInput(handleKeyAction);
+  gameOver = false;
+  paused = false;
+  for(const k in keys){ keys[k] = false; }
   // class pick -> sprite & stats
   const cSel = document.querySelector('input[name="class"]:checked');
   player.class = cSel ? cSel.value : 'warrior';
@@ -2379,8 +2381,8 @@ function startGame(){
   const smoothToggle=document.getElementById('smoothToggle'); const speedRange=document.getElementById('speedRange');
   if(smoothToggle){ smoothToggle.checked = smoothEnabled; smoothToggle.addEventListener('change', e=>{ smoothEnabled = e.target.checked; if(!smoothEnabled){ player.rx=player.x; player.ry=player.y; } }); }
   if(speedRange){ baseStepDelay = player.stepDelay; speedRange.value = String(baseStepDelay); speedRange.addEventListener('input', e=>{ const v=parseInt(e.target.value,10); if(!isNaN(v)) baseStepDelay=v; }); }
-    startLoop(update, draw);
-  }
+  startLoop(update, draw);
+}
 
 document.getElementById('playBtn').onclick=()=>{ document.getElementById('start').style.display='none'; startGame(); };
 document.getElementById('respawnBtn').onclick=()=>{ location.reload(); };
