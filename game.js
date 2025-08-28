@@ -1300,6 +1300,7 @@ function tryMoveMonster(m, dx, dy, dur=140){
 
 function meleeIfAdjacent(m){
   if(Math.abs(m.x-player.x)+Math.abs(m.y-player.y)!==1) return false;
+  if(getEffect(player,'invis')) return false;
   if(m.atkCD>0) return false;
   const dmg = rng.int(m.dmgMin, m.dmgMax);
   applyDamageToPlayer(dmg);
@@ -1459,6 +1460,7 @@ function monsterAI(m, dt){
   m.atkCD = Math.max(0, m.atkCD - 1);
   m.moveCD = Math.max(0, m.moveCD - 1);
   m.aggroT = Math.max(0, (m.aggroT || 0) - dt);
+  if(getEffect(player,'invis')) return;
   if(meleeIfAdjacent(m)) return;
   const dx = sign(player.x - m.x), dy = sign(player.y - m.y);
   const manhattan = Math.abs(player.x-m.x)+Math.abs(player.y-m.y);
@@ -1715,7 +1717,10 @@ function draw(dt){
   const pspr = ASSETS.sprites[playerSpriteKey];
   const anim = player.moving ? pspr.move : pspr.idle;
   const frame = anim[Math.floor(now/200) % anim.length];
+  const invis=getEffect(player,'invis');
+  if(invis) ctx.globalAlpha=0.4;
   ctx.drawImage(frame, px, py);
+  if(invis) ctx.globalAlpha=1;
   // player status pips
   drawStatusPips(ctx, player, px+12, py-9);
 
@@ -2021,8 +2026,8 @@ function redrawSkills(){
   let panel=document.getElementById('skills');
   if(!panel){ panel=document.createElement('div'); panel.id='skills'; panel.className='panel'; document.body.appendChild(panel); }
   let html = `<div class="section-title">Skill Points: ${player.skillPoints}</div>`;
-  for(const treeName of ['offense','defense','techniques']){
-    const tree=skillTrees[treeName];
+  for(const [treeName, tree] of Object.entries(skillTrees)){
+    if(tree.class && tree.class!==player.class) continue;
     html += `<div class="section-title">${tree.display}</div><div>`;
     tree.abilities.forEach((ab,i)=>{
       const unlocked=player.skills[treeName][i];
@@ -2114,6 +2119,8 @@ function castBoundSkill(){
   if(ab.cast==='powerStrike') castPowerStrike();
   else if(ab.cast==='whirlwind') castWhirlwind();
   else if(ab.cast==='shieldBash') castShieldBash();
+  else if(ab.cast==='poisonStrike') castPoisonStrike();
+  else if(ab.cast==='vanish') castVanish();
 }
 
 function castPowerStrike(){
@@ -2178,6 +2185,46 @@ function castShieldBash(){
     playAttack();
   }
   player.atkCD = prof.cooldown;
+}
+
+function castPoisonStrike(){
+  const cost=20;
+  if(player.sp<cost){ showToast('Not enough stamina'); return; }
+  if(player.atkCD>0) return;
+  player.sp-=cost; updateResourceUI();
+  const {min,max,crit,ls,md}=currentAtk();
+  const prof=currentWeaponProfile();
+  let dmg=rng.int(min,max);
+  const wasCrit=Math.random()*100<crit; if(wasCrit) dmg=Math.floor(dmg*1.5);
+  dmg=Math.floor(dmg*1.4);
+  const reach=prof.reach ?? 2;
+  const cone=(prof.cone || 35) * Math.PI/180;
+  const ndx=player.faceDx, ndy=player.faceDy;
+  let target=null,bestDist=Infinity;
+  for(const m of monsters){
+    const dxm=m.x-player.x, dym=m.y-player.y;
+    const dist=Math.hypot(dxm,dym);
+    if(dist>reach || dist===0) continue;
+    const ang=Math.acos((ndx*dxm+ndy*dym)/dist);
+    if(ang>cone/2) continue;
+    if(!clearPath8(player.x,player.y,m.x,m.y)) continue;
+    if(dist<bestDist){ target=m; bestDist=dist; }
+  }
+  if(target){
+    dealDamageToMonster(target,dmg,null,wasCrit);
+    tryApplyStatus(target,{k:'poison',dur:3000,power:1.0,chance:1},'poison');
+    if(ls>0){ const heal=Math.max(1,Math.floor(dmg*ls/100)); player.hp=Math.min(player.hpMax,player.hp+heal); addDamageText(player.x,player.y,`+${heal}`,'#76d38b'); }
+    if(md>0){ const gain=Math.max(1,Math.floor(dmg*md/100)); if(player.class==='mage'){ player.mp=Math.min(player.mpMax,player.mp+gain); } else { player.sp=Math.min(player.spMax,player.sp+gain); } addDamageText(player.x,player.y,`+${gain}`,'#4aa3ff'); updateResourceUI(); }
+    playAttack();
+  }
+  player.atkCD = prof.cooldown;
+}
+
+function castVanish(){
+  const cost=25;
+  if(player.sp<cost){ showToast('Not enough stamina'); return; }
+  player.sp-=cost; updateResourceUI();
+  applyStatus(player,'invis',4000);
 }
 
 function toggleEscMenu(force){
@@ -2315,6 +2362,8 @@ function recalcStats(){
     resF += m.resFire||0; resI += m.resIce||0; resS += m.resShock||0; resM += m.resMagic||0; resP += m.resPoison||0;
   }
   for(const treeName in skillTrees){
+    const tree=skillTrees[treeName];
+    if(tree.class && tree.class!==player.class) continue;
     const arr=player.skills[treeName]||[];
     arr.forEach((u,i)=>{
       if(!u) return;

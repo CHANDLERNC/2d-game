@@ -1,6 +1,6 @@
 // Player state and progression
 
-const player = {x:0,y:0,hp:150,hpMax:150,mp:60,mpMax:60,sp:60,spMax:60,gold:0,stepCD:0,stepDelay:140,speedPct:0,lvl:1,xp:0,xpToNext:50,baseAtkBonus:0,class:'warrior',atkCD:0,combatTimer:0,healAcc:0,faceDx:1,faceDy:0,effects:[],magicPoints:0,skillPoints:0,score:0,kills:0,timeSurvived:0,floorsCleared:0,magic:{healing:[false,false,false,false,false,false],damage:[false,false,false,false,false,false],dot:[false,false,false,false,false,false]},skills:{offense:[false,false,false,false,false,false],defense:[false,false,false,false,false,false],techniques:[false,false,false]},boundSpell:null,boundSkill:null};
+const player = {x:0,y:0,hp:150,hpMax:150,mp:60,mpMax:60,sp:60,spMax:60,gold:0,stepCD:0,stepDelay:140,speedPct:0,lvl:1,xp:0,xpToNext:50,baseAtkBonus:0,class:'warrior',atkCD:0,combatTimer:0,healAcc:0,faceDx:1,faceDy:0,effects:[],magicPoints:0,skillPoints:0,score:0,kills:0,timeSurvived:0,floorsCleared:0,magic:{healing:[false,false,false,false,false,false],damage:[false,false,false,false,false,false],dot:[false,false,false,false,false,false]},skills:{offense:[false,false,false,false,false,false],defense:[false,false,false,false,false,false],techniques:[false,false,false],tricks:[false,false,false]},boundSpell:null,boundSkill:null};
 
 let playerSpriteKey = 'player_warrior';
 
@@ -48,10 +48,15 @@ const skillTrees={
     {name:'Guardian',desc:'Increase max HP by 30.',bonus:{hpMax:30},cost:5},
     {name:'Unbreakable',desc:'Increase armor by 3.',bonus:{armor:3},cost:9}
   ]},
-  techniques:{display:'Techniques',abilities:[
+  techniques:{display:'Techniques',class:'warrior',abilities:[
     {name:'Power Strike',desc:'Spend 20 stamina to strike for 40% more damage.',cost:1,cast:'powerStrike'},
     {name:'Whirlwind',desc:'Spin and hit nearby foes for 60% more damage (30 stamina).',cost:2,cast:'whirlwind'},
     {name:'Shield Bash',desc:'Bash an enemy for 80% more damage and shock them (15 stamina).',cost:3,cast:'shieldBash'}
+  ]},
+  tricks:{display:'Tricks',class:'rogue',abilities:[
+    {name:'Deadly Precision',desc:'Increase critical chance by 10%.',bonus:{crit:10},cost:1},
+    {name:'Poison Strike',desc:'Spend 20 stamina to strike and poison an enemy.',cost:2,cast:'poisonStrike'},
+    {name:'Vanish',desc:'Spend 25 stamina to become invisible for 4 seconds.',cost:3,cast:'vanish'}
   ]}
 };
 
