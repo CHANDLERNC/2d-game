@@ -77,6 +77,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) with
 - Warrior class no longer registers as a mage.
 - Warrior skill menu now displays ability descriptions.
 
+### Docs
+- Document multi-file layout and link to the standalone controls page from the start screen.
+
 ## 2025-08-26
 ### Added
 - Directional player attacks and a full projectile system (per-weapon reach/cooldowns; melee vs. ranged profiles). (27799af)

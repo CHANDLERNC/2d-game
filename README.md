@@ -28,8 +28,8 @@ Then visit [http://localhost:8000](http://localhost:8000).
 See [`controls.html`](controls.html) for a standalone controls page.
 
 ## Development Notes
-- All game logic, styling, and assets live inline within `index.html` to keep the project self-contained.
-- Constants such as tile sizes and game balance are defined near the top of the script for quick tweaking.
+ - Game logic now lives in `game.js` and styling in `style.css`, keeping `index.html` focused on layout.
+ - Constants such as tile sizes and game balance are defined near the top of the script for quick tweaking.
 
 ## Contributing
 1. Fork and clone the repository.
