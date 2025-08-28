@@ -1,10 +1,13 @@
-let audioCtx, musicTimer, musicOsc, currentMusic = -1;
+let audioCtx, musicTimer, musicOsc, currentMusic = null;
 
-const musicPacks = [
-  { type: 'sine', notes: [130.81, 146.83, 155.56, 174.61, 196, 207.65, 233.08] },
-  { type: 'square', notes: [196, 220, 246.94, 261.63, 293.66, 329.63, 349.23] },
-  { type: 'triangle', notes: [233.08, 261.63, 277.18, 311.13, 349.23, 392, 415.3] }
-];
+// Simple oscillator "tracks" for different gameplay states. Each pack
+// defines an oscillator type, a set of notes to loop through and the
+// tempo (ms between notes).
+const musicPacks = {
+  calm:   { type: 'sine',     notes: [130.81, 146.83, 155.56, 174.61, 196, 207.65, 233.08], tempo: 2000 },
+  combat: { type: 'square',   notes: [196, 220, 246.94, 261.63, 293.66, 329.63, 349.23],    tempo: 1000 },
+  boss:   { type: 'triangle', notes: [233.08, 261.63, 277.18, 311.13, 349.23, 392, 415.3], tempo: 500 }
+};
 
 function initAudio() {
   if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -53,7 +56,7 @@ function playHit() {
   playTone(variant.type, variant.freq, { attack: 0, decay: 0.2, volume: 0.25 });
 }
 
-function startMusic(packIdx) {
+function startMusic(mode) {
   initAudio();
   if (!audioCtx) return;
   if (musicTimer) clearInterval(musicTimer);
@@ -64,7 +67,8 @@ function startMusic(packIdx) {
       /* noop */
     }
   }
-  const pack = musicPacks[packIdx];
+  const pack = musicPacks[mode];
+  if (!pack) return;
   const osc = audioCtx.createOscillator();
   const gain = audioCtx.createGain();
   gain.gain.value = 0.04;
@@ -76,18 +80,15 @@ function startMusic(packIdx) {
     i++;
   }
   next();
-  musicTimer = setInterval(next, 2000);
+  musicTimer = setInterval(next, pack.tempo);
   osc.start();
   musicOsc = osc;
-  currentMusic = packIdx;
+  currentMusic = mode;
 }
 
-function nextMusic() {
-  let idx;
-  do {
-    idx = Math.floor(Math.random() * musicPacks.length);
-  } while (idx === currentMusic && musicPacks.length > 1);
-  startMusic(idx);
-}
+// Public helpers that only restart music when the mode actually changes.
+function playCalmMusic()   { if (currentMusic !== 'calm')   startMusic('calm'); }
+function playCombatMusic() { if (currentMusic !== 'combat') startMusic('combat'); }
+function playBossMusic()   { if (currentMusic !== 'boss')   startMusic('boss'); }
 
-export { initAudio, playFootstep, playAttack, playHit, startMusic, nextMusic };
+export { initAudio, playFootstep, playAttack, playHit, playCalmMusic, playCombatMusic, playBossMusic };
