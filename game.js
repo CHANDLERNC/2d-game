@@ -1,40 +1,23 @@
 import { initAudio, playFootstep, playAttack, playHit, playCalmMusic, playCombatMusic, playBossMusic } from './modules/audio.js';
 import { keys, initInput } from './modules/input.js';
 import { player, playerSpriteKey, magicTrees, skillTrees, updatePlayerSprite } from './modules/player.js';
+import { inventory, SLOTS, BAG_SIZE, POTION_BAG_SIZE } from './modules/playerInventory.js';
 import { hpFill, mpFill, hpLbl, mpLbl, hudFloor, hudSeed, hudGold, hudDmg, hudScore, hudKills, xpFill, xpLbl, hudLvl, hudSpell, hudAbilityLabel, updateResourceUI, updateXPUI, updateScoreUI, toggleActionLog, showToast, showBossAlert, showRespawn } from './modules/ui.js';
 import { TILE, MAP_W, MAP_H, T_EMPTY, T_FLOOR, T_WALL, T_TRAP, T_LAVA, TRAP_CHANCE, LAVA_CHANCE, map, fog, vis, rooms, stairs, merchant, merchantStyle, torches, lavaTiles, spikeTraps, walkable, canMoveFrom, resetMapState } from './modules/map.js';
+import { MONSTER_BASE_COUNT, MONSTER_MIN_COUNT, MONSTER_COUNT_GROWTH, MONSTER_COUNT_VARIANCE, FOV_RADIUS, LOOT_CHANCE, MONSTER_LOOT_CHANCE, AGGRO_RANGE, TORCH_CHANCE, TORCH_LIGHT_RADIUS, FOV_RAYS, SCORE_PER_SECOND, OUT_OF_COMBAT_HEAL_DELAY, OUT_OF_COMBAT_HEAL_RATE, SCORE_PER_KILL, SCORE_PER_FLOOR_CLEAR, SCORE_PER_FLOOR_REACHED, BOSS_VARIANTS, XP_GAIN_MULT, ENEMY_SPEED_MULT, MONSTER_HP_MULT, MONSTER_DMG_MULT } from './modules/config.js';
 import { startLoop } from './modules/loop.js';
 import { applyDamageToPlayer as coreApplyDamageToPlayer } from './modules/combat.js';
 import { renderLayers } from './modules/rendering.js';
+import { MIN_ROOM_SIZE, connectRooms, pruneSmallAreas } from './modules/mapGen.js';
 
 // ===== Config / Globals =====
 let VIEW_W=window.innerWidth, VIEW_H=window.innerHeight;
-const MONSTER_BASE_COUNT=6, MONSTER_MIN_COUNT=6, MONSTER_COUNT_GROWTH=2, MONSTER_COUNT_VARIANCE=3;
-const FOV_RADIUS=8; const LOOT_CHANCE=0.18;
-const MONSTER_LOOT_CHANCE=0.5; const AGGRO_RANGE=6;
-const TORCH_CHANCE=0.06;
-const TORCH_LIGHT_RADIUS=4;
-const FOV_RAYS=360;
-const SCORE_PER_SECOND = 1;
-const OUT_OF_COMBAT_HEAL_DELAY = 3000;
-const OUT_OF_COMBAT_HEAL_RATE = 1;
-const SCORE_PER_KILL = 10;
-const SCORE_PER_FLOOR_CLEAR = 100;
-const SCORE_PER_FLOOR_REACHED = 50;
-const BOSS_VARIANTS=['griffin','dragon','snake'];
 function randomBossVariant(){ return BOSS_VARIANTS[rng.int(0,BOSS_VARIANTS.length-1)]; }
 function monsterCountForFloor(floor){
   const base = MONSTER_BASE_COUNT + (floor-1)*MONSTER_COUNT_GROWTH;
   const extra = rng.int(0, MONSTER_COUNT_VARIANCE + Math.floor(floor/2));
   return Math.max(MONSTER_MIN_COUNT, base + extra);
 }
-// Global multiplier for all XP gains
-const XP_GAIN_MULT = 1.1;
-// Higher values slow all enemy actions (movement frequency and speed)
-const ENEMY_SPEED_MULT = 1.5;
-// Global modifiers for monster stats
-const MONSTER_HP_MULT = 1.2;
-const MONSTER_DMG_MULT = 0.9;
 // Cap applied to resistance calculations (percentage)
 const RESIST_CAP = 75;
 let canvas=document.getElementById('gameCanvas'); let ctx=canvas.getContext('2d');
@@ -60,11 +43,6 @@ let projectiles=[];
 // floating combat text
 let damageTexts=[];
 function addDamageText(tx,ty,text,color){ damageTexts.push({ tx, ty, text, color, age:0, ttl:800 }); }
-const SLOTS=["helmet","chest","legs","hands","feet","weapon"];
-let equip={helmet:null,chest:null,legs:null,hands:null,feet:null,weapon:null};
-const BAG_SIZE=12; let bag=new Array(BAG_SIZE).fill(null);
-const POTION_BAG_SIZE=3; let potionBag=new Array(POTION_BAG_SIZE).fill(null);
-let shopStock=[];
 let currentStats={dmgMin:0,dmgMax:0,crit:0,armor:0,resF:0,resI:0,resS:0,resM:0,resP:0,hpMax:0,mpMax:0,spMax:0};
 
 
@@ -87,43 +65,6 @@ function shuffle(arr){
 }
 
 // ===== Map / Gen =====
-const MIN_ROOM_SIZE = 2;
-
-function connectRooms(){
-  for(let i=1;i<rooms.length;i++){
-    const a=rooms[i-1], b=rooms[i];
-    const ax=a.x+((a.w/2)|0), ay=a.y+((a.h/2)|0);
-    const bx=b.x+((b.w/2)|0), by=b.y+((b.h/2)|0);
-    for(let x=Math.min(ax,bx); x<=Math.max(ax,bx); x++) map[ay*MAP_W+x]=T_FLOOR;
-    for(let y=Math.min(ay,by); y<=Math.max(ay,by); y++) map[y*MAP_W+bx]=T_FLOOR;
-  }
-}
-
-function pruneSmallAreas(){
-  const visited=new Set();
-  for(let y=0;y<MAP_H;y++){
-    for(let x=0;x<MAP_W;x++){
-      const idx=y*MAP_W+x;
-      if(map[idx]!==T_FLOOR || visited.has(idx)) continue;
-      const stack=[[x,y]]; const tiles=[]; visited.add(idx);
-      let minX=x, maxX=x, minY=y, maxY=y;
-      while(stack.length){
-        const [cx,cy]=stack.pop(); tiles.push([cx,cy]);
-        if(cx<minX) minX=cx; if(cx>maxX) maxX=cx;
-        if(cy<minY) minY=cy; if(cy>maxY) maxY=cy;
-        for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){
-          const nx=cx+dx, ny=cy+dy; if(nx<0||ny<0||nx>=MAP_W||ny>=MAP_H) continue;
-          const nIdx=ny*MAP_W+nx; if(map[nIdx]!==T_FLOOR || visited.has(nIdx)) continue;
-          visited.add(nIdx); stack.push([nx,ny]);
-        }
-      }
-      const width=maxX-minX+1, height=maxY-minY+1;
-      if(width<MIN_ROOM_SIZE || height<MIN_ROOM_SIZE){
-        for(const [tx,ty] of tiles) map[ty*MAP_W+tx]=T_WALL;
-      }
-    }
-  }
-}
 
 function generateRooms(){
   rooms.length = 0;
@@ -768,29 +709,29 @@ function pickupHere(){
     player.gold += it.amt; hudGold.textContent = player.gold; showToast(`+${it.amt} gold`); lootMap.delete(key); return;
   }
   if(it.type === 'potion'){
-    const pidx = potionBag.findIndex(b=>!b);
+    const pidx = inventory.potionBag.findIndex(b=>!b);
     if(pidx === -1){ showToast('Potion bag full'); return; }
-    potionBag[pidx] = it; lootMap.delete(key); showToast(`Picked up ${it.name}`);
+    inventory.potionBag[pidx] = it; lootMap.delete(key); showToast(`Picked up ${it.name}`);
     redrawInventory();
     return;
   }
-  const idx = bag.findIndex(b=>!b);
+  const idx = inventory.bag.findIndex(b=>!b);
   if(idx === -1){ showToast('Bag full'); return; }
-  bag[idx] = it; lootMap.delete(key); showToast(`Picked up ${it.name}`);
+  inventory.bag[idx] = it; lootMap.delete(key); showToast(`Picked up ${it.name}`);
   redrawInventory();
 }
 
 function equipFromBag(idx){
-  const it = bag[idx]; if(!it) return;
-  const slot = it.slot; const prev = equip[slot];
-  equip[slot] = it; bag[idx] = prev || null; showToast(`Equipped ${it.name}`);
+  const it = inventory.bag[idx]; if(!it) return;
+  const slot = it.slot; const prev = inventory.equip[slot];
+  inventory.equip[slot] = it; inventory.bag[idx] = prev || null; showToast(`Equipped ${it.name}`);
   redrawInventory(); recalcStats();
 }
 
 function usePotionFromBag(idx){
-  const it = potionBag[idx]; if(!it) return;
+  const it = inventory.potionBag[idx]; if(!it) return;
   usePotion(it);
-  potionBag[idx]=null;
+  inventory.potionBag[idx]=null;
   redrawInventory();
 }
 
@@ -812,21 +753,21 @@ function usePotion(it){
 }
 
 function unequip(slot){
-  const it = equip[slot]; if(!it) return;
-  const idx = bag.findIndex(b=>!b); if(idx === -1){ showToast('Bag full'); return; }
-  bag[idx] = it; equip[slot] = null; showToast(`Unequipped ${it.name}`);
+  const it = inventory.equip[slot]; if(!it) return;
+  const idx = inventory.bag.findIndex(b=>!b); if(idx === -1){ showToast('Bag full'); return; }
+  inventory.bag[idx] = it; inventory.equip[slot] = null; showToast(`Unequipped ${it.name}`);
   redrawInventory(); recalcStats();
 }
 
-function dropFromBag(idx){ const it=bag[idx]; if(!it) return; lootMap.set(`${player.x},${player.y}`,it); bag[idx]=null; showToast(`Dropped ${it.name}`); redrawInventory(); }
+function dropFromBag(idx){ const it=inventory.bag[idx]; if(!it) return; lootMap.set(`${player.x},${player.y}`,it); inventory.bag[idx]=null; showToast(`Dropped ${it.name}`); redrawInventory(); }
 
-function sellFromBag(idx){ const it=bag[idx]; if(!it) return; const price=getSellPrice(it); player.gold+=price; hudGold.textContent=player.gold; showToast(`Sold ${it.name} for ${price}`); bag[idx]=null; redrawInventory(); }
+function sellFromBag(idx){ const it=inventory.bag[idx]; if(!it) return; const price=getSellPrice(it); player.gold+=price; hudGold.textContent=player.gold; showToast(`Sold ${it.name} for ${price}`); inventory.bag[idx]=null; redrawInventory(); }
 
-function dropFromPotionBag(idx){ const it=potionBag[idx]; if(!it) return; lootMap.set(`${player.x},${player.y}`,it); potionBag[idx]=null; showToast(`Dropped ${it.name}`); redrawInventory(); }
+function dropFromPotionBag(idx){ const it=inventory.potionBag[idx]; if(!it) return; lootMap.set(`${player.x},${player.y}`,it); inventory.potionBag[idx]=null; showToast(`Dropped ${it.name}`); redrawInventory(); }
 
-function sellFromPotionBag(idx){ const it=potionBag[idx]; if(!it) return; const price=getSellPrice(it); player.gold+=price; hudGold.textContent=player.gold; showToast(`Sold ${it.name} for ${price}`); potionBag[idx]=null; redrawInventory(); }
+function sellFromPotionBag(idx){ const it=inventory.potionBag[idx]; if(!it) return; const price=getSellPrice(it); player.gold+=price; hudGold.textContent=player.gold; showToast(`Sold ${it.name} for ${price}`); inventory.potionBag[idx]=null; redrawInventory(); }
 
-function unequipAndSell(slot){ const it=equip[slot]; if(!it) return; const price=getSellPrice(it); equip[slot]=null; player.gold+=price; hudGold.textContent=player.gold; showToast(`Sold ${it.name} for ${price}`); redrawInventory(); recalcStats(); }
+function unequipAndSell(slot){ const it=inventory.equip[slot]; if(!it) return; const price=getSellPrice(it); inventory.equip[slot]=null; player.gold+=price; hudGold.textContent=player.gold; showToast(`Sold ${it.name} for ${price}`); redrawInventory(); recalcStats(); }
 
 function redrawInventory(){
   recalcStats();
@@ -847,20 +788,20 @@ function redrawInventory(){
   html += '<div class="section-title">Equipped</div>';
   html += '<div>';
   for(const slot of SLOTS){
-    const it = equip[slot];
+    const it = inventory.equip[slot];
     const name = it?`<span style="color:${it.color}">${escapeHtml(it.name)}</span>`:'-';
     html += `<div class="list-row" data-type="eq" data-slot="${slot}"><div>${slot}: ${name}</div><div class="muted">${it?shortMods(it):''}</div></div>`;
   }
   html += '</div><div class="hr"></div>';
   html += '<div class="section-title">Bag</div><div class="inv-grid">';
   for(let i=0;i<BAG_SIZE;i++){
-    const it = bag[i];
+    const it = inventory.bag[i];
     html += `<div class="list-row" data-type="bag" data-idx="${i}"><div>${i+1}. ${it?`<span style="color:${it.color}">${escapeHtml(it.name)}</span>`:'(empty)'}</div><div class="muted">${it?shortMods(it):''}</div></div>`;
   }
   html += '</div><div class="hr"></div>';
   html += '<div class="section-title">Potions</div><div class="inv-grid">';
   for(let i=0;i<POTION_BAG_SIZE;i++){
-    const it = potionBag[i];
+    const it = inventory.potionBag[i];
     html += `<div class="list-row" data-type="pbag" data-idx="${i}"><div>${i+1}. ${it?`<span style="color:${it.color}">${escapeHtml(it.name)}</span>`:'(empty)'}</div><div class="muted">${it?shortMods(it):''}</div></div>`;
   }
   html += '</div><div class="hr"></div>';
@@ -897,17 +838,17 @@ function showItemDetailsFromRow(row){
   det.dataset.sel=''; det.dataset.kind='';
   const t=row.dataset.type;
   if(t==='bag'){
-    const i=parseInt(row.dataset.idx,10); const it=bag[i]; if(!it){ setDetailsText('(empty slot)'); disableInvActions(); return; }
+    const i=parseInt(row.dataset.idx,10); const it=inventory.bag[i]; if(!it){ setDetailsText('(empty slot)'); disableInvActions(); return; }
     det.dataset.sel=String(i); det.dataset.kind='bag';
     setDetailsText(renderDetails(it, 'bag'));
     document.getElementById('btnSell').disabled=false; document.getElementById('btnDrop').disabled=false;
   }else if(t==='pbag'){
-    const i=parseInt(row.dataset.idx,10); const it=potionBag[i]; if(!it){ setDetailsText('(empty slot)'); disableInvActions(); return; }
+    const i=parseInt(row.dataset.idx,10); const it=inventory.potionBag[i]; if(!it){ setDetailsText('(empty slot)'); disableInvActions(); return; }
     det.dataset.sel=String(i); det.dataset.kind='pbag';
     setDetailsText(renderDetails(it, 'bag'));
     document.getElementById('btnSell').disabled=false; document.getElementById('btnDrop').disabled=false;
   }else if(t==='eq'){
-    const slot=row.dataset.slot; const it=equip[slot]; if(!it){ setDetailsText(`No ${slot} equipped.`); disableInvActions(); return; }
+    const slot=row.dataset.slot; const it=inventory.equip[slot]; if(!it){ setDetailsText(`No ${slot} equipped.`); disableInvActions(); return; }
     det.dataset.sel=slot; det.dataset.kind='eq';
     setDetailsText(renderDetails(it, 'eq'));
     document.getElementById('btnSell').disabled=false; document.getElementById('btnDrop').disabled=true; // avoid dropping equipped directly
@@ -1020,8 +961,8 @@ function getItemValue(it){
 function getSellPrice(it){ return Math.floor(getItemValue(it)*0.5); }
 
 function genShopStock(){
-  shopStock.length=0;
-  const count=5; for(let i=0;i<count;i++) shopStock.push(makeRandomItem());
+  inventory.shopStock.length=0;
+  const count=5; for(let i=0;i<count;i++) inventory.shopStock.push(makeRandomItem());
 }
 
 function makeRandomGear(){
@@ -1068,8 +1009,8 @@ function renderShop(){
   h += '</div>';
   h += '<div class="muted" style="margin-bottom:6px">Stand on the merchant and press <b>E</b> to open/close. Click an item to buy.</div>';
   h += '<div class="shop-items">';
-  for(let i=0;i<shopStock.length;i++){
-    const it=shopStock[i];
+  for(let i=0;i<inventory.shopStock.length;i++){
+    const it=inventory.shopStock[i];
     h += `<div class="shop-item">${renderDetails(it,'shop')}<div class="kv" style="margin-top:4px"><div class="pill mono">${it.price}g</div><button class="btn sml" data-buy="${i}">Buy</button></div></div>`;
   }
   h += '</div>';
@@ -1084,15 +1025,15 @@ function renderShop(){
 }
 
 function buyItem(idx){
-  const it=shopStock[idx]; if(!it) return;
+  const it=inventory.shopStock[idx]; if(!it) return;
   if(player.gold<it.price){ showToast('Not enough gold'); return; }
   if(it.type==='potion'){
-    const slot=potionBag.findIndex(b=>!b); if(slot===-1){ showToast('Potion bag full'); return; }
-    player.gold-=it.price; hudGold.textContent=player.gold; potionBag[slot]=stripShopFields(it); showToast(`Bought ${it.name}`); shopStock.splice(idx,1); renderShop(); redrawInventory();
+    const slot=inventory.potionBag.findIndex(b=>!b); if(slot===-1){ showToast('Potion bag full'); return; }
+    player.gold-=it.price; hudGold.textContent=player.gold; inventory.potionBag[slot]=stripShopFields(it); showToast(`Bought ${it.name}`); inventory.shopStock.splice(idx,1); renderShop(); redrawInventory();
     return;
   }
-  const slot=bag.findIndex(b=>!b); if(slot===-1){ showToast('Bag full'); return; }
-  player.gold-=it.price; hudGold.textContent=player.gold; bag[slot]=stripShopFields(it); showToast(`Bought ${it.name}`); shopStock.splice(idx,1); renderShop(); redrawInventory();
+  const slot=inventory.bag.findIndex(b=>!b); if(slot===-1){ showToast('Bag full'); return; }
+  player.gold-=it.price; hudGold.textContent=player.gold; inventory.bag[slot]=stripShopFields(it); showToast(`Bought ${it.name}`); inventory.shopStock.splice(idx,1); renderShop(); redrawInventory();
 }
 function stripShopFields(it){ const {price,...rest}=it; return rest; }
 
@@ -1229,7 +1170,7 @@ function currentAtk(){
   let min=2,max=4,crit=5,ls=0,md=0;
   const lvlBonus = Math.floor((player.lvl-1)*0.6); min+=lvlBonus; max+=lvlBonus;
   for(const slot of SLOTS){
-    const m=equip[slot]?.mods||{};
+    const m=inventory.equip[slot]?.mods||{};
     if(slot==='weapon'){ min+=m.dmgMin||0; max+=m.dmgMax||0; }
     if(m.crit) crit+=m.crit;
     if(m.ls) ls+=m.ls;
@@ -1269,7 +1210,7 @@ function wclassFromName(n){
   return null;
 }
 function currentWeaponProfile(){
-  const it = equip.weapon;
+  const it = inventory.equip.weapon;
   const wc = it?.wclass || wclassFromName(it?.name) || null;
   const base = WEAPON_RULES[wc] || WEAPON_RULES._default;
   return {...base};
@@ -1286,14 +1227,14 @@ function performPlayerAttack(dx,dy,dmgMult=1){
   let dmg=rng.int(min,max);
   const wasCrit=(Math.random()*100<crit); if(wasCrit) dmg=Math.floor(dmg*1.5);
   dmg=Math.max(1,Math.floor(dmg*dmgMult));
-  const wStatus = equip.weapon?.mods?.status;
+  const wStatus = inventory.equip.weapon?.mods?.status;
   const atkStatuses = [];
   if(wStatus){
     const ws = Array.isArray(wStatus) ? wStatus : [wStatus];
     atkStatuses.push(...ws);
   }
   if(prof.status) atkStatuses.push(prof.status);
-  const wmods = equip.weapon?.mods || {};
+  const wmods = inventory.equip.weapon?.mods || {};
   const kb = (wmods.kb || 0) + (prof.kb || 0);
   const aspd = wmods.atkSpd || 0;
   const pierce = wmods.pierce || 0;
@@ -1966,10 +1907,10 @@ function handleKeyAction(key, e){
   }
   if(key==='1'||key==='2'||key==='3'){
     const idx = parseInt(key,10)-1;
-    const it = potionBag[idx];
+    const it = inventory.potionBag[idx];
     if(it){
       usePotion(it);
-      potionBag[idx]=null;
+      inventory.potionBag[idx]=null;
       const panel=document.getElementById('inventory');
       if(panel && panel.style.display==='block') redrawInventory();
     }
@@ -2313,7 +2254,7 @@ function saveGame(){
   const data={
     floorNum,
     player:{ class:player.class, lvl:player.lvl, gold:player.gold },
-    equip
+    equip: inventory.equip
   };
   try{ localStorage.setItem('dungeonSave', JSON.stringify(data)); showToast('Game saved'); }
   catch(e){ console.warn('Save failed', e); }
@@ -2332,9 +2273,9 @@ function loadGame(){
   player.gold=saved.gold||0;
   player.score=0; player.kills=0; player.timeSurvived=0; player.floorsCleared=0;
   updatePlayerSprite();
-  bag=new Array(BAG_SIZE).fill(null);
-  potionBag=new Array(POTION_BAG_SIZE).fill(null);
-  equip=data.equip||{helmet:null,chest:null,legs:null,hands:null,feet:null,weapon:null};
+  inventory.bag=new Array(BAG_SIZE).fill(null);
+  inventory.potionBag=new Array(POTION_BAG_SIZE).fill(null);
+  inventory.equip=data.equip||{helmet:null,chest:null,legs:null,hands:null,feet:null,weapon:null};
   hudFloor.textContent=floorNum; hudSeed.textContent=seed>>>0; hudGold.textContent=player.gold; hudLvl.textContent=player.lvl;
   player.rx=player.x; player.ry=player.y; player.fromX=player.x; player.fromY=player.y; player.toX=player.x; player.toY=player.y; player.moving=false; player.moveT=1;
   recalcStats();
@@ -2454,7 +2395,7 @@ function accumulate(stats, mods){
 
 function applyGearBonuses(stats){
   for(const slot of SLOTS){
-    const it=equip[slot]; if(!it) continue;
+    const it=inventory.equip[slot]; if(!it) continue;
     accumulate(stats, it.mods);
   }
 }
