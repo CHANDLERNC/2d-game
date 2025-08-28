@@ -1307,27 +1307,44 @@ const T_EMPTY=0, T_FLOOR=1, T_WALL=2, T_TRAP=3, T_LAVA=4;
 const TRAP_CHANCE=0.01, LAVA_CHANCE=0.02;
 
 function generateRooms(){
-  // rooms
-  const roomAttempts = 24;
+  // start fresh
+  rooms = [];
+  map.fill(T_EMPTY);
+  // attempt to place non-overlapping rooms of varied sizes
+  const roomAttempts = 32;
   for(let i=0;i<roomAttempts;i++){
     let w,h;
     const sizeRoll = rng.next();
-    if(sizeRoll < 0.5){
-      w=rng.int(6,10); h=rng.int(6,10); // small
-    }else if(sizeRoll < 0.85){
-      w=rng.int(10,16); h=rng.int(10,16); // medium
+    if(sizeRoll < 0.4){
+      w=rng.int(8,12); h=rng.int(8,12); // small
+    }else if(sizeRoll < 0.8){
+      w=rng.int(12,18); h=rng.int(12,18); // medium
     }else{
-      w=rng.int(16,22); h=rng.int(16,22); // large
+      w=rng.int(18,24); h=rng.int(18,24); // large
     }
     const x=rng.int(1,MAP_W-w-1), y=rng.int(1,MAP_H-h-1);
-    rooms.push({x,y,w,h});
+    const candidate={x,y,w,h};
+    let overlaps=false;
+    for(const r of rooms){
+      if(x<r.x+r.w+1 && x+w+1>r.x && y<r.y+r.h+1 && y+h+1>r.y){ overlaps=true; break; }
+    }
+    if(overlaps) continue;
+    // carve room
     for(let yy=y; yy<y+h; yy++) for(let xx=x; xx<x+w; xx++) map[yy*MAP_W+xx]=T_FLOOR;
-  }
-  // corridors
-  for(let i=1;i<rooms.length;i++){
-    const a=rooms[i-1], b=rooms[i];
-    for(let x=Math.min(a.x,b.x); x<=Math.max(a.x,b.x); x++) map[(a.y+((a.h/2)|0))*MAP_W+x]=T_FLOOR;
-    for(let y=Math.min(a.y,b.y); y<=Math.max(a.y,b.y); y++) map[y*MAP_W+(b.x+((b.w/2)|0))]=T_FLOOR;
+    // connect to a random previous room to ensure exits
+    if(rooms.length){
+      const target=rooms[rng.int(0,rooms.length-1)];
+      const x1=x+((w/2)|0), y1=y+((h/2)|0);
+      const x2=target.x+((target.w/2)|0), y2=target.y+((target.h/2)|0);
+      if(rng.next()<0.5){
+        for(let xx=Math.min(x1,x2); xx<=Math.max(x1,x2); xx++) map[y1*MAP_W+xx]=T_FLOOR;
+        for(let yy=Math.min(y1,y2); yy<=Math.max(y1,y2); yy++) map[yy*MAP_W+x2]=T_FLOOR;
+      }else{
+        for(let yy=Math.min(y1,y2); yy<=Math.max(y1,y2); yy++) map[yy*MAP_W+x1]=T_FLOOR;
+        for(let xx=Math.min(x1,x2); xx<=Math.max(x1,x2); xx++) map[y2*MAP_W+xx]=T_FLOOR;
+      }
+    }
+    rooms.push(candidate);
   }
   // ensure connectivity by removing unreachable floors
   if(rooms.length){
