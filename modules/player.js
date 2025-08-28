@@ -59,11 +59,12 @@ const skillTrees={
   ]},
   defense:{display:'Defense',abilities:[
     {name:'Toughness',desc:'Increase max HP by 20.',bonus:{hpMax:20},cost:1},
-    {name:'Shield Wall',desc:'Increase armor by 2.',bonus:{armor:2},cost:2},
+    {name:'Shield Wall',desc:'Increase armor by 4.',bonus:{armor:4},cost:2},
     {name:'Fortify',desc:'Increase max HP by 20.',bonus:{hpMax:20},cost:3},
-    {name:'Stone Skin',desc:'Increase armor by 2.',bonus:{armor:2},cost:4},
+    {name:'Stone Skin',desc:'Increase armor by 4.',bonus:{armor:4},cost:4},
     {name:'Guardian',desc:'Increase max HP by 30.',bonus:{hpMax:30},cost:5},
-    {name:'Unbreakable',desc:'Increase armor by 3.',bonus:{armor:3},cost:9}
+    {name:'Unbreakable',desc:'Increase armor by 6.',bonus:{armor:6},cost:7},
+    {name:'Bulwark',desc:'Increase armor by 15%.',bonus:{armorPct:15},cost:9}
   ]},
   techniques:{display:'Techniques',class:'warrior',abilities:[
     {name:'Power Strike',desc:'Spend 20 stamina to strike for 40% more damage.',cost:1,cast:'powerStrike'},

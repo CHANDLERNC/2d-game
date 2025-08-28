@@ -4,7 +4,7 @@ import { calculateDamage, applyDamageToPlayer, RESIST_CAP } from '../modules/com
 
 test('armor reduces physical damage', () => {
   const result = calculateDamage(100, { type: 'physical', armor: 50, floor: 1 });
-  assert.equal(result, 50);
+  assert.equal(result, 20);
 });
 
 test('resistance reduces elemental damage', () => {
@@ -19,7 +19,7 @@ test('custom resistance cap can be provided', () => {
 
 test('armor scaling constants are tunable', () => {
   const result = calculateDamage(100, { type: 'physical', armor: 50, floor: 1, armorKBase: 100 });
-  assert.equal(result, 66);
+  assert.equal(result, 61);
 });
 
 test('constants are exposed', () => {

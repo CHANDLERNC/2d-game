@@ -7,8 +7,8 @@ function clamp(a, b, x) {
   return Math.max(a, Math.min(b, x));
 }
 
-export const ARMOR_K_BASE = 50;
-export const ARMOR_K_PER_FLOOR = 10;
+export const ARMOR_K_BASE = 30;
+export const ARMOR_K_PER_FLOOR = 5;
 export const RESIST_CAP = 75;
 
 export function calculateDamage(base, {
@@ -26,10 +26,10 @@ export function calculateDamage(base, {
   resistCap = RESIST_CAP
 } = {}) {
   const K = armorKBase + armorKPerFloor * Math.max(0, floor - 1);
-  const armorDR = Math.max(0, Math.min(0.8, armor / (armor + K)));
+  const armorDR = Math.max(0, Math.min(0.8, 1 - Math.exp(-armor / K)));
   let afterArmor = base;
   if(type === 'physical' || type === 'ranged') {
-    afterArmor = Math.max(1, Math.floor(base * (1 - armorDR)));
+    afterArmor = Math.max(1, Math.round(base * (1 - armorDR)));
   }
   const cap = resistCap;
   const resistances = { fire: resFire, ice: resIce, shock: resShock, magic: resMagic, poison: resPoison };

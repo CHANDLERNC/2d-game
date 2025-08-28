@@ -8,6 +8,7 @@ class PlayerStats {
     this.sp = 60;
     this.spMax = 60;
     this.baseAtkBonus = 0;
+    this.armor = 0;
   }
 }
 

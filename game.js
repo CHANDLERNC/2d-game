@@ -629,7 +629,7 @@ const WEAPON_AFFIX_POOL = [
 ];
 
 const ARMOR_AFFIX_POOL = [
-  {k:'armor', min:2, max:6, lvl:1},
+  {k:'armor', min:5, max:15, lvl:1},
   {k:'resFire', min:5, max:15, lvl:1},
   {k:'resIce', min:5, max:15, lvl:1},
   {k:'resShock', min:5, max:15, lvl:1},
@@ -870,9 +870,10 @@ function shortMods(it){
   if(m.dmgMin||m.dmgMax) bits.push(`ATK ${m.dmgMin||0}-${m.dmgMax||0}`);
   if(m.crit) bits.push(`CR ${m.crit}%`);
   if(m.armor) bits.push(`ARM ${m.armor}`);
+  if(m.armorPct) bits.push(`ARM%+${m.armorPct}`);
   if(m.hpMax) bits.push(`HP+${m.hpMax}`);
   if(m.mpMax) bits.push(`MP+${m.mpMax}`);
-  if(m.speedPct) bits.push(`SPD+${m.speedPct}%`);
+  if(m.speedPct) bits.push(`SPD${m.speedPct>0?'+':''}${m.speedPct}%`);
   if(m.ls) bits.push(`LS ${m.ls}%`);
   if(m.md) bits.push(`MD ${m.md}%`);
   if(m.atkSpd) bits.push(`AS+${m.atkSpd}%`);
@@ -902,14 +903,15 @@ function renderDetails(it, origin){
     lines.push(`<div class="kv"><span class="pill">Value ${val}</span><span class="pill">Sell ${sell}</span>${origin==='shop'?'<span class="pill">Buy</span>':''}</div>`);
     return lines.join('');
   }
-  lines.push(`<div class="muted">${it.slot} · Lv ${it.lvl||1} · ${RARITY[it.rarity]?.n||'?'}</div>`);
+  lines.push(`<div class="muted">${it.slot} · Lv ${it.lvl||1} · ${RARITY[it.rarity]?.n||'?'}${it.armorType?` · ${it.armorType}`:''}</div>`);
   const m = it.mods||{}; const rows = [];
   if(m.dmgMin||m.dmgMax) rows.push(`<div>Attack: <span class="mono">${m.dmgMin||0}-${m.dmgMax||0}</span></div>`);
   if(m.crit) rows.push(`<div>Crit: <span class="mono">+${m.crit}%</span></div>`);
   if(m.armor) rows.push(`<div>Armor: <span class="mono">+${m.armor}</span></div>`);
+  if(m.armorPct) rows.push(`<div>Armor %: <span class="mono">+${m.armorPct}%</span></div>`);
   if(m.hpMax) rows.push(`<div>HP Max: <span class="mono">+${m.hpMax}</span></div>`);
   if(m.mpMax) rows.push(`<div>${player.class==='mage'?'MP':'SP'} Max: <span class="mono">+${m.mpMax}</span></div>`);
-  if(m.speedPct) rows.push(`<div>Speed: <span class="mono">+${m.speedPct}%</span></div>`);
+  if(m.speedPct) rows.push(`<div>Speed: <span class="mono">${m.speedPct>0?'+':''}${m.speedPct}%</span></div>`);
   if(m.ls) rows.push(`<div>Lifesteal: <span class="mono">${m.ls}%</span></div>`);
   if(m.md) rows.push(`<div>${player.class==='mage'?'Mana':'Stamina'} Drain: <span class="mono">${m.md}%</span></div>`);
   if(m.atkSpd) rows.push(`<div>Attack Speed: <span class="mono">+${m.atkSpd}%</span></div>`);
@@ -977,6 +979,19 @@ function makeRandomGear(){
   const name = `${RARITY[rarityIdx].n} ${baseName}`;
   const item = { color: RARITY[rarityIdx].c, type:'gear', slot, name, rarity: rarityIdx, lvl: floorNum, mods: affixMods(slot, rarityIdx, floorNum) };
   if(slot==='weapon'){ item.wclass = base.toLowerCase(); }
+  else {
+    const types = ['light','medium','heavy'];
+    const t = types[rng.int(0, types.length-1)];
+    const typeMods = {
+      light:{armor:3,speedPct:5},
+      medium:{armor:6,speedPct:0},
+      heavy:{armor:10,speedPct:-10}
+    };
+    item.armorType = t;
+    const tm = typeMods[t];
+    item.mods.armor = (item.mods.armor||0) + tm.armor;
+    if(tm.speedPct) item.mods.speedPct = (item.mods.speedPct||0) + tm.speedPct;
+  }
   return item;
 }
 
@@ -2354,7 +2369,7 @@ function baseStats(){
   if(player.class==='mage') mpGainPerLevel = 10;
   if(player.class==='rogue') spGainPerLevel = 8;
   return {
-    dmgMin:2, dmgMax:4, crit:5, armor:0,
+    dmgMin:2, dmgMax:4, crit:5, armor:5 + (player.lvl-1)*2, armorPct:0,
     hpMax:150 + (player.lvl-1)*hpGainPerLevel,
     mpMax:60 + (player.lvl-1)*mpGainPerLevel,
     spMax:60 + (player.lvl-1)*spGainPerLevel,
@@ -2366,11 +2381,11 @@ function baseStats(){
 
 function applyClassBonuses(stats){
   if(player.class==='warrior'){
-    stats.hpMax += 40; stats.spMax += 40; stats.dmgMin += 2; stats.dmgMax += 2;
+    stats.hpMax += 40; stats.spMax += 40; stats.dmgMin += 2; stats.dmgMax += 2; stats.armor += 5;
   }else if(player.class==='mage'){
-    stats.mpMax += 40; stats.hpMax += 20; stats.spellBonus = 0.2;
+    stats.mpMax += 40; stats.hpMax += 20; stats.spellBonus = 0.2; stats.armor += 1;
   }else if(player.class==='rogue'){
-    stats.spMax += 60; stats.hpMax += 10; stats.dmgMin += 1; stats.dmgMax += 1; stats.crit += 10; stats.speedPct += 10;
+    stats.spMax += 60; stats.hpMax += 10; stats.dmgMin += 1; stats.dmgMax += 1; stats.crit += 10; stats.speedPct += 10; stats.armor += 3;
   }
 }
 
@@ -2389,6 +2404,7 @@ function accumulate(stats, mods){
     else if(k==='resShock'){ stats.resS += mods.resShock; }
     else if(k==='resMagic'){ stats.resM += mods.resMagic; }
     else if(k==='resPoison'){ stats.resP += mods.resPoison; }
+    else if(k==='armorPct'){ stats.armorPct = (stats.armorPct||0) + mods.armorPct; }
     else if(k in stats){ stats[k] += mods[k]; }
   }
 }
@@ -2420,6 +2436,7 @@ function recalcStats(){
   applyGearBonuses(stats);
   applySkillBonuses(stats);
 
+  if(stats.armorPct) stats.armor = Math.round(stats.armor * (1 + stats.armorPct/100));
   player.hpMax=stats.hpMax; player.mpMax=stats.mpMax; player.spMax=stats.spMax;
   player.speedPct=stats.speedPct; player.spellBonus=stats.spellBonus;
   if(player.hp>stats.hpMax) player.hp=stats.hpMax; if(player.mp>stats.mpMax) player.mp=stats.mpMax; if(player.sp>stats.spMax) player.sp=stats.spMax;
