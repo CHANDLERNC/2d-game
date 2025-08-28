@@ -22,6 +22,12 @@ const wallTex = (() => {
   return c;
 })();
 
+// Collect textures under a descriptive object so they can be tweaked from one place
+const TEXTURES = {
+  floor: floorTex,
+  wall: wallTex,
+};
+
 // ====== Sprites (generated at runtime) ======
 // why: generate pixel art once, store data URLs so everything stays single-file & offline
 const SPRITES = {}; // key -> { cv }
@@ -884,3 +890,7 @@ function genSprites(){
 
 // generate immediately so previews show on start
 genSprites();
+
+// expose a single global for game code and modders
+const ASSETS = { textures: TEXTURES, sprites: SPRITES };
+globalThis.ASSETS = ASSETS;

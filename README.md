@@ -31,6 +31,11 @@ See [`controls.html`](controls.html) for a standalone controls page.
  - Game logic now lives in `game.js` and styling in `style.css`, keeping `index.html` focused on layout.
  - Constants such as tile sizes and game balance are defined near the top of the script for quick tweaking.
 
+## Assets
+All runtime textures and sprites are generated in `assets/sprites.js` and exposed via a global `ASSETS` object.  Textures are
+available under `ASSETS.textures` and character or item sprites under `ASSETS.sprites`, making it simple to swap or modify
+graphics without digging through game logic.
+
 ## Contributing
 1. Fork and clone the repository.
 2. Create a branch for your feature or fix.
