@@ -1308,8 +1308,17 @@ const TRAP_CHANCE=0.01, LAVA_CHANCE=0.02;
 
 function generateRooms(){
   // rooms
-  for(let i=0;i<28;i++){
-    const w=rng.int(6,11), h=rng.int(6,11);
+  const roomAttempts = 24;
+  for(let i=0;i<roomAttempts;i++){
+    let w,h;
+    const sizeRoll = rng.next();
+    if(sizeRoll < 0.5){
+      w=rng.int(6,10); h=rng.int(6,10); // small
+    }else if(sizeRoll < 0.85){
+      w=rng.int(10,16); h=rng.int(10,16); // medium
+    }else{
+      w=rng.int(16,22); h=rng.int(16,22); // large
+    }
     const x=rng.int(1,MAP_W-w-1), y=rng.int(1,MAP_H-h-1);
     rooms.push({x,y,w,h});
     for(let yy=y; yy<y+h; yy++) for(let xx=x; xx<x+w; xx++) map[yy*MAP_W+xx]=T_FLOOR;
