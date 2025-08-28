@@ -32,11 +32,9 @@ export function calculateDamage(base, {
     afterArmor = Math.max(1, Math.floor(base * (1 - armorDR)));
   }
   const cap = resistCap;
-  const resPct = type === 'fire' ? clamp(0, cap, resFire) :
-                 type === 'ice' ? clamp(0, cap, resIce) :
-                 type === 'shock' ? clamp(0, cap, resShock) :
-                 type === 'magic' ? clamp(0, cap, resMagic) :
-                 type === 'poison' ? clamp(0, cap, resPoison) : 0;
+  const resistances = { fire: resFire, ice: resIce, shock: resShock, magic: resMagic, poison: resPoison };
+  const resBase = resistances[type] ?? 0;
+  const resPct = clamp(0, cap, resBase);
   const eff = Math.max(1, Math.floor(afterArmor * (1 - resPct/100) * (1 + shock)));
   return eff;
 }

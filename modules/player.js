@@ -1,6 +1,23 @@
-// Player state and progression
+// Aggregates player-related modules for convenience.
+import { stats } from './playerStats.js';
+import { inventory } from './playerInventory.js';
+import { progression } from './playerProgression.js';
 
-const player = {x:0,y:0,hp:150,hpMax:150,mp:60,mpMax:60,sp:60,spMax:60,gold:0,stepCD:0,stepDelay:140,speedPct:0,lvl:1,xp:0,xpToNext:50,baseAtkBonus:0,class:'warrior',atkCD:0,combatTimer:0,healAcc:0,faceDx:1,faceDy:0,effects:[],magicPoints:0,skillPoints:0,score:0,kills:0,timeSurvived:0,floorsCleared:0,magic:{healing:[false,false,false,false,false,false],damage:[false,false,false,false,false,false],dot:[false,false,false,false,false,false]},skills:{offense:[false,false,false,false,false,false],defense:[false,false,false,false,false,false],techniques:[false,false,false],tricks:[false,false,false]},boundSpell:null,boundSkill:null};
+const player = {
+  x: 0,
+  y: 0,
+  stepCD: 0,
+  stepDelay: 140,
+  speedPct: 0,
+  atkCD: 0,
+  combatTimer: 0,
+  healAcc: 0,
+  faceDx: 1,
+  faceDy: 0,
+  effects: []
+};
+
+Object.assign(player, stats, inventory, progression);
 
 let playerSpriteKey = 'player_warrior';
 
@@ -77,3 +94,4 @@ function updatePlayerSprite(){
 }
 
 export { player, playerSpriteKey, magicTrees, skillTrees, updatePlayerSprite };
+export { stats, inventory, progression };

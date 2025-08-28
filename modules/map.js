@@ -1,8 +1,19 @@
 // Map data and helpers
 
-const TILE=32, MAP_W=48, MAP_H=48;
+import {
+  TILE_SIZE,
+  MAP_WIDTH,
+  MAP_HEIGHT,
+  TRAP_CHANCE as TRAP_CHANCE_CFG,
+  LAVA_CHANCE as LAVA_CHANCE_CFG
+} from './config.js';
+
+const TILE = TILE_SIZE;
+const MAP_W = MAP_WIDTH;
+const MAP_H = MAP_HEIGHT;
 const T_EMPTY=0, T_FLOOR=1, T_WALL=2, T_TRAP=3, T_LAVA=4;
-const TRAP_CHANCE=0.01, LAVA_CHANCE=0.02;
+const TRAP_CHANCE = TRAP_CHANCE_CFG;
+const LAVA_CHANCE = LAVA_CHANCE_CFG;
 
 let map=[], fog=[], vis=[]; let rooms=[]; let stairs={x:0,y:0};
 let merchant={x:0,y:0}; let merchantStyle = Math.random()<0.5 ? 'goblin' : 'stall';
