@@ -2322,7 +2322,12 @@ function toggleEscMenu(force){
 }
 
 function saveGame(){
-  const data={ seed, floorNum, player, bag, potionBag, equip };
+  // Persist only the essentials needed to resume later
+  const data={
+    floorNum,
+    player:{ class:player.class, lvl:player.lvl, gold:player.gold },
+    equip
+  };
   try{ localStorage.setItem('dungeonSave', JSON.stringify(data)); showToast('Game saved'); }
   catch(e){ console.warn('Save failed', e); }
 }
@@ -2330,33 +2335,25 @@ function saveGame(){
 function loadGame(){
   const raw=localStorage.getItem('dungeonSave'); if(!raw){ showToast('No saved game'); return; }
   const data=JSON.parse(raw);
-  seed=data.seed; rng=new RNG(seed); floorNum=data.floorNum;
+  floorNum=data.floorNum||1;
+  // new map each load — seed does not need to persist
+  seed=(Math.random()*1e9)|0; rng=new RNG(seed);
   generate();
-  Object.assign(player, data.player||{});
-  if(!player.class) player.class = 'warrior';
-  if(player.sp===undefined) player.sp = player.spMax||60;
-  if(player.skillPoints===undefined) player.skillPoints=0;
-  if(player.score===undefined) player.score=0;
-  if(player.kills===undefined) player.kills=0;
-  if(player.timeSurvived===undefined) player.timeSurvived=0;
-  if(player.floorsCleared===undefined) player.floorsCleared=0;
-  for(const t of ['healing','damage','dot']){
-    player.magic[t] = player.magic[t] || [];
-    while(player.magic[t].length < magicTrees[t].abilities.length) player.magic[t].push(false);
-  }
-  player.skills = player.skills || {};
-  for(const t of ['offense','defense','techniques']){
-    player.skills[t] = player.skills[t] || [];
-    while(player.skills[t].length < skillTrees[t].abilities.length) player.skills[t].push(false);
-  }
-  if(player.boundSkill===undefined) player.boundSkill=null;
+  const saved=data.player||{};
+  player.class=saved.class||'warrior';
+  player.lvl=saved.lvl||1;
+  player.gold=saved.gold||0;
+  player.score=0; player.kills=0; player.timeSurvived=0; player.floorsCleared=0;
   updatePlayerSprite();
-  bag=data.bag||new Array(BAG_SIZE).fill(null);
-  potionBag=data.potionBag||new Array(POTION_BAG_SIZE).fill(null);
+  bag=new Array(BAG_SIZE).fill(null);
+  potionBag=new Array(POTION_BAG_SIZE).fill(null);
   equip=data.equip||{helmet:null,chest:null,legs:null,hands:null,feet:null,weapon:null};
   hudFloor.textContent=floorNum; hudSeed.textContent=seed>>>0; hudGold.textContent=player.gold; hudLvl.textContent=player.lvl;
   player.rx=player.x; player.ry=player.y; player.fromX=player.x; player.fromY=player.y; player.toX=player.x; player.toY=player.y; player.moving=false; player.moveT=1;
-  recalcStats(); recomputeFOV(); redrawInventory();
+  recalcStats();
+  player.hp=player.hpMax;
+  if(player.class==='mage') player.mp=player.mpMax; else player.sp=player.spMax;
+  recomputeFOV(); redrawInventory();
   hudAbilityLabel.textContent = player.class==='mage'?'Spell:':'Skill:';
   hudSpell.textContent = player.class==='mage'
     ? (player.boundSpell ? magicTrees[player.boundSpell.tree].abilities[player.boundSpell.idx].name : 'None')
@@ -2533,6 +2530,7 @@ document.getElementById('respawnBtn').onclick=()=>{ location.reload(); };
 document.getElementById('resumeBtn').onclick=()=>{ toggleEscMenu(false); };
 document.getElementById('saveBtn').onclick=()=>{ saveGame(); };
 document.getElementById('loadBtn').onclick=()=>{ loadGame(); };
+window.addEventListener('beforeunload', saveGame);
 
 // ===== Utils =====
 function clamp(a,b,x){ return Math.max(a, Math.min(b, x)); }
