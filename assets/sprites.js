@@ -34,6 +34,19 @@ const SPRITES = {}; // key -> { cv }
 function makeSprite(size, draw){ const c=document.createElement("canvas"); c.width=c.height=size; const g=c.getContext("2d"); g.imageSmoothingEnabled=false; draw(g,size); return { cv: c }; }
 function px(g,x,y,w,h,col){ g.fillStyle=col; g.fillRect(x,y,w,h); }
 function outline(g,size){ /* no outline to avoid black boxes */ }
+function spriteFromB64Frames(size, arr){
+  const frames = arr.map(src => {
+    const img = new Image();
+    img.src = src;
+    const c = document.createElement('canvas');
+    c.width = c.height = size;
+    const g = c.getContext('2d');
+    g.imageSmoothingEnabled = false;
+    img.onload = () => { g.clearRect(0,0,size,size); g.drawImage(img,0,0,size,size); };
+    return c;
+  });
+  return { cv: frames[0], frames };
+}
 function genSprites(){
   // Warrior animation 24x24
   function makePlayerWarriorAnim(){
@@ -566,80 +579,14 @@ function genSprites(){
   SPRITES.mage_red = makeMageAnim();
   SPRITES.mage_green = makeMageAnim();
 
-  // Goblin idle animations 24x24
-  // Inspired by OpenGameArt goblin sprites: https://opengameart.org/content/goblin-2
-  function makeGoblinAnim(){
-    const frames=[];
-    const bob=[0,1,0,-1];
-    for(let i=0;i<4;i++){
-      const c=document.createElement('canvas');
-      c.width=c.height=24;
-      const g=c.getContext('2d');
-      g.imageSmoothingEnabled=false;
-      const oy=bob[i];
-      // head
-      px(g,7,2+oy,10,6,'#6fcf5a');
-      // ears
-      px(g,5,3+oy,2,2,'#6fcf5a');
-      px(g,17,3+oy,2,2,'#6fcf5a');
-      // eyes
-      px(g,9,4+oy,2,2,'#000');
-      px(g,13,4+oy,2,2,'#000');
-      // body
-      px(g,7,8+oy,10,8,'#6fcf5a');
-      px(g,5,10+oy,2,6,'#6fcf5a');
-      px(g,17,10+oy,2,6,'#6fcf5a');
-      // belt
-      px(g,7,14+oy,10,2,'#3a2a1a');
-      // legs / feet
-      px(g,8,16+oy,3,4,'#4b3621');
-      px(g,13,16+oy,3,4,'#4b3621');
-      outline(g,24);
-      frames.push(c);
-    }
-    return { cv: frames[0], frames };
-  }
-  SPRITES.goblin = makeGoblinAnim();
-
-  // Goblin Spirit idle animations 24x24
-  function makeGoblinSpiritAnim(){
-    const frames=[];
-    const bob=[0,1,0,-1];
-    for(let i=0;i<4;i++){
-      const c=document.createElement('canvas');
-      c.width=c.height=24;
-      const g=c.getContext('2d');
-      g.imageSmoothingEnabled=false;
-      const oy=bob[i];
-      // head
-      px(g,7,2+oy,10,6,'#6fcf5a');
-      // ears
-      px(g,5,3+oy,2,2,'#6fcf5a');
-      px(g,17,3+oy,2,2,'#6fcf5a');
-      // eyes (red)
-      px(g,9,4+oy,2,2,'#ff0000');
-      px(g,13,4+oy,2,2,'#ff0000');
-      // body
-      px(g,7,8+oy,10,8,'#6fcf5a');
-      px(g,5,10+oy,2,6,'#6fcf5a');
-      px(g,17,10+oy,2,6,'#6fcf5a');
-      // tunic
-      px(g,7,12+oy,10,6,'#6b4b2a');
-      px(g,8,12+oy,8,2,'#7a5a37');
-      // belt
-      px(g,7,16+oy,10,2,'#3a2a1a');
-      // dagger
-      px(g,18,8+oy,2,8,'#c0c0c0');
-      px(g,17,15+oy,4,2,'#3a2d1a');
-      // legs / feet
-      px(g,8,18+oy,3,4,'#4b3621');
-      px(g,13,18+oy,3,4,'#4b3621');
-      outline(g,24);
-      frames.push(c);
-    }
-    return { cv: frames[0], frames };
-  }
-  SPRITES.goblin_spirit = makeGoblinSpiritAnim();
+  // Goblin idle animations 24x24 (from sprite sheet)
+  const GOBLIN_FRAMES = [
+    "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAIAAABvFaqvAAAEs0lEQVR4nC3US6teZxkG4Pt+nmet9Z32eSeNrcZgERJipU5ESRAhIHTi0GlmDhQEB4Ijf4LgwF/gyH8gWOhEsA6cqNiGpLGtbZJ9zD58p/Wt931uJ14/4uJPf/1e0NBmjobNaL7GvHAzSMniZqDoKVAVqCCUVdXoRoasJQiKgIWroYNutelL2w/sy1AKJChNTVCytEoDHFlQEkoJaQBAoyNgVdF2I2+BBt7pWfdPA5s6RtaUGnc0JOlOVShTRMkhC92QZkMU0kBMYxxdN20bjy42bXev/dbR8OXT+atEzcTtdn9jvUGqAUqhdD19frZ7OGYFew6npRTcf/uWFY9pN+lGXddtqckccLa6Jl6Yu2p5/snx1769y7S0JMCkQSEDSUHK6JyG/lojb2LUTsftbNztUDM5L3l5J/p/HH8McPnb+oevNz/69Iubv5n8/o+7v3p8tR4g5PxoLU+j3drdGzeNryKstTAPNiNvw93qaKvszbTzjf2vvrWz195oLg5GTYtuEj4bR4vxmILBYfQb0xkHYk2szPsIlYLY1JRS//34rLkV7TCbltmgoXmMn8UX3/nFLSR++ZMTDQDSIcHFaptoSEeYhaVHGdYbpy/j6vqsIKOnbdhlM2J3Z3Lj8+H02ZPXoG1vNxdHfTjhvL2alQ7hHvKAeYUFYz2/zPUi28XVlWVfVqftWtcbH8LkxnfxBg/1ZPP66uUqjATufjCN0OoHjcCQMwFBqLFcnffuy9Ww+NuzF9dnQ4Lf3d6MkCxRefOj0fZ/ytOfh06o83zn3zskvvxxSfRbnDbrxjZEgfqMxXLBRoh8+XD4dFovjpbGxU3fAnFSr0fHW3r78Ht/Ovz7D3X/6f7ojQD1OV8BPN3Mx90IQlYVDDbfzJfL+WK9xMaJevf9hshTXZ7UK0iQEhLY0KZsSR6fnF+c9RCblmpLtlVNKdjY/Gp+vVytrxbtMSe/G45O19cvNoDJcHHS33xnz0AC735wo0Kjbz4SfX45XL/uYfC3mF0tVjcYYr7sm2CGoqk7jw5nUbe3a42q5N3JPucAJJmIl0fnzdYr3nn4YPjr5ax8dnoJXd6KPVitUCyXawYiaCP4KJPJShuIaqXm8dPzzgS5SbnpFx+9Xyv9fvQly1AJVZSEmRibzUBBNK+sUhJsJDcf8fn6fOdVczB1sQDJ5O3vP3pxdPGv6Ydv2oiSQJFCFtA2NUvRumCQBiBdoNnYMIPvx/6Wi0iIYnr97MM/Wxu+VyRmBRJndZ6GClmpqFVgSQGUHAqh0bkWPg4ogWpIOExGavnkL6pKZjMOo2qmaqKmeRgapwUc9HAPdyPh4uqif/ZeqQ+mginx6iKPrnT+2EGe9MuDrUm7acdDNwyqKYsmmta98ejCGjCIMCB22sn2fmfG0sruteeL9OBXHozoBOlV/6+6pwZAiHYcHuREPpVNxQ5sE47SUgUCPonLewe7Nx5OCMtD7pS49F4ha8x60kiHtYpu1rCVj2ETcSKNCls7bRZaJwAqibTtwNjMgS0s2uudgy6lk7PrN3d3bKC1JinGO513wFg2LTmu1U2RhzHJFpTYbdnAqG5FCcZIB7GlNiXtj2dWEOFZZG7/A6UQxvTgcKFhAAAAAElFTkSuQmCC",
+    "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAIAAABvFaqvAAAEr0lEQVR4nCXTy4ucWRkG8Od5z/kudel7+pJkogEjDBOQQQcd3HhBBd2Ii3Hh1tVsRFwLblz4N4xrF+JeN8oEFRlREARHhdgJiZ10p1PV1VXVVfWd75z3ceHvf/jxvQ8emAmCE8oqyUtyFXkgAqKJgGBeVNxLcRBmtMoskAaAgqswWgiwQoFwRaHAWQpJiGaoCFAOUSWruEA5GQgaGWmkO0EYAYYwD+ulbW7ixqNyYE8v9NgyNAiN4hBoUaz08E5e6MW8HoWu6tcx/f2vr0jGKPNse+24L/6Ppy/qNghQ9qPhuGuSSyAkWu3T2frqfONBu7sNNjyfu4ufvn3r7XcP80rR+mFtwbNSNQ8RcgEg8fy/1/e2dwgAMBNBEcHM5BZZyJjhAatZxwIVxmozaOKoCYM93Rtv3fnD8z/RJWF0XP3kp813Tp/t/Xjwy1+cfPPJ09s/GzncEBave1IwHg/H3drhssJofdViNK5uHTefWlaz7nj960cfHb5ZqWC9VQ0O6mYYZntWzysKRgrFiJ16bPB+5aUHRPYlxlTV1gyxNYjbdT64bWfERwUhd3z/688ePtyD8KPvXhygKg5IEEVYErOxh5cCpwqiudGDFasYBJaX+9/+3Dcu0rNUVs/DxT8/nsZg490asuXlmuQbaQxjb0Ixz0KW91JB9L4XUrbFIp439R24rC9NirDwsDoJAzy2yfxVbxKMbz0aVYbuC9W6yoliZhHo7q6YU0parIqwXDXHB8JotbxKTAz58ONBZXb6pYH7VRYffsi7947g/PMbL7Z9EFdwygVToBD7frPpUULXle6Po99s9tP8LN1td87KlNfj+zuH73548JevJjO7f3oM6dVkAmBhq/3RqIh1VvbigqWyvsnLVbq+DjcZHenW+ktehRr/emfhRhgqD5//3REFEZRggmzWrOOQcWixtdjAUu67fnXTrTar9fxp6o5tuehId+c75SiQcH729ycOO/jaD6eXU4jXFxvA3R2ts3araXWIvWfPZC4l6G2c8Le5q0eL1EvKM3/54vLkZN9lAJ6cPsaDr/Dxo7vcPnt9s3vcqKZqQ5aKx85TyGJGyaQJ5iUwdqFXGT7ts2l6cWmMACZPfi7TdN6P+yGj3KUiUrDCGiblVEqCMryD5wZlxDwybfNi0k2XabrMk8XmcrH+zHvfR9bWyFIDGoxCAAwyFRTrAaeKl0SVit5GDcx2Od1dETIBJgBm+NuvPoAxxpBrd8GFWbd2yp3KZnL1xQXIHBW8FQeYNPPFLMnVAxAFCTQgeX79PYQKBi0nyYGcHXJSMUMWUASrA2tjHf6/isTpt/oH51v1PKQnG4efz0r8QQ3hxfLmaDisQjAYMvoCFTcEoLLYMLQWGrKBgh3ErZ1bjUPdIbu9Mlv55KZ84ostJMEjCDJLWqskoZf6EKsKIYbQ0FqzWmylSojcrYdXIZ3V80/u7ex+eaDCbux7ff1sdQ2INa2HMlFA0eCxGgQLxhhiK9T0yv/9n1fb91sWmZMB2CJqA2E15223XVcuvJ6sLPiddlcu7+GGGMaximRN1EQQiTffOnShuA7uOp0hAUNzSOBeiF656PsnpuLMBlcuTvB/3VIB6Vyt/TkAAAAASUVORK5CYII=",
+    "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAIAAABvFaqvAAAEp0lEQVR4nCXTu2+kZxmG8ft+3vc7zPi49tpeOyvFOYloUSAJIFFEFAiJdDTQUNBQIUVCQtSkpcu/QkGVBiElDVokiBBEZhXJaGfX6/F67PGcvvne57kptr7Kny7+/PffTS1js9NWH+aOCPcCKWSJ2SwFEbQIOd0ioEK3RKVkMgbNQ73lwXZrG/Atv66nYAhIyxQhUdmYahgNIZEsIFA6RaFTdULXriFsRcuOeXO4pUZ90mS82DkcDIfoYSqwRNDmpaf1MDAYDQjRsveem6yGNWgkFgHLeaPaQ3JH+2g/P376TzMiQTJAFA8fDMlAmKjkKmbfnF1u3684M4hSAHx9Zze58ma1YxVB1Np+f58vFqOzi2cUGEpHeTFQs0pBD+RMJ4LS3VURkRDHR7sDq2NlWdkGaWc7PTis38zjBw/zt+7lB6eHByBpXH2mT/+48dWvr16Mln/4rJ3MF+PxEjQJNBzc2+XS0JFdtnWVm9Q2bNu09c5rJ+PyZBdXK58njQOqf6Xf5NH7v91H6He/vOTciFDADAymGVJF80QyW87miZVBBvmTf1xuvLG9zd23772+8rmHj5aTzUFOWVeXfPlskbMF+ebtVgxI5RTGZGYVkHPfLY2p1/JiNBpUjXVdLoOmDIrWFvZec2yXOJtN7sbrlAnwvb80lqL8sO2TmTGLdMGQ190UpWPuCJXiuSBmBRSBYej466Z+UT/52YQMyb79xQYzzn/hiNlR2bQ+wwEZHXl+d71W7mz8/O+Pn4+vTbIfHS9sukzdf8vEns1Pjo9+/Pj0y588++BPB3aiKDgvI5IX9fSEe1oDRepLvpvdpMREn3xg51v97VUHnRmIgJGpqk1c9b3Nw+qA2/j66nbS7e61SYY2KCi80OxuOZ0uJpP+dmorEGIAr6rgcfjuvaAQ+t5fDwBuPfqpQAubvuwAFCtR9556V59vptOclFrbjqr5PPelvf0oecVEbiyT3KEkCcbno/F4Z2RvfPThy7+NHy7PL255pKNqJyhFn2ezRZVpa9ki7K3GlVgKDQDCMfn6poJkBmHZFfvqcwerd1sPIAAwSIV7MM9my1QxV8Y6rEY0cCTkQLZ1iv88XZ5sA0wiST38wcdPn16uhv+KpFJChLzEq4OWy5IKk7MSaOIAloDW2Ng4Zse7FKEIkhTOv/jzouDiO3E/DZgh4ZqLLQ1LUV6u3FxV5JJYQUZapmXc5YUvYCYXDaToVMpp1bmXcERT15L6wuLeF+a+9BYQpNoQzJ5QIuEVoM4+7uOa73zZMkUGR1O3TypclmqQ9qvBN4/nRh+e1lEil+KsIMqUk9MJMzjy0IY+XHSdvRYDnfL638UDB99vJiikrl7Odoebbz/aVMf+zn3tuUSwkI4CpJCJJJPBjDDA+b/N+enB5vaHTVTq923o7Q06D0pROsZC3qmsIrtHSualeKA3ZhBMEyxzbwYScpNvMhJZA3u4wWLnfg3w8sXisNmIcF/LIzKIkJulgCwYYhB7eYgaEWx3WnSOBUSgSsliP20ICFe9W/m8RFHIy0o5FMZUAtmjd7PisYa6sGAGJEQAJDOdbr20AgxR4Cv5Gl7ga0j6Px7QAEVBmHrDAAAAAElFTkSuQmCC",
+    "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAIAAABvFaqvAAAEwklEQVR4nAXBy45cVxUG4H+tvU/VqVN9b3fbjpVYHQeRhEhBjsVFCKGISQZICCSGmWTCCKSMIgY8AXkDBjwASAwYgoRAQkBmJFEGicnFNnZ3ubrb1VV1Tu3LWj/fJz99/0SjSusMcNJJq5UGc4hCIQoV0pxmZKDDCBVFEIEAG61r854REw0TLGOiQInYh2p0IcBRE5qRAOruUqVsMh1OUa1kGE9DjRagyPARNYgKw+osnX2xCiORrRi2VNtYW01jX4Wy1mHd5Nzm87o2Z6nGSZCRNuPRxf96VILujiguyOHW/n65zs+/mkEFTiqWs/Tiq3sKdUApENL80eIK7roQUB6OcLKzV3pnIjOj1tiwUZk22U+65sNHXzhdAIFyFJxApY3AApGAUlQExv3troGUFZmMGczUprSTur9rR0fhzk196bUbXzv/qEACx/6r33Sfvfvs7Mnm1+9PPnvvmYPiNOJg2kkCeim9+drL2kvyGGvb6nRHjvdHz9WxmQvaj5Vkxs/fevj1Vw7c+cufzQ81uNNVRahLF23ERQpKIYp7kdh4HKGdcnsn3FB0a7360Xe+f1keb5ge9mfbXUPh2Wxw19V8A8jz/TaUjCTFTVjdK1g9ehYoTa3mVdt0ywft1u7+xtbA4uWtG/hvuI/5+jR5EBF55a+TUZR8L24amAtIqUHcKVSaMxcf1pvVvJqRZHEtroUv/Hty/K+RSjQKKXd/v/38rZvHxwePb/e6KzqFRm2ihDFUNTKnZOvlQF+cf/rnPy2eLcO3jpfhKjfDX164ePPRyff+cf2Dt2YhxuPXDx2Yzy7dZB77w9iRUCBoCGDMNYeyBlIO9sEPzlRwMfvkZtg9rcs6BlwNjgF3/3bgBBQWqeKEXDTDfjulC9Spqtk2Q+l7W6+9R4CB4vKkLAV+V44Ih8i9v98Aee3NX1yeLwJ1MasUEbi2DK2EJmgjmmoe8jAMmzTklx8f3fnj+JvLoxPbuZ134krmTy/cnC4V4fMH9+32d2PUO6O95TxZFVFAIdGl8ZiKWXZzG5tI8vjiZMhZgxg0fJSC+/L8EupEWDz4nQOnl2XvjVYaKuEKVbrAQa215Jo3nlYl9dWHUEsjHlBb+fjL1eWQ5ovN+VW6WPTf+PE7dIOwBgOFQicr3Ag6Y7YqrkI2ABrTBtyCdXI5Wtw6bJwMSiEq8J8//Jbqx3ty1UEGCGXt/ZZ0Lu6gmrFWL9WSsKiXMa3F1d5msyIDBW6EQxSQ4Kpy+nZjKi5yfpaywcw9W03QVG1juZglrwXuQg9udCPv/zCV18YPTnuHa9BPvkyztwXVQicHXdt/VR/+c5k3llOtJcvrP9mGiwaJUcM0NNOgu/QpB02XT9Nzqy4+wfLDRMrOt8eLe4XE1Sxfm05UxKtww9q7JYvFCEIMGkB61ICIGLCt7VNPp7vr69J1kxGilD1s5XaW11QiwDI90QZab1YlenE4VKQ6ogQEu//pxfU3OhiDkEpOtJIaRaZyqX031Uk3ujgfcrVDdlZpZpYQq5u4MKiYhSJOfenVayKQgMkRPdFLlVZdoAF7uhUaumG8Z7bx8sxQ6RXuiDTQARAUd1plzAyNkBKNXsVFXQQKcdGN0QXOmGGZdMBJEzf7P55mfBF4EiC+AAAAAElFTkSuQmCC"
+  ];
+  SPRITES.goblin = spriteFromB64Frames(24, GOBLIN_FRAMES);
 
   // Ghost idle animations 24x24
   // Inspired by OpenGameArt ghost sprites: https://opengameart.org/content/ghost-pixel-art
