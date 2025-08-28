@@ -29,6 +29,13 @@ function updateResourceUI(){
   }
 }
 
+function updateXPUI(){
+  const pct=Math.min(100, Math.floor(100*player.xp/Math.max(1,player.xpToNext)));
+  xpFill.style.width=`${pct}%`;
+  xpLbl.textContent=`XP ${player.xp}/${player.xpToNext}`;
+  hudLvl.textContent=player.lvl;
+}
+
 function updateScoreUI(){
   if(hudScore) hudScore.textContent = Math.floor(player.score);
   if(hudKills) hudKills.textContent = player.kills;
@@ -83,7 +90,7 @@ export {
   hudFloor, hudSeed, hudGold, hudDmg,
   hudScore, hudKills, xpFill, xpLbl,
   hudLvl, hudSpell, hudAbilityLabel,
-  updateResourceUI, updateScoreUI,
+  updateResourceUI, updateXPUI, updateScoreUI,
   renderActionLog, toggleActionLog,
   showToast, showBossAlert, showRespawn
 };
