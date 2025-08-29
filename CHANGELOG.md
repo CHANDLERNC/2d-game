@@ -4,11 +4,6 @@ All notable changes to this project will be documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) with date-based entries.
 
 ## [Unreleased]
-### Changed
-- Split single-file build into modular assets for GitHub Pages.
-- Replace floor and wall textures with procedurally generated patterns to drop binary images.
-- Reworked audio system with crossfading music and separate SFX volume control.
-
 ### Added
 - Optional cellular‑automata cave floors with secret rooms and environmental hazards like spike traps and lava.
 - Animated tiles for lava pools and spike traps.
@@ -46,12 +41,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) with
 - Weighted monster spawning tied to player strength with elite variants that gain unique abilities.
 
 ### Changed
+- Split single-file build into modular assets for GitHub Pages.
+- Replace floor and wall textures with procedurally generated patterns to drop binary images.
+- Reworked audio system with crossfading music and separate SFX volume control.
 - Monster spawn counts are now randomized and increase on deeper floors.
 - Recombined CSS and JavaScript into `index.html` to maintain a single-file distribution.
 - Expanded spell and projectile aiming to support more precise directions.
 - Increased player starting health by 50 points.
 - Reduced base health of all monster types.
 - Magic abilities now require sequential unlocking with escalating point costs.
+- Reworked class skill trees into nested data structures and updated progression logic.
 - Reworked weapon and armor attributes for improved random bonuses.
 - Reduced monster density on early floors.
 - Increased XP reward per monster by 25%.
@@ -68,7 +67,6 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) with
 - Mini bosses and bosses now appear at twice the size of normal monsters.
 - Replaced dragon and dragon hatchling sprites with a bone dragon sporting blue flames.
 - Health and mana potions now use custom SVG sprites with rarity glow and a simple rotation animation.
-
 - Weapon damage and armor/resistance values now scale with item level and rarity. Player base resistances increase slightly each level.
 
 ### Removed
