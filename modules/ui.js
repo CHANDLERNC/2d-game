@@ -21,7 +21,7 @@ const hudSpell=document.getElementById('hudSpell');
 const hudAbilityLabel=document.getElementById('hudAbilityLabel');
 
 function updateResourceUI(){
-  if(player.class==='mage'){
+  if(player.class==='mage' || player.class==='summoner'){
     mpFill.style.width=`${(player.mp/player.mpMax)*100}%`;
     mpLbl.textContent=`Mana ${player.mp}/${player.mpMax}`;
   }else{

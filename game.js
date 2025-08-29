@@ -870,7 +870,7 @@ function usePotion(it){
   let healed=0, restored=0;
   if(it.hp){ const before=player.hp; player.hp=Math.min(player.hpMax, player.hp+it.hp); healed=player.hp-before; }
   if(it.mp){
-    if(player.class==='mage'){
+    if(player.class==='mage' || player.class==='summoner'){
       const before=player.mp; player.mp=Math.min(player.mpMax, player.mp+it.mp); restored=player.mp-before;
     }else{
       const before=player.sp; player.sp=Math.min(player.spMax, player.sp+it.mp); restored=player.sp-before;
@@ -907,7 +907,7 @@ function redrawInventory(){
   html += '<div class="section-title">Character Stats</div>';
   html += '<div>';
   html += `<div class="list-row"><div>HP</div><div class="muted">${player.hp}/${currentStats.hpMax}</div></div>`;
-  if(player.class==='mage')
+  if(player.class==='mage' || player.class==='summoner')
     html += `<div class="list-row"><div>Mana</div><div class="muted">${player.mp}/${currentStats.mpMax}</div></div>`;
   else
     html += `<div class="list-row"><div>Stamina</div><div class="muted">${player.sp}/${currentStats.spMax}</div></div>`;
@@ -1029,7 +1029,7 @@ function renderDetails(it, origin){
     const rows=[];
     lines.push(`<div class="muted">Potion · ${RARITY[it.rarity]?.n||'?'}</div>`);
     if(it.hp) rows.push(`<div>Restores <span class="mono">${it.hp}</span> HP</div>`);
-    if(it.mp) rows.push(`<div>Restores <span class="mono">${it.mp}</span> ${player.class==='mage'?'Mana':'Stamina'}</div>`);
+    if(it.mp) rows.push(`<div>Restores <span class="mono">${it.mp}</span> ${player.class==='mage'||player.class==='summoner'?'Mana':'Stamina'}</div>`);
     lines.push(`<div style="margin:6px 0">${rows.join('')}</div>`);
     lines.push(`<div class="kv"><span class="pill">Value ${val}</span><span class="pill">Sell ${sell}</span>${origin==='shop'?'<span class="pill">Buy</span>':''}</div>`);
     return lines.join('');
@@ -1041,10 +1041,10 @@ function renderDetails(it, origin){
   if(m.armor) rows.push(`<div>Armor: <span class="mono">+${m.armor}</span></div>`);
   if(m.armorPct) rows.push(`<div>Armor %: <span class="mono">+${m.armorPct}%</span></div>`);
   if(m.hpMax) rows.push(`<div>HP Max: <span class="mono">+${m.hpMax}</span></div>`);
-  if(m.mpMax) rows.push(`<div>${player.class==='mage'?'MP':'SP'} Max: <span class="mono">+${m.mpMax}</span></div>`);
+  if(m.mpMax) rows.push(`<div>${player.class==='mage'||player.class==='summoner'?'MP':'SP'} Max: <span class="mono">+${m.mpMax}</span></div>`);
   if(m.speedPct) rows.push(`<div>Speed: <span class="mono">${m.speedPct>0?'+':''}${m.speedPct}%</span></div>`);
   if(m.ls) rows.push(`<div>Lifesteal: <span class="mono">${m.ls}%</span></div>`);
-  if(m.md) rows.push(`<div>${player.class==='mage'?'Mana':'Stamina'} Drain: <span class="mono">${m.md}%</span></div>`);
+  if(m.md) rows.push(`<div>${player.class==='mage'||player.class==='summoner'?'Mana':'Stamina'} Drain: <span class="mono">${m.md}%</span></div>`);
   if(m.atkSpd) rows.push(`<div>Attack Speed: <span class="mono">+${m.atkSpd}%</span></div>`);
   if(m.kb) rows.push(`<div>Knockback: <span class="mono">${m.kb}</span></div>`);
   if(m.pierce) rows.push(`<div>Projectile Pierce: <span class="mono">${m.pierce}</span></div>`);
@@ -1432,7 +1432,7 @@ function performPlayerAttack(dx,dy,dmgMult=1){
         tryApplyStatus(target, st, st.elem);
       }
       if(ls>0){ const heal=Math.max(1,Math.floor(dmg*ls/100)); player.hp=Math.min(player.hpMax, player.hp+heal); addDamageText(player.x,player.y,`+${heal}`,'#76d38b'); }
-      if(md>0){ const gain=Math.max(1,Math.floor(dmg*md/100)); if(player.class==='mage'){ player.mp=Math.min(player.mpMax,player.mp+gain); } else { player.sp=Math.min(player.spMax,player.sp+gain); } addDamageText(player.x,player.y,`+${gain}`,'#4aa3ff'); updateResourceUI(); }
+      if(md>0){ const gain=Math.max(1,Math.floor(dmg*md/100)); if(player.class==='mage'||player.class==='summoner'){ player.mp=Math.min(player.mpMax,player.mp+gain); } else { player.sp=Math.min(player.spMax,player.sp+gain); } addDamageText(player.x,player.y,`+${gain}`,'#4aa3ff'); updateResourceUI(); }
       if(kb>0){
         const kdx=Math.sign(ndx), kdy=Math.sign(ndy);
         for(let i=0;i<kb;i++){ if(!tryMoveMonster(target,kdx,kdy)) break; }
@@ -2059,7 +2059,7 @@ function update(dt){
           for(const st of sts){ tryApplyStatus(m, st, st.elem); }
         }
         if(p.ls>0){ const heal=Math.max(1,Math.floor(p.damage*p.ls/100)); player.hp=Math.min(player.hpMax, player.hp+heal); addDamageText(player.x,player.y,`+${heal}`,'#76d38b'); }
-        if(p.md>0){ const gain=Math.max(1,Math.floor(p.damage*p.md/100)); if(player.class==='mage'){ player.mp=Math.min(player.mpMax,player.mp+gain); } else { player.sp=Math.min(player.spMax,player.sp+gain); } addDamageText(player.x,player.y,`+${gain}`,'#4aa3ff'); updateResourceUI(); }
+        if(p.md>0){ const gain=Math.max(1,Math.floor(p.damage*p.md/100)); if(player.class==='mage'||player.class==='summoner'){ player.mp=Math.min(player.mpMax,player.mp+gain); } else { player.sp=Math.min(player.spMax,player.sp+gain); } addDamageText(player.x,player.y,`+${gain}`,'#4aa3ff'); updateResourceUI(); }
         if(p.kb>0){
           const kdx=Math.sign(p.dx), kdy=Math.sign(p.dy);
           for(let i=0;i<p.kb;i++){ if(!tryMoveMonster(m,kdx,kdy)) break; }
@@ -2080,12 +2080,12 @@ function handleKeyAction(key, e){
   if(key==='escape'){ if(!closeMenus()) toggleEscMenu(); return; }
   if(key==='i') toggleInv();
   if(key==='k'){
-    if(player.class==='mage') toggleMagic();
+    if(player.class==='mage' || player.class==='summoner') toggleMagic();
     else toggleSkills();
   }
   if(key==='l') toggleSkills();
   if(key==='q'){
-    if(player.class==='mage') castSelectedSpell();
+    if(player.class==='mage' || player.class==='summoner') castSelectedSpell();
     else castBoundSkill();
   }
   if(key==='c') toggleCharPage();
@@ -2154,7 +2154,7 @@ function renderCharPage(){
   let html='<div class="section-title">Character</div>';
   html+=`<div class="kv">Class: <b>${skillTreeGraph[player.class].name}</b></div>`;
   html+=`<div class="kv">HP: <b>${player.hp}/${player.hpMax}</b></div>`;
-  html+=`<div class="kv">${player.class==='mage'?'Mana':'Stamina'}: <b>${player.class==='mage'?player.mp+'/'+player.mpMax:player.sp+'/'+player.spMax}</b></div>`;
+  html+=`<div class="kv">${player.class==='mage'||player.class==='summoner'?'Mana':'Stamina'}: <b>${player.class==='mage'||player.class==='summoner'?player.mp+'/'+player.mpMax:player.sp+'/'+player.spMax}</b></div>`;
   html+=`<div class="kv">Attack: <b>${currentStats.dmgMin}-${currentStats.dmgMax}</b></div>`;
   html+=`<div class="kv">Armor: <b>${currentStats.armor}</b></div>`;
   html+=`<div class="kv">Fire Res: <b>${player.resFire||0}%</b></div>`;
@@ -2198,8 +2198,8 @@ function redrawMagic(){
   let panel=document.getElementById('magic');
   if(!panel){ panel=document.createElement('div'); panel.id='magic'; panel.className='panel'; document.body.appendChild(panel); }
   let html = `<div class="section-title">Magic Points: ${player.magicPoints}</div>`;
-  for(const treeName of ['healing','damage','dot']){
-    const tree=magicTrees[treeName];
+  for(const [treeName, tree] of Object.entries(magicTrees)){
+    if(tree.class && tree.class!==player.class) continue;
     html += `<div class="section-title">${tree.display}</div><div>`;
     tree.abilities.forEach((ab,i)=>{
       const unlocked=player.magic[treeName][i];
@@ -2226,7 +2226,7 @@ function redrawMagic(){
   };
 }
 
-function toggleMagic(){ if(player.class!=='mage') return; let panel=document.getElementById('magic'); if(!panel){ redrawMagic(); panel=document.getElementById('magic'); } if(!panel) return; const show=panel.style.display===''||panel.style.display==='none'; panel.style.display=show?'block':'none'; if(show) redrawMagic(); updatePaused(); }
+function toggleMagic(){ if(player.class!=='mage' && player.class!=='summoner') return; let panel=document.getElementById('magic'); if(!panel){ redrawMagic(); panel=document.getElementById('magic'); } if(!panel) return; const show=panel.style.display===''||panel.style.display==='none'; panel.style.display=show?'block':'none'; if(show) redrawMagic(); updatePaused(); }
 
 function buildSkillTree(treeName, branch){
   const idxRef={i:0};
@@ -2370,7 +2370,7 @@ function castWhirlwind(){
       dmg=Math.floor(dmg*1.6);
       dealDamageToMonster(m,dmg,null,wasCrit);
       if(ls>0){ const heal=Math.max(1,Math.floor(dmg*ls/100)); player.hp=Math.min(player.hpMax,player.hp+heal); addDamageText(player.x,player.y,`+${heal}`,'#76d38b'); }
-      if(md>0){ const gain=Math.max(1,Math.floor(dmg*md/100)); if(player.class==='mage'){ player.mp=Math.min(player.mpMax,player.mp+gain); } else { player.sp=Math.min(player.spMax,player.sp+gain); } addDamageText(player.x,player.y,`+${gain}`,'#4aa3ff'); updateResourceUI(); }
+      if(md>0){ const gain=Math.max(1,Math.floor(dmg*md/100)); if(player.class==='mage'||player.class==='summoner'){ player.mp=Math.min(player.mpMax,player.mp+gain); } else { player.sp=Math.min(player.spMax,player.sp+gain); } addDamageText(player.x,player.y,`+${gain}`,'#4aa3ff'); updateResourceUI(); }
       hit=true;
     }
   }
@@ -2405,7 +2405,7 @@ function castShieldBash(){
     dealDamageToMonster(target,dmg,null,wasCrit);
     tryApplyStatus(target,{k:'shock',dur:1200,power:0.5,chance:1},'shock');
     if(ls>0){ const heal=Math.max(1,Math.floor(dmg*ls/100)); player.hp=Math.min(player.hpMax,player.hp+heal); addDamageText(player.x,player.y,`+${heal}`,'#76d38b'); }
-    if(md>0){ const gain=Math.max(1,Math.floor(dmg*md/100)); if(player.class==='mage'){ player.mp=Math.min(player.mpMax,player.mp+gain); } else { player.sp=Math.min(player.spMax,player.sp+gain); } addDamageText(player.x,player.y,`+${gain}`,'#4aa3ff'); updateResourceUI(); }
+    if(md>0){ const gain=Math.max(1,Math.floor(dmg*md/100)); if(player.class==='mage'||player.class==='summoner'){ player.mp=Math.min(player.mpMax,player.mp+gain); } else { player.sp=Math.min(player.spMax,player.sp+gain); } addDamageText(player.x,player.y,`+${gain}`,'#4aa3ff'); updateResourceUI(); }
     playAttack();
   }
   player.atkCD = prof.cooldown;
@@ -2438,7 +2438,7 @@ function castPoisonStrike(){
     dealDamageToMonster(target,dmg,null,wasCrit);
     tryApplyStatus(target,{k:'poison',dur:3000,power:1.0,chance:1},'poison');
     if(ls>0){ const heal=Math.max(1,Math.floor(dmg*ls/100)); player.hp=Math.min(player.hpMax,player.hp+heal); addDamageText(player.x,player.y,`+${heal}`,'#76d38b'); }
-    if(md>0){ const gain=Math.max(1,Math.floor(dmg*md/100)); if(player.class==='mage'){ player.mp=Math.min(player.mpMax,player.mp+gain); } else { player.sp=Math.min(player.spMax,player.sp+gain); } addDamageText(player.x,player.y,`+${gain}`,'#4aa3ff'); updateResourceUI(); }
+    if(md>0){ const gain=Math.max(1,Math.floor(dmg*md/100)); if(player.class==='mage'||player.class==='summoner'){ player.mp=Math.min(player.mpMax,player.mp+gain); } else { player.sp=Math.min(player.spMax,player.sp+gain); } addDamageText(player.x,player.y,`+${gain}`,'#4aa3ff'); updateResourceUI(); }
     playAttack();
   }
   player.atkCD = prof.cooldown;
@@ -2495,10 +2495,10 @@ function loadGame(){
   player.rx=player.x; player.ry=player.y; player.fromX=player.x; player.fromY=player.y; player.toX=player.x; player.toY=player.y; player.moving=false; player.moveT=1;
   recalcStats();
   player.hp=player.hpMax;
-  if(player.class==='mage') player.mp=player.mpMax; else player.sp=player.spMax;
+  if(player.class==='mage' || player.class==='summoner') player.mp=player.mpMax; else player.sp=player.spMax;
   recomputeFOV(); redrawInventory();
-  hudAbilityLabel.textContent = player.class==='mage'?'Spell:':'Skill:';
-  hudSpell.textContent = player.class==='mage'
+  hudAbilityLabel.textContent = (player.class==='mage' || player.class==='summoner')?'Spell:':'Skill:';
+  hudSpell.textContent = (player.class==='mage' || player.class==='summoner')
     ? (player.boundSpell ? magicTrees[player.boundSpell.tree].abilities[player.boundSpell.idx].name : 'None')
     : (player.boundSkill ? skillTrees[player.boundSkill.tree].abilities[player.boundSkill.idx].name : 'None');
   updateResourceUI();
@@ -2547,18 +2547,18 @@ function levelUp(){
   player.lvl++;
   player.baseAtkBonus += 1;
   player.xpToNext = Math.floor(50*Math.pow(1.35, player.lvl-1));
-  if(player.class==='mage') player.magicPoints++;
+  if(player.class==='mage' || player.class==='summoner') player.magicPoints++;
   else player.skillPoints++;
   recalcStats();
   player.hp = player.hpMax;
-  if(player.class==='mage') player.mp = player.mpMax;
+  if(player.class==='mage' || player.class==='summoner') player.mp = player.mpMax;
   else player.sp = player.spMax;
   hpFill.style.width = `${(player.hp/player.hpMax)*100}%`;
   updateResourceUI();
   updateXPUI();
   hpLbl.textContent = `HP ${player.hp}/${player.hpMax}`;
   showToast(`Level up! Lv ${player.lvl}`);
-  showToast(player.class==='mage'?'Gained magic point':'Gained skill point');
+  showToast((player.class==='mage' || player.class==='summoner')?'Gained magic point':'Gained skill point');
 }
 
 // ===== Toast =====
@@ -2567,7 +2567,7 @@ function levelUp(){
 function baseStats(){
   const lvl = player.lvl;
   const hpGainPerLevel = 20;
-  const mpGainPerLevel = player.class==='mage'?12:8;
+  const mpGainPerLevel = (player.class==='mage' || player.class==='summoner')?12:8;
   const spGainPerLevel = player.class==='rogue'?12:8;
   return {
     dmgMin:2, dmgMax:4, crit:5, armor:5 + (lvl-1)*2, armorPct:0,
@@ -2585,6 +2585,8 @@ function applyClassBonuses(stats){
     stats.hpMax += 40; stats.spMax += 40; stats.dmgMin += 2; stats.dmgMax += 2; stats.armor += 5;
   }else if(player.class==='mage'){
     stats.mpMax += 40; stats.hpMax += 20; stats.spellBonus = 0.2; stats.armor += 1;
+  }else if(player.class==='summoner'){
+    stats.mpMax += 40; stats.hpMax += 30; stats.spellBonus = 0.1; stats.armor += 2;
   }else if(player.class==='rogue'){
     stats.spMax += 60; stats.hpMax += 10; stats.dmgMin += 1; stats.dmgMax += 1; stats.crit += 10; stats.speedPct += 10; stats.armor += 3;
   }
@@ -2676,15 +2678,15 @@ function startGame(){
   player.itemsCollected=0; player.goldCollected=0; player.damageDealt=0; player.damageTaken=0;
   player.spellsCast=0; player.potionsUsed=0; player.distanceTraveled=0;
   scoreUpdateTimer=0; updateScoreUI();
-  hudAbilityLabel.textContent = player.class==='mage'?'Spell:':'Skill:';
+  hudAbilityLabel.textContent = (player.class==='mage' || player.class==='summoner')?'Spell:':'Skill:';
   hudFloor.textContent=floorNum; hudSeed.textContent=seed>>>0; hudGold.textContent=player.gold; hudLvl.textContent=player.lvl;
   generate(); recalcStats();
   player.hp = player.hpMax;
-  if(player.class==='mage') player.mp = player.mpMax; else player.sp = player.spMax;
+  if(player.class==='mage' || player.class==='summoner') player.mp = player.mpMax; else player.sp = player.spMax;
   hpFill.style.width = `100%`; updateResourceUI();
   hpLbl.textContent = `HP ${player.hp}/${player.hpMax}`;
   recomputeFOV();
-  hudSpell.textContent = player.class==='mage'
+  hudSpell.textContent = (player.class==='mage' || player.class==='summoner')
     ? (player.boundSpell ? magicTrees[player.boundSpell.tree].abilities[player.boundSpell.idx].name : 'None')
     : (player.boundSkill ? skillTrees[player.boundSkill.tree].abilities[player.boundSkill.idx].name : 'None');
   const smoothToggle=document.getElementById('smoothToggle'); const speedRange=document.getElementById('speedRange');

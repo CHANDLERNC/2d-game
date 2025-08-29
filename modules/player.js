@@ -119,7 +119,16 @@ const skillTreeGraph = {
             ])
           ])
         ])
-      ])
+    ])
+  ])
+  ]),
+
+  summoner: node({ name: 'Soulcaller' }, [
+    node({ name: 'Summon Skeleton', type: 'summon', mp: 15, cost: 1 }, [
+      node({ name: 'Summon Golem', type: 'summon', mp: 30, cost: 2 })
+    ]),
+    node({ name: 'Empower Minions', desc: 'Increase minion damage by 10%.', bonus: { minionDmg: 10 }, cost: 1 }, [
+      node({ name: 'Horde Mastery', desc: 'Increase max minions by 1.', bonus: { maxMinions: 1 }, cost: 2 })
     ])
   ])
 };
@@ -138,12 +147,15 @@ function flattenBranch(branch) {
   return abilities;
 }
 
-// Build mage spell trees (magic) from the graph
+// Build mage and summoner spell trees (magic) from the graph
 const [healBranch, dmgBranch, dotBranch] = skillTreeGraph.mage.children;
+const summonerBranches = skillTreeGraph.summoner.children;
 const magicTrees = {
-  healing: { display: 'Healing', abilities: flattenBranch(healBranch) },
-  damage: { display: 'Damage', abilities: flattenBranch(dmgBranch) },
-  dot: { display: 'Damage over Time', abilities: flattenBranch(dotBranch) }
+  healing: { display: 'Healing', class: 'mage', abilities: flattenBranch(healBranch) },
+  damage: { display: 'Damage', class: 'mage', abilities: flattenBranch(dmgBranch) },
+  dot: { display: 'Damage over Time', class: 'mage', abilities: flattenBranch(dotBranch) },
+  summoning: { display: 'Summoning', class: 'summoner', abilities: flattenBranch(summonerBranches[0]) },
+  mastery: { display: 'Minion Mastery', class: 'summoner', abilities: flattenBranch(summonerBranches[1]) }
 };
 
 // Build skill trees for non-mage classes
@@ -174,6 +186,8 @@ player.skillTree = skillTreeGraph[player.class];
 function updatePlayerSprite() {
   if (player.class === 'mage') {
     playerSpriteKey = 'player_mage';
+  } else if (player.class === 'summoner') {
+    playerSpriteKey = 'player_summoner';
   } else if (player.class === 'rogue') {
     playerSpriteKey = 'player_rogue';
   } else {
