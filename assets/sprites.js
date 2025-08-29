@@ -135,6 +135,7 @@ function genSprites(){
   SPRITES.player_mage_ice = makePlayerMageAnim('#7dd3fc','#bdeafe');
   SPRITES.player_mage_shock = makePlayerMageAnim('#facc15','#fde047');
   SPRITES.player_mage_poison = makePlayerMageAnim('#76d38b','#9fe2a1');
+  SPRITES.player_summoner = SPRITES.player_mage;
 
   // Rogue animation 24x24
   function makePlayerRogueAnim(){
@@ -1007,9 +1008,11 @@ function genSprites(){
   const prevWarrior=document.getElementById('prevWarrior');
   const prevMage=document.getElementById('prevMage');
   const prevRogue=document.getElementById('prevRogue');
+  const prevSummoner=document.getElementById('prevSummoner');
   if(prevWarrior){ const c=SPRITES.player_warrior.idle[0]; prevWarrior.width=c.width; prevWarrior.height=c.height; prevWarrior.getContext('2d').drawImage(c,0,0);}
   if(prevMage){ const c=SPRITES.player_mage.idle[0]; prevMage.width=c.width; prevMage.height=c.height; prevMage.getContext('2d').drawImage(c,0,0);}
   if(prevRogue){ const c=SPRITES.player_rogue.idle[0]; prevRogue.width=c.width; prevRogue.height=c.height; prevRogue.getContext('2d').drawImage(c,0,0);}
+  if(prevSummoner){ const c=SPRITES.player_summoner.idle[0]; prevSummoner.width=c.width; prevSummoner.height=c.height; prevSummoner.getContext('2d').drawImage(c,0,0);}
 }
 
 // generate immediately so previews show on start
