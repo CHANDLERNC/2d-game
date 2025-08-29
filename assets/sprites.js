@@ -826,6 +826,43 @@ function genSprites(){
   }
   SPRITES.dragon_hatchling = makeDragonHatchling();
 
+  // Invader alien 24x24 (retro space shooter homage)
+  SPRITES.invader = makeSprite(24,(g,S)=>{
+    const pattern=[
+      "00011000",
+      "00111100",
+      "01111110",
+      "11011011",
+      "11111111",
+      "10111101",
+      "10100101",
+      "01000010"
+    ];
+    pattern.forEach((row, y)=>{
+      for(let x=0; x<row.length; x++){
+        if(row[x]==='1') px(g,4+x*2,4+y*2,2,2,'#7fef6f');
+      }
+    });
+    outline(g,S);
+  });
+
+  // Chomper 24x24 (maze-chasing arcade homage)
+  SPRITES.chomper = makeSprite(24,(g,S)=>{
+    const body='#ffd966';
+    const r=10, cx=12, cy=12;
+    for(let y=0; y<24; y++){
+      for(let x=0; x<24; x++){
+        const dx=x-cx, dy=y-cy;
+        if(dx*dx+dy*dy<=r*r){
+          if(dx>0 && Math.abs(dy) <= dx) continue; // mouth wedge
+          px(g,x,y,1,1,body);
+        }
+      }
+    }
+    px(g,14,10,2,2,'#000');
+    outline(g,S);
+  });
+
 
   // Portal animation 48x48 (replaces stairs)
   function makePortalSprite(){
