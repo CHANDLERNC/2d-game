@@ -144,7 +144,7 @@ function generateRooms(){
   // ensure at least one mage spawns on higher floors
   if(floorNum > 4 && !monsters.some(m=>m.type===3)){
     let placed=false, tries=0;
-    while(!placed && tries<25){
+    while(!placed && tries<50){
       const r=rooms[rng.int(0,rooms.length-1)];
       const x=rng.int(r.x+1,r.x+r.w-2), y=rng.int(r.y+1,r.y+r.h-2);
       if((x===player.x && y===player.y) || (x===merchant.x && y===merchant.y)){
@@ -155,6 +155,11 @@ function generateRooms(){
       }
       monsters.push(spawnMonster(3,x,y, shouldSpawnElite(floorNum)));
       placed=true;
+    }
+    if(!placed){
+      const r=rooms[rng.int(0,rooms.length-1)];
+      const x=rng.int(r.x+1,r.x+r.w-2), y=rng.int(r.y+1,r.y+r.h-2);
+      monsters.push(spawnMonster(3,x,y, shouldSpawnElite(floorNum)));
     }
   }
 
@@ -292,11 +297,15 @@ function generateCave(){
   }
   if(floorNum>4 && !monsters.some(m=>m.type===3)){
     let placed=false, tries=0;
-    while(!placed && tries<25){
+    while(!placed && tries<50){
       const t=pick(); const x=t.x, y=t.y;
       if(Math.abs(x-player.x)+Math.abs(y-player.y)<2 || (x===merchant.x && y===merchant.y) || (x===stairs.x && y===stairs.y)){ tries++; continue; }
       if(monsters.some(mo=>Math.abs(mo.x-x)+Math.abs(mo.y-y)<4)){ tries++; continue; }
       monsters.push(spawnMonster(3,x,y, shouldSpawnElite(floorNum))); placed=true;
+    }
+    if(!placed){
+      const t=pick(); const x=t.x, y=t.y;
+      monsters.push(spawnMonster(3,x,y, shouldSpawnElite(floorNum)));
     }
   }
   let strongest=null;
