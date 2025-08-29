@@ -3,8 +3,11 @@ import { map, rooms, T_FLOOR, T_WALL, MAP_W, MAP_H } from './map.js';
 const MIN_ROOM_SIZE = 2;
 
 function connectRooms(){
-  for(let i=1;i<rooms.length;i++){
-    const a=rooms[i-1], b=rooms[i];
+  if(rooms.length < 2) return;
+
+  // Connect rooms in a loop so every room has at least two hallway connections.
+  for(let i=0;i<rooms.length;i++){
+    const a=rooms[i], b=rooms[(i+1)%rooms.length];
     const ax=a.x+((a.w/2)|0), ay=a.y+((a.h/2)|0);
     const bx=b.x+((b.w/2)|0), by=b.y+((b.h/2)|0);
     for(let x=Math.min(ax,bx); x<=Math.max(ax,bx); x++) map[ay*MAP_W+x]=T_FLOOR;
