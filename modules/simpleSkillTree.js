@@ -44,11 +44,22 @@ const simpleSkillTreeGraph = {
   ])
 };
 
-// Export a flattened representation for easy consumption.
+// Export a flattened representation for easy consumption.  Each branch's
+// abilities array should start at the first unlockable skill rather than the
+// branch label itself, mirroring the structure used by the main game logic.
 const simpleSkillTrees = {
-  attack: { display: 'Attack', abilities: flattenBranch(simpleSkillTreeGraph.attack) },
-  defence: { display: 'Defence', abilities: flattenBranch(simpleSkillTreeGraph.defence) },
-  utility: { display: 'Utility', abilities: flattenBranch(simpleSkillTreeGraph.utility) }
+  attack: {
+    display: simpleSkillTreeGraph.attack.name,
+    abilities: flattenBranch(simpleSkillTreeGraph.attack.children[0])
+  },
+  defence: {
+    display: simpleSkillTreeGraph.defence.name,
+    abilities: flattenBranch(simpleSkillTreeGraph.defence.children[0])
+  },
+  utility: {
+    display: simpleSkillTreeGraph.utility.name,
+    abilities: flattenBranch(simpleSkillTreeGraph.utility.children[0])
+  }
 };
 
 export { simpleSkillTreeGraph, simpleSkillTrees, node, flattenBranch };
