@@ -2,16 +2,47 @@ import { map, rooms, T_FLOOR, T_WALL, MAP_W, MAP_H } from './map.js';
 
 const MIN_ROOM_SIZE = 2;
 
-function connectRooms(){
-  if(rooms.length < 2) return;
-
-  // Connect rooms in a loop so every room has at least two hallway connections.
-  for(let i=0;i<rooms.length;i++){
-    const a=rooms[i], b=rooms[(i+1)%rooms.length];
-    const ax=a.x+((a.w/2)|0), ay=a.y+((a.h/2)|0);
-    const bx=b.x+((b.w/2)|0), by=b.y+((b.h/2)|0);
+function carveHallway(rng, ax, ay, bx, by){
+  // Randomly choose whether to carve horizontally then vertically or vice versa
+  if(rng.next() < 0.5){
     for(let x=Math.min(ax,bx); x<=Math.max(ax,bx); x++) map[ay*MAP_W+x]=T_FLOOR;
     for(let y=Math.min(ay,by); y<=Math.max(ay,by); y++) map[y*MAP_W+bx]=T_FLOOR;
+  } else {
+    for(let y=Math.min(ay,by); y<=Math.max(ay,by); y++) map[y*MAP_W+ax]=T_FLOOR;
+    for(let x=Math.min(ax,bx); x<=Math.max(ax,bx); x++) map[by*MAP_W+x]=T_FLOOR;
+  }
+}
+
+function connectRooms(rng, extra=1){
+  if(rooms.length < 2) return;
+
+  const centers = rooms.map(r=>({
+    x: r.x + ((r.w/2)|0),
+    y: r.y + ((r.h/2)|0)
+  }));
+
+  const connected = new Set([0]);
+  while(connected.size < centers.length){
+    let bestA=-1,bestB=-1,bestDist=Infinity;
+    for(const a of connected){
+      for(let b=0;b<centers.length;b++){
+        if(connected.has(b)) continue;
+        const ca=centers[a], cb=centers[b];
+        const d=Math.abs(ca.x-cb.x)+Math.abs(ca.y-cb.y);
+        if(d<bestDist){ bestDist=d; bestA=a; bestB=b; }
+      }
+    }
+    const a=centers[bestA], b=centers[bestB];
+    carveHallway(rng, a.x,a.y,b.x,b.y);
+    connected.add(bestB);
+  }
+
+  // add some extra random connections for loops
+  for(let i=0;i<extra;i++){
+    const a=rng.int(0, centers.length-1);
+    let b=rng.int(0, centers.length-1);
+    if(a===b) b=(b+1)%centers.length;
+    carveHallway(rng, centers[a].x, centers[a].y, centers[b].x, centers[b].y);
   }
 }
 
