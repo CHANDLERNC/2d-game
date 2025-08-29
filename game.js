@@ -503,6 +503,8 @@ function chooseMonsterType(floor){
   if(floor>=3) pool.push({type:2, w:2}); // skeletons
   if(floor>=4) pool.push({type:6, w:1}); // ghosts
   if(floor>=5) pool.push({type:3, w:1}); // mages
+  if(floor>=6) pool.push({type:7, w:1}); // invaders
+  if(floor>=7) pool.push({type:8, w:1}); // chompers
   // weight tough enemies if player overpowered
   const power = player.lvl + (player.dmgMin + player.dmgMax)/4;
   if(power > floor*2){
@@ -528,6 +530,8 @@ function spawnMonster(type,x,y,elite=false){
     { hp:12, dmg:[3,6], atkCD:30, moveCD:[6,10] },    // dragon hatchling
     { hp:10, dmg:[2,5], atkCD:26, moveCD:[5,9] },     // goblin: agile melee
     { hp:8,  dmg:[1,4], atkCD:32, moveCD:[6,12] },    // ghost: drifting foe
+    { hp:9,  dmg:[2,5], atkCD:30, moveCD:[5,9] },     // invader: retro alien shooter
+    { hp:12, dmg:[3,6], atkCD:28, moveCD:[4,8] },     // chomper: fast arcade muncher
   ];
   let a = archetypes[type] || archetypes[0];
   let spriteKey;
@@ -558,6 +562,10 @@ function spawnMonster(type,x,y,elite=false){
     spriteKey = 'goblin';
   } else if(type===6){ // ghost
     spriteKey = 'ghost';
+  } else if(type===7){ // invader
+    spriteKey = 'invader';
+  } else if(type===8){ // chomper
+    spriteKey = 'chomper';
   }
   const diff = 1 + SCALE.HARDNESS_MULT * Math.max(0, floorNum-1);
   const m = {
@@ -1611,7 +1619,7 @@ function mageAI(m, dt, dx, dy, manhattan){
   }
 }
 
-const MONSTER_BEHAVIORS = {0:slimeAI,1:batAI,2:skeletonAI,3:mageAI,4:mageAI,5:goblinAI,6:ghostAI};
+const MONSTER_BEHAVIORS = {0:slimeAI,1:batAI,2:skeletonAI,3:mageAI,4:mageAI,5:goblinAI,6:ghostAI,7:skeletonAI,8:batAI};
 
 function monsterAI(m, dt){
   m.atkCD = Math.max(0, m.atkCD - 1);
@@ -1786,7 +1794,7 @@ function draw(dt){
     const mty = (m.ry!==undefined ? m.ry : m.y);
     const size = m.spriteSize || 24;
     const mx = mtx*TILE - camX + (TILE-size)/2; const my = mty*TILE - camY + (TILE-size)/2;
-    const key = m.spriteKey || (m.type===0?'slime' : m.type===1?'bat' : m.type===2?'skeleton' : m.type===5?'goblin' : m.type===6?'ghost' : 'mage');
+    const key = m.spriteKey || (m.type===0?'slime' : m.type===1?'bat' : m.type===2?'skeleton' : m.type===5?'goblin' : m.type===6?'ghost' : m.type===7?'invader' : m.type===8?'chomper' : 'mage');
     const spr = ASSETS.sprites[key];
     let frame = spr.cv;
     if(spr.frames && spr.frames.length>0){

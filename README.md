@@ -6,6 +6,12 @@ Recent updates rework the audio system with smoother sound effects and dynamic m
 
 The game now auto-saves your current floor and equipped gear to local storage when you leave the page. Use the pause menu to manually save or load this progress.
 
+### New Mob Types
+Two additional enemy types nod to classic pixel games:
+
+- **Invader** – a retro alien shooter that peppers the hero from afar.
+- **Chomper** – a fast, hungry foe that darts in for a bite.
+
 ## Play the Game
 Open `index.html` in your browser.  
 For full functionality, serve the directory with a local server:
