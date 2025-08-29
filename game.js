@@ -967,9 +967,36 @@ function genShopStock(){
   const count=5; for(let i=0;i<count;i++) inventory.shopStock.push(makeRandomItem());
 }
 
-function makeRandomGear(){
+function chooseGearSlot(){
   const nonWeaponSlots = SLOTS.filter(s=>s!=='weapon');
-  const slot = rng.next()<0.6 ? 'weapon' : nonWeaponSlots[rng.int(0, nonWeaponSlots.length-1)];
+  // Stage-based scaling: more weapons early, more armor later
+  let weaponProb = Math.max(0.4, 0.5 - (floorNum - 1) * 0.02);
+
+  // Base weights split between weapons and armor slots
+  const weights = { weapon: weaponProb };
+  const armorBase = (1 - weaponProb) / nonWeaponSlots.length;
+  for (const s of nonWeaponSlots) weights[s] = armorBase;
+
+  // Dynamic weighting: favor empty or under-leveled gear slots
+  for (const s of SLOTS) {
+    const eq = inventory.equip[s];
+    if (!eq) weights[s] *= 2;
+    else if (eq.lvl !== undefined && eq.lvl < floorNum) weights[s] *= 1.5;
+  }
+
+  // Weighted random selection
+  const entries = SLOTS.map(s => [s, weights[s]]);
+  const total = entries.reduce((sum, [, w]) => sum + w, 0);
+  let r = rng.next() * total;
+  for (const [s, w] of entries) {
+    if (r < w) return s;
+    r -= w;
+  }
+  return 'weapon';
+}
+
+function makeRandomGear(){
+  const slot = chooseGearSlot();
   const rarityIdx = rollRarity();
   const bases = ITEM_BASES[slot];
   const base = bases[rng.int(0, bases.length-1)];
@@ -980,8 +1007,9 @@ function makeRandomGear(){
   const item = { color: RARITY[rarityIdx].c, type:'gear', slot, name, rarity: rarityIdx, lvl: floorNum, mods: affixMods(slot, rarityIdx, floorNum) };
   if(slot==='weapon'){ item.wclass = base.toLowerCase(); }
   else {
-    const types = ['light','medium','heavy'];
-    const t = types[rng.int(0, types.length-1)];
+    // Weighted armor types: 50% medium, 25% light, 25% heavy
+    const r = rng.next();
+    const t = r < 0.25 ? 'light' : r < 0.75 ? 'medium' : 'heavy';
     const typeMods = {
       light:{armor:3,speedPct:5},
       medium:{armor:6,speedPct:0},
