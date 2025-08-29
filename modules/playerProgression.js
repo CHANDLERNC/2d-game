@@ -1,3 +1,15 @@
+import { skillTrees } from './skillTrees.js';
+
+// Initialize unlocked skill arrays for a given class
+function initSkills(cls){
+  const res={};
+  const trees=skillTrees[cls];
+  for(const key in trees){
+    res[key]=new Array(trees[key].abilities.length).fill(false);
+  }
+  return res;
+}
+
 // Player progression such as level and experience.
 class PlayerProgression {
   constructor() {
@@ -11,8 +23,7 @@ class PlayerProgression {
     this.timeSurvived = 0;
     this.floorsCleared = 0;
     this.class = 'warrior';
-    this.magic = { healing:[false,false,false,false,false,false], damage:[false,false,false,false,false,false], dot:[false,false,false,false,false,false] };
-    this.skills = { offense:[false,false,false,false,false,false], defense:[false,false,false,false,false,false], techniques:[false,false,false], tricks:[false,false,false] };
+    this.skills = initSkills(this.class);
     this.boundSpell = null;
     this.boundSkill = null;
   }

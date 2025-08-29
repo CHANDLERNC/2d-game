@@ -1,6 +1,6 @@
 import { initAudio, playFootstep, playAttack, playHit, playCalmMusic, playCombatMusic, playBossMusic } from './modules/audio.js';
 import { keys, initInput } from './modules/input.js';
-import { player, playerSpriteKey, magicTrees, skillTrees, updatePlayerSprite } from './modules/player.js';
+import { player, playerSpriteKey, skillTrees, updatePlayerSprite } from './modules/player.js';
 import { inventory, SLOTS, BAG_SIZE, POTION_BAG_SIZE } from './modules/playerInventory.js';
 import { hpFill, mpFill, hpLbl, mpLbl, hudFloor, hudSeed, hudGold, hudDmg, hudScore, hudKills, xpFill, xpLbl, hudLvl, hudSpell, hudAbilityLabel, updateResourceUI, updateXPUI, updateScoreUI, toggleActionLog, showToast, showBossAlert, showRespawn } from './modules/ui.js';
 import { TILE, MAP_W, MAP_H, T_EMPTY, T_FLOOR, T_WALL, T_TRAP, T_LAVA, TRAP_CHANCE, LAVA_CHANCE, map, fog, vis, rooms, stairs, merchant, merchantStyle, torches, lavaTiles, spikeTraps, walkable, canMoveFrom, resetMapState } from './modules/map.js';
@@ -2002,16 +2002,16 @@ function redrawMagic(){
   let panel=document.getElementById('magic');
   if(!panel){ panel=document.createElement('div'); panel.id='magic'; panel.className='panel'; document.body.appendChild(panel); }
   let html = `<div class="section-title">Magic Points: ${player.magicPoints}</div>`;
-  for(const treeName of ['healing','damage','dot']){
-    const tree=magicTrees[treeName];
+  for(const treeName in skillTrees.mage){
+    const tree=skillTrees.mage[treeName];
     html += `<div class="section-title">${tree.display}</div><div>`;
     tree.abilities.forEach((ab,i)=>{
-      const unlocked=player.magic[treeName][i];
+      const unlocked=player.skills[treeName][i];
       const bind = player.boundSpell && player.boundSpell.tree===treeName && player.boundSpell.idx===i;
       if(unlocked){
         html += `<div class="list-row"><div>${ab.name}</div><div>${bind?'<span class="green">Bound</span>':`<button class="btn sml" data-bind="${treeName}-${i}">Bind</button>`}</div></div>`;
       }else{
-        const prevUnlocked = i===0 || player.magic[treeName][i-1];
+        const prevUnlocked = i===0 || player.skills[treeName][i-1];
         const dis = (player.magicPoints<ab.cost || !prevUnlocked)?'disabled':'';
         html += `<div class="list-row"><div>${ab.name}</div><div><button class="btn sml" data-unlock="${treeName}-${i}" ${dis}>Unlock (${ab.cost})</button></div></div>`;
       }
@@ -2037,8 +2037,7 @@ function redrawSkills(){
   let panel=document.getElementById('skills');
   if(!panel){ panel=document.createElement('div'); panel.id='skills'; panel.className='panel'; document.body.appendChild(panel); }
   let html = `<div class="section-title">Skill Points: ${player.skillPoints}</div>`;
-  for(const [treeName, tree] of Object.entries(skillTrees)){
-    if(tree.class && tree.class!==player.class) continue;
+  for(const [treeName, tree] of Object.entries(skillTrees[player.class])){
     html += `<div class="section-title">${tree.display}</div><div>`;
     tree.abilities.forEach((ab,i)=>{
       const unlocked=player.skills[treeName][i];
@@ -2068,7 +2067,7 @@ function redrawSkills(){
 function toggleSkills(){ if(player.class!=='warrior' && player.class!=='rogue') return; let panel=document.getElementById('skills'); if(!panel){ redrawSkills(); panel=document.getElementById('skills'); } if(!panel) return; const show=panel.style.display===''||panel.style.display==='none'; panel.style.display=show?'block':'none'; if(show) redrawSkills(); updatePaused(); }
 
 function unlockSkill(treeName, idx){
-  const ab=skillTrees[treeName].abilities[idx];
+  const ab=skillTrees[player.class][treeName].abilities[idx];
   if(player.skills[treeName][idx]) return;
   if(idx>0 && !player.skills[treeName][idx-1]){ showToast('Unlock previous ability first'); return; }
   if(player.skillPoints>=ab.cost){ player.skillPoints-=ab.cost; player.skills[treeName][idx]=true; showToast(`Unlocked ${ab.name}`); recalcStats(); }
@@ -2078,23 +2077,23 @@ function unlockSkill(treeName, idx){
 function bindSkill(treeName, idx){
   if(!player.skills[treeName][idx]){ showToast('Ability not unlocked'); return; }
   player.boundSkill={tree:treeName, idx};
-  const ab=skillTrees[treeName].abilities[idx];
+  const ab=skillTrees[player.class][treeName].abilities[idx];
   hudSpell.textContent=ab.name;
   showToast(`Bound ${ab.name} to Q`);
 }
 
 function unlockSpell(treeName, idx){
-  const ab=magicTrees[treeName].abilities[idx];
-  if(player.magic[treeName][idx]) return;
-  if(idx>0 && !player.magic[treeName][idx-1]){ showToast('Unlock previous ability first'); return; }
-  if(player.magicPoints>=ab.cost){ player.magicPoints-=ab.cost; player.magic[treeName][idx]=true; showToast(`Unlocked ${ab.name}`); }
+  const ab=skillTrees.mage[treeName].abilities[idx];
+  if(player.skills[treeName][idx]) return;
+  if(idx>0 && !player.skills[treeName][idx-1]){ showToast('Unlock previous ability first'); return; }
+  if(player.magicPoints>=ab.cost){ player.magicPoints-=ab.cost; player.skills[treeName][idx]=true; showToast(`Unlocked ${ab.name}`); }
   else showToast('Not enough points');
 }
 
 function bindSpell(treeName, idx){
-  if(!player.magic[treeName][idx]){ showToast('Ability not unlocked'); return; }
+  if(!player.skills[treeName][idx]){ showToast('Ability not unlocked'); return; }
   player.boundSpell={tree:treeName, idx};
-  const ab=magicTrees[treeName].abilities[idx];
+  const ab=skillTrees.mage[treeName].abilities[idx];
   hudSpell.textContent=ab.name;
   updatePlayerSprite();
   showToast(`Bound ${ab.name} to Q`);
@@ -2102,8 +2101,8 @@ function bindSpell(treeName, idx){
 
 function castSelectedSpell(){
   const b=player.boundSpell; if(!b){ showToast('No spell bound'); return; }
-  const ab=magicTrees[b.tree].abilities[b.idx];
-  if(!player.magic[b.tree][b.idx]){ showToast('Spell locked'); return; }
+  const ab=skillTrees.mage[b.tree].abilities[b.idx];
+  if(!player.skills[b.tree][b.idx]){ showToast('Spell locked'); return; }
   if(player.mp<ab.mp){ showToast('Not enough mana'); return; }
   player.mp-=ab.mp; updateResourceUI();
   if(ab.type==='heal'){
@@ -2126,7 +2125,7 @@ function castSelectedSpell(){
 
 function castBoundSkill(){
   const b=player.boundSkill; if(!b){ showToast('No skill bound'); return; }
-  const ab=skillTrees[b.tree].abilities[b.idx];
+  const ab=skillTrees[player.class][b.tree].abilities[b.idx];
   if(!player.skills[b.tree][b.idx]){ showToast('Skill locked'); return; }
   if(ab.cast==='powerStrike') castPowerStrike();
   else if(ab.cast==='whirlwind') castWhirlwind();
@@ -2284,8 +2283,8 @@ function loadGame(){
   recomputeFOV(); redrawInventory();
   hudAbilityLabel.textContent = player.class==='mage'?'Spell:':'Skill:';
   hudSpell.textContent = player.class==='mage'
-    ? (player.boundSpell ? magicTrees[player.boundSpell.tree].abilities[player.boundSpell.idx].name : 'None')
-    : (player.boundSkill ? skillTrees[player.boundSkill.tree].abilities[player.boundSkill.idx].name : 'None');
+    ? (player.boundSpell ? skillTrees.mage[player.boundSpell.tree].abilities[player.boundSpell.idx].name : 'None')
+    : (player.boundSkill ? skillTrees[player.class][player.boundSkill.tree].abilities[player.boundSkill.idx].name : 'None');
   updateResourceUI();
   updateScoreUI();
   toggleEscMenu(false); showToast('Game loaded');
@@ -2401,13 +2400,12 @@ function applyGearBonuses(stats){
 }
 
 function applySkillBonuses(stats){
-  for(const treeName in skillTrees){
-    const tree=skillTrees[treeName];
-    if(tree.class && tree.class!==player.class) continue;
+  const trees=skillTrees[player.class];
+  for(const treeName in trees){
     const arr=player.skills[treeName]||[];
     arr.forEach((u,i)=>{
       if(!u) return;
-      const b=skillTrees[treeName].abilities[i].bonus||{};
+      const b=trees[treeName].abilities[i].bonus||{};
       accumulate(stats, b);
     });
   }
@@ -2457,8 +2455,8 @@ function startGame(){
   hpLbl.textContent = `HP ${player.hp}/${player.hpMax}`;
   recomputeFOV();
   hudSpell.textContent = player.class==='mage'
-    ? (player.boundSpell ? magicTrees[player.boundSpell.tree].abilities[player.boundSpell.idx].name : 'None')
-    : (player.boundSkill ? skillTrees[player.boundSkill.tree].abilities[player.boundSkill.idx].name : 'None');
+    ? (player.boundSpell ? skillTrees.mage[player.boundSpell.tree].abilities[player.boundSpell.idx].name : 'None')
+    : (player.boundSkill ? skillTrees[player.class][player.boundSkill.tree].abilities[player.boundSkill.idx].name : 'None');
   const smoothToggle=document.getElementById('smoothToggle'); const speedRange=document.getElementById('speedRange');
   if(smoothToggle){ smoothToggle.checked = smoothEnabled; smoothToggle.addEventListener('change', e=>{ smoothEnabled = e.target.checked; if(!smoothEnabled){ player.rx=player.x; player.ry=player.y; } }); }
   if(speedRange){ baseStepDelay = player.stepDelay; speedRange.value = String(baseStepDelay); speedRange.addEventListener('input', e=>{ const v=parseInt(e.target.value,10); if(!isNaN(v)) baseStepDelay=v; }); }
