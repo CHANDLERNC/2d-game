@@ -10,6 +10,7 @@ import { applyDamageToPlayer as coreApplyDamageToPlayer } from './modules/combat
 import { renderLayers } from './modules/rendering.js';
 import { MIN_ROOM_SIZE, connectRooms, pruneSmallAreas } from './modules/mapGen.js';
 import { createNoise2D } from './modules/noise.js';
+import { ARMOR_TYPES, ARMOR_TYPE_MODS } from './modules/armorTypes.js';
 
 // ===== Config / Globals =====
 let VIEW_W=window.innerWidth, VIEW_H=window.innerHeight;
@@ -1138,18 +1139,13 @@ function makeRandomGear(){
   const item = { color: RARITY[rarityIdx].c, type:'gear', slot, name, rarity: rarityIdx, lvl: floorNum, mods: affixMods(slot, rarityIdx, floorNum) };
   if(slot==='weapon'){ item.wclass = base.toLowerCase(); }
   else {
-    // Weighted armor types: 50% medium, 25% light, 25% heavy
-    const r = rng.next();
-    const t = r < 0.25 ? 'light' : r < 0.75 ? 'medium' : 'heavy';
-    const typeMods = {
-      light:{armor:3,speedPct:5},
-      medium:{armor:6,speedPct:0},
-      heavy:{armor:10,speedPct:-10}
-    };
+    // Armor types provide baseline stats and defensive buffs
+    const t = ARMOR_TYPES[rng.int(0, ARMOR_TYPES.length-1)];
     item.armorType = t;
-    const tm = typeMods[t];
-    item.mods.armor = (item.mods.armor||0) + tm.armor;
-    if(tm.speedPct) item.mods.speedPct = (item.mods.speedPct||0) + tm.speedPct;
+    const tm = ARMOR_TYPE_MODS[t];
+    for (const k in tm) {
+      item.mods[k] = (item.mods[k] || 0) + tm[k];
+    }
   }
   return item;
 }
