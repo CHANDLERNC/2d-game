@@ -41,6 +41,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) with
 - Weighted monster spawning tied to player strength with elite variants that gain unique abilities.
 
 ### Changed
+- Dungeon room connections now use a spanning tree with extra corridors for more varied layouts.
 - Split single-file build into modular assets for GitHub Pages.
 - Replace floor and wall textures with procedurally generated patterns to drop binary images.
 - Reworked audio system with crossfading music and separate SFX volume control.

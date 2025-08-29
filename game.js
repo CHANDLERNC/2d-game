@@ -77,7 +77,7 @@ function generateRooms(){
     rooms.push({x,y,w,h});
     for(let yy=y; yy<y+h; yy++) for(let xx=x; xx<x+w; xx++) map[yy*MAP_W+xx]=T_FLOOR;
   }
-  connectRooms();
+  connectRooms(rng);
   // ensure connectivity by removing unreachable floors
   if(rooms.length){
     const start=rooms[0];
