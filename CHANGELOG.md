@@ -58,6 +58,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) with
 - Reduced wizard spawn chance on lower floors.
 - Increased potion drop rate to 40% (from 25%).
 - Mage enemies now fire 30% slower but hit 10% harder.
+- Increased level-based weapon damage scaling to keep pace with mid-floor monster health.
 - Mage enemies now use an animated skeleton sprite with purple energy.
 - Snake boss now uses an image sprite with a simple bobbing idle animation.
 - Enemy elemental resistances now scale with floor level.

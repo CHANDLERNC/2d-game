@@ -763,7 +763,7 @@ const ARMOR_AFFIX_POOL = [
 ];
 
 function levelMult(lvl, factor=1){
-  return 1 + (lvl - 1) * 0.1 * factor;
+  return 1 + (lvl - 1) * 0.15 * factor;
 }
 
 function affixMods(slot, rarityIdx, lvl=1){
@@ -1330,7 +1330,7 @@ canvas.addEventListener('mousedown', (e)=>{
 function currentAtk(){
   // why: single source-of-truth for attack numbers (incl. level & gear)
   let min=2,max=4,crit=5,ls=0,md=0;
-  const lvlBonus = Math.floor((player.lvl-1)*0.6); min+=lvlBonus; max+=lvlBonus;
+  const lvlBonus = Math.floor((player.lvl-1)*0.8); min+=lvlBonus; max+=lvlBonus;
   for(const slot of SLOTS){
     const m=inventory.equip[slot]?.mods||{};
     if(slot==='weapon'){ min+=m.dmgMin||0; max+=m.dmgMax||0; }
