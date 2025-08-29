@@ -2507,11 +2507,28 @@ function startGame(){
   startLoop(update, draw);
 }
 
-document.getElementById('playBtn').onclick=()=>{ document.getElementById('start').style.display='none'; startGame(); };
-document.getElementById('respawnBtn').onclick=()=>{ location.reload(); };
-document.getElementById('resumeBtn').onclick=()=>{ toggleEscMenu(false); };
-document.getElementById('saveBtn').onclick=()=>{ saveGame(); };
-document.getElementById('loadBtn').onclick=()=>{ loadGame(); };
+// Setup UI events once the DOM is ready so buttons work reliably
+window.addEventListener('DOMContentLoaded', () => {
+  const playBtn = document.getElementById('playBtn');
+  if (playBtn) playBtn.addEventListener('click', () => {
+    const startScreen = document.getElementById('start');
+    if (startScreen) startScreen.style.display = 'none';
+    startGame();
+  });
+
+  const respawnBtn = document.getElementById('respawnBtn');
+  if (respawnBtn) respawnBtn.addEventListener('click', () => location.reload());
+
+  const resumeBtn = document.getElementById('resumeBtn');
+  if (resumeBtn) resumeBtn.addEventListener('click', () => toggleEscMenu(false));
+
+  const saveBtn = document.getElementById('saveBtn');
+  if (saveBtn) saveBtn.addEventListener('click', saveGame);
+
+  const loadBtn = document.getElementById('loadBtn');
+  if (loadBtn) loadBtn.addEventListener('click', loadGame);
+});
+
 window.addEventListener('beforeunload', saveGame);
 
 // ===== Utils =====
