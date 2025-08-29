@@ -31,6 +31,9 @@ html,body{margin:0;background:#0b0b0e;color:#ddd;font-family:system-ui,Segoe UI,
 .skill-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
 .skill-card{display:flex;flex-direction:column;gap:4px;padding:6px;border-radius:6px}
 .skill-card:hover{background:#1a1d28}
+.skill-tree{list-style:none;padding-left:16px}
+.skill-tree ul{list-style:none;padding-left:16px;margin-top:4px}
+.skill-tree li{margin:4px 0}
 .muted{opacity:.75}
 .kv{display:flex;gap:6px;align-items:center}
   .mono{font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace}

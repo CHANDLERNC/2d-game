@@ -2065,6 +2065,36 @@ function redrawMagic(){
 
 function toggleMagic(){ if(player.class!=='mage') return; let panel=document.getElementById('magic'); if(!panel){ redrawMagic(); panel=document.getElementById('magic'); } if(!panel) return; const show=panel.style.display===''||panel.style.display==='none'; panel.style.display=show?'block':'none'; if(show) redrawMagic(); updatePaused(); }
 
+function buildSkillTree(treeName, branch){
+  const idxRef={i:0};
+  function renderNode(node){
+    const idx=idxRef.i++;
+    const ab=skillTrees[treeName].abilities[idx];
+    const unlocked=player.skills[treeName][idx];
+    const bind = player.boundSkill && player.boundSkill.tree===treeName && player.boundSkill.idx===idx;
+    let html='<li>';
+    if(unlocked){
+      if(ab.cast){
+        html+=`<div class="skill-card"><div class="item-title">${ab.name}</div><div class="muted">${ab.desc}</div><div>${bind?'<span class="green">Bound</span>':`<button class="btn sml" data-bind="${treeName}-${idx}">Bind</button>`}</div></div>`;
+      }else{
+        html+=`<div class="skill-card"><div class="item-title">${ab.name}</div><div class="muted">${ab.desc}</div><div><span class="green">Unlocked</span></div></div>`;
+      }
+    }else{
+      const parentUnlocked = ab.parent===-1 || player.skills[treeName][ab.parent];
+      const dis=(player.skillPoints<ab.cost || !parentUnlocked)?'disabled':'';
+      html+=`<div class="skill-card"><div class="item-title">${ab.name}</div><div class="muted">${ab.desc}</div><div><button class="btn sml" data-unlock="${treeName}-${idx}" ${dis}>Unlock (${ab.cost})</button></div></div>`;
+    }
+    if(node.children && node.children.length){
+      html+='<ul class="skill-tree">';
+      node.children.forEach(child=>{ html+=renderNode(child); });
+      html+='</ul>';
+    }
+    html+='</li>';
+    return html;
+  }
+  return `<ul class="skill-tree">${renderNode(branch)}</ul>`;
+}
+
 function redrawSkills(){
   if(player.class!=='warrior' && player.class!=='rogue') return;
   let panel=document.getElementById('skills');
@@ -2072,23 +2102,8 @@ function redrawSkills(){
   let html = `<div class="section-title">Skill Points: ${player.skillPoints}</div>`;
   for(const [treeName, tree] of Object.entries(skillTrees)){
     if(tree.class && tree.class!==player.class) continue;
-    html += `<div class="section-title">${tree.display}</div><div class="skill-grid">`;
-    tree.abilities.forEach((ab,i)=>{
-      const unlocked=player.skills[treeName][i];
-      const bind = player.boundSkill && player.boundSkill.tree===treeName && player.boundSkill.idx===i;
-      if(unlocked){
-        if(ab.cast){
-          html += `<div class="skill-card"><div class="item-title">${ab.name}</div><div class="muted">${ab.desc}</div><div>${bind?'<span class="green">Bound</span>':`<button class="btn sml" data-bind="${treeName}-${i}">Bind</button>`}</div></div>`;
-        }else{
-          html += `<div class="skill-card"><div class="item-title">${ab.name}</div><div class="muted">${ab.desc}</div><div><span class="green">Unlocked</span></div></div>`;
-        }
-      }else{
-        const prevUnlocked = i===0 || player.skills[treeName][i-1];
-        const dis=(player.skillPoints<ab.cost || !prevUnlocked)?'disabled':'';
-        html += `<div class="skill-card"><div class="item-title">${ab.name}</div><div class="muted">${ab.desc}</div><div><button class="btn sml" data-unlock="${treeName}-${i}" ${dis}>Unlock (${ab.cost})</button></div></div>`;
-      }
-    });
-    html += '</div>';
+    html += `<div class="section-title">${tree.display}</div>`;
+    html += buildSkillTree(treeName, tree.graph);
   }
   panel.innerHTML=html;
   panel.onclick=(e)=>{
@@ -2103,7 +2118,7 @@ function toggleSkills(){ if(player.class!=='warrior' && player.class!=='rogue') 
 function unlockSkill(treeName, idx){
   const ab=skillTrees[treeName].abilities[idx];
   if(player.skills[treeName][idx]) return;
-  if(idx>0 && !player.skills[treeName][idx-1]){ showToast('Unlock previous ability first'); return; }
+  if(ab.parent>-1 && !player.skills[treeName][ab.parent]){ showToast('Unlock previous ability first'); return; }
   if(player.skillPoints>=ab.cost){ player.skillPoints-=ab.cost; player.skills[treeName][idx]=true; showToast(`Unlocked ${ab.name}`); recalcStats(); }
   else showToast('Not enough points');
 }
@@ -2119,7 +2134,7 @@ function bindSkill(treeName, idx){
 function unlockSpell(treeName, idx){
   const ab=magicTrees[treeName].abilities[idx];
   if(player.magic[treeName][idx]) return;
-  if(idx>0 && !player.magic[treeName][idx-1]){ showToast('Unlock previous ability first'); return; }
+  if(ab.parent>-1 && !player.magic[treeName][ab.parent]){ showToast('Unlock previous ability first'); return; }
   if(player.magicPoints>=ab.cost){ player.magicPoints-=ab.cost; player.magic[treeName][idx]=true; showToast(`Unlocked ${ab.name}`); }
   else showToast('Not enough points');
 }

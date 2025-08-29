@@ -111,10 +111,11 @@ const skillTreeGraph = {
 // the full skill tree relationships.
 function flattenBranch(branch) {
   const abilities = [];
-  (function traverse(node) {
+  (function traverse(node, parent = -1) {
     const { children = [], ...data } = node;
-    abilities.push(data);
-    children.forEach(traverse);
+    const idx = abilities.length;
+    abilities.push({ ...data, parent });
+    children.forEach(child => traverse(child, idx));
   })(branch);
   return abilities;
 }
@@ -130,10 +131,10 @@ const magicTrees = {
 // Build skill trees for non-mage classes
 const warriorBranches = skillTreeGraph.warrior.children;
 const skillTrees = {
-  battle: { display: warriorBranches[0].name, class: 'warrior', abilities: flattenBranch(warriorBranches[0]) },
-  endurance: { display: warriorBranches[1].name, class: 'warrior', abilities: flattenBranch(warriorBranches[1]) },
-  warriorSkills: { display: warriorBranches[2].name, class: 'warrior', abilities: flattenBranch(warriorBranches[2]) },
-  rogue: { display: skillTreeGraph.rogue.name, class: 'rogue', abilities: flattenBranch(skillTreeGraph.rogue.children[0]) }
+  battle: { display: warriorBranches[0].name, class: 'warrior', abilities: flattenBranch(warriorBranches[0]), graph: warriorBranches[0] },
+  endurance: { display: warriorBranches[1].name, class: 'warrior', abilities: flattenBranch(warriorBranches[1]), graph: warriorBranches[1] },
+  warriorSkills: { display: warriorBranches[2].name, class: 'warrior', abilities: flattenBranch(warriorBranches[2]), graph: warriorBranches[2] },
+  rogue: { display: skillTreeGraph.rogue.name, class: 'rogue', abilities: flattenBranch(skillTreeGraph.rogue.children[0]), graph: skillTreeGraph.rogue.children[0] }
 };
 
 // Initialize player progression structures
