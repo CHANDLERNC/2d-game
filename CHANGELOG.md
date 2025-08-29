@@ -21,6 +21,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) with
 - New weapon affixes: attack speed, knockback, and projectile pierce.
 - Weapons can roll up to four stacking damage-over-time attributes.
 - Armor can roll up to five defensive affixes.
+- Additional armor classifications (Cloth, Leather, Heavy Leather, Chain Mail, Plate, Heavy Plate) with defensive buffs.
 
 - Consumable potions appear in loot and shop inventories.
 - Legendary rarity added for gear and weapon drops.
