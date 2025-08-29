@@ -3,12 +3,13 @@ import { keys, initInput } from './modules/input.js';
 import { player, playerSpriteKey, magicTrees, skillTrees, skillTreeGraph, updatePlayerSprite } from './modules/player.js';
 import { inventory, SLOTS, BAG_SIZE, POTION_BAG_SIZE } from './modules/playerInventory.js';
 import { hpFill, mpFill, hpLbl, mpLbl, hudFloor, hudSeed, hudGold, hudDmg, hudScore, hudKills, xpFill, xpLbl, hudLvl, hudSpell, hudAbilityLabel, updateResourceUI, updateXPUI, updateScoreUI, toggleActionLog, showToast, showBossAlert, showRespawn } from './modules/ui.js';
-import { TILE, MAP_W, MAP_H, T_EMPTY, T_FLOOR, T_WALL, T_TRAP, T_LAVA, TRAP_CHANCE, LAVA_CHANCE, map, fog, vis, rooms, stairs, merchant, merchantStyle, torches, lavaTiles, spikeTraps, walkable, canMoveFrom, resetMapState } from './modules/map.js';
+import { TILE, MAP_W, MAP_H, T_EMPTY, T_FLOOR, T_WALL, T_TRAP, T_LAVA, TRAP_CHANCE, LAVA_CHANCE, map, fog, vis, rooms, stairs, merchant, merchantStyle, torches, lavaTiles, spikeTraps, biomeMap, B_DESERT, B_FOREST, B_MOUNTAIN, walkable, canMoveFrom, resetMapState } from './modules/map.js';
 import { MONSTER_BASE_COUNT, MONSTER_MIN_COUNT, MONSTER_COUNT_GROWTH, MONSTER_COUNT_VARIANCE, FOV_RADIUS, LOOT_CHANCE, MONSTER_LOOT_CHANCE, AGGRO_RANGE, TORCH_CHANCE, TORCH_LIGHT_RADIUS, FOV_RAYS, SCORE_PER_SECOND, OUT_OF_COMBAT_HEAL_DELAY, OUT_OF_COMBAT_HEAL_RATE, OUT_OF_COMBAT_MANA_RATE, OUT_OF_COMBAT_STAM_RATE, SCORE_PER_KILL, SCORE_PER_FLOOR_CLEAR, SCORE_PER_FLOOR_REACHED, BOSS_VARIANTS, XP_GAIN_MULT, ENEMY_SPEED_MULT, MONSTER_HP_MULT, MONSTER_DMG_MULT } from './modules/config.js';
 import { startLoop } from './modules/loop.js';
 import { applyDamageToPlayer as coreApplyDamageToPlayer } from './modules/combat.js';
 import { renderLayers } from './modules/rendering.js';
 import { MIN_ROOM_SIZE, connectRooms, pruneSmallAreas } from './modules/mapGen.js';
+import { createNoise2D } from './modules/noise.js';
 
 // ===== Config / Globals =====
 let VIEW_W=window.innerWidth, VIEW_H=window.innerHeight;
@@ -327,7 +328,114 @@ function generateCave(){
   }
 }
 
+function generateNoiseTerrain(){
+  const terrainNoise = createNoise2D(rng);
+  const biomeNoise = createNoise2D(rng);
+  for(let y=0;y<MAP_H;y++){
+    for(let x=0;x<MAP_W;x++){
+      const idx=y*MAP_W+x;
+      if(x===0||y===0||x===MAP_W-1||y===MAP_H-1){
+        map[idx]=T_WALL;
+        biomeMap[idx]=B_MOUNTAIN;
+        continue;
+      }
+      const h=terrainNoise(x/20, y/20);
+      if(h>0){
+        map[idx]=T_FLOOR;
+        const b=biomeNoise(x/40+100, y/40+100);
+        if(b<-0.33) biomeMap[idx]=B_DESERT;
+        else if(b>0.33) biomeMap[idx]=B_MOUNTAIN;
+        else biomeMap[idx]=B_FOREST;
+      } else {
+        map[idx]=T_WALL;
+        biomeMap[idx]=B_MOUNTAIN;
+      }
+    }
+  }
+  for(let y=1;y<MAP_H-1;y++) for(let x=1;x<MAP_W-1;x++){
+    if(map[y*MAP_W+x]!==T_WALL) continue;
+    let adj=false;
+    for(const d of [[1,0],[-1,0],[0,1],[0,-1]]){
+      const nx=x+d[0], ny=y+d[1]; if(map[ny*MAP_W+nx]===T_FLOOR){ adj=true; break; }
+    }
+    if(adj && rng.next()<TORCH_CHANCE){ torches.push({x,y,phase:rng.next()*Math.PI*2}); }
+  }
+  const tiles=[];
+  for(let y=1;y<MAP_H-1;y++) for(let x=1;x<MAP_W-1;x++) if(map[y*MAP_W+x]===T_FLOOR) tiles.push({x,y});
+  function pick(){ return tiles[rng.int(0,tiles.length-1)]; }
+  const p=pick(); player.x=p.x; player.y=p.y;
+  let s=pick(); stairs.x=s.x; stairs.y=s.y;
+  let m=pick(); merchant.x=m.x; merchant.y=m.y;
+  while((merchant.x===player.x && merchant.y===player.y) || (merchant.x===stairs.x && merchant.y===stairs.y)){
+    m=pick(); merchant.x=m.x; merchant.y=m.y;
+  }
+  const spawnCount = monsterCountForFloor(floorNum);
+  for(let i=0;i<spawnCount;i++){
+    let placed=false, tries=0;
+    while(!placed && tries<25){
+      const t=pick(); const x=t.x, y=t.y;
+      if(Math.abs(x-player.x)+Math.abs(y-player.y)<2 || (x===merchant.x && y===merchant.y) || (x===stairs.x && y===stairs.y)){
+        tries++; continue;
+      }
+      if(monsters.some(mo=>Math.abs(mo.x-x)+Math.abs(mo.y-y)<4)){
+        tries++; continue;
+      }
+      const tt = chooseMonsterType(floorNum);
+      monsters.push(spawnMonster(tt,x,y, shouldSpawnElite(floorNum))); placed=true;
+    }
+  }
+  if(floorNum>4 && !monsters.some(m=>m.type===3)){
+    let placed=false, tries=0;
+    while(!placed && tries<25){
+      const t=pick(); const x=t.x, y=t.y;
+      if(Math.abs(x-player.x)+Math.abs(y-player.y)<2 || (x===merchant.x && y===merchant.y) || (x===stairs.x && y===stairs.y)){
+        tries++; continue;
+      }
+      if(monsters.some(mo=>Math.abs(mo.x-x)+Math.abs(mo.y-y)<4)){
+        tries++; continue;
+      }
+      monsters.push(spawnMonster(3,x,y, shouldSpawnElite(floorNum))); placed=true;
+    }
+  }
+  let strongest=null;
+  for(const m of monsters){ if(!strongest || m.hpMax>strongest.hpMax) strongest=m; }
+  if(strongest){
+    let placed=false, tries=0;
+    while(!placed && tries<50){
+      const t=pick(); const x=t.x, y=t.y;
+      if(Math.abs(x-player.x)+Math.abs(y-player.y)<2 || (x===merchant.x && y===merchant.y) || (x===stairs.x && y===stairs.y)){
+        tries++; continue;
+      }
+      if(monsters.some(mo=>Math.abs(mo.x-x)+Math.abs(mo.y-y)<4)){
+        tries++; continue;
+      }
+      const mb=spawnMonster(strongest.type,x,y);
+      mb.hpMax = mb.hp = Math.round(strongest.hpMax*1.8);
+      mb.miniBoss=true; mb.spriteKey=randomBossVariant(); mb.spriteSize=48; monsters.push(mb); placed=true;
+    }
+    if(floorNum%5===0){
+      placed=false; tries=0; const hpMult=2.5 + rng.next()*0.5;
+      while(!placed && tries<50){
+        const t=pick(); const x=t.x, y=t.y;
+        if(Math.abs(x-player.x)+Math.abs(y-player.y)<2 || (x===merchant.x && y===merchant.y) || (x===stairs.x && y===stairs.y)){
+          tries++; continue;
+        }
+        if(monsters.some(mo=>Math.abs(mo.x-x)+Math.abs(mo.y-y)<4)){
+          tries++; continue;
+        }
+        const bb=spawnMonster(strongest.type,x,y);
+        bb.hpMax = bb.hp = Math.round(strongest.hpMax*hpMult);
+        bb.dmgMin = Math.round(bb.dmgMin*2); bb.dmgMax = Math.round(bb.dmgMax*2);
+        bb.bigBoss=true; bb.spriteKey=randomBossVariant(); bb.spriteSize=48; monsters.push(bb); placed=true;
+      }
+      showBossAlert();
+    }
+  }
+}
+
 function placeHazards(){
+  const lavaChance = Math.min(0.25, LAVA_CHANCE * (1 + floorNum * 0.05));
+  const trapChance = Math.min(0.25, TRAP_CHANCE * (1 + floorNum * 0.05));
   for(let y=1;y<MAP_H-1;y++){
     for(let x=1;x<MAP_W-1;x++){
       const idx=y*MAP_W+x;
@@ -335,10 +443,10 @@ function placeHazards(){
       if((x===player.x && y===player.y) || (x===stairs.x && y===stairs.y) || (x===merchant.x && y===merchant.y)) continue;
       if(monsters.some(m=>m.x===x && m.y===y)) continue;
       const r=rng.next();
-      if(r<LAVA_CHANCE){
+      if(r<lavaChance){
         map[idx]=T_LAVA;
         lavaTiles.push({x,y});
-      } else if(r<LAVA_CHANCE+TRAP_CHANCE){
+      } else if(r<lavaChance+trapChance){
         map[idx]=T_TRAP;
         spikeTraps.push({x,y});
       }
@@ -368,7 +476,10 @@ function generate(){
   const wallHue=(hue + rng.int(-20,20) + 360)%360;
   const wallLight=Math.max(10, light-5);
   wallTint=`hsl(${wallHue}, ${sat}%, ${wallLight}%)`;
-  if(rng.next()<0.5) generateCave(); else generateRooms();
+  const r=rng.next();
+  if(r<0.33) generateNoiseTerrain();
+  else if(r<0.66) generateCave();
+  else generateRooms();
   placeHazards();
   buildLayers();
   recomputeFOV();
@@ -519,8 +630,16 @@ function buildLayers(){
   for(let y=0;y<MAP_H;y++) for(let x=0;x<MAP_W;x++) if(map[y*MAP_W+x]===T_FLOOR||map[y*MAP_W+x]===T_TRAP||map[y*MAP_W+x]===T_LAVA){ mg.fillRect(x*TILE,y*TILE,TILE,TILE); }
   f.drawImage(mask,0,0);
   f.globalCompositeOperation='multiply';
-  f.fillStyle=floorTint;
-  f.fillRect(0,0,floorLayer.width,floorLayer.height);
+  for(let y=0;y<MAP_H;y++) for(let x=0;x<MAP_W;x++){
+    const idx=y*MAP_W+x;
+    if(map[idx]!==T_FLOOR && map[idx]!==T_TRAP && map[idx]!==T_LAVA) continue;
+    let col=floorTint;
+    const b=biomeMap[idx];
+    if(b===B_DESERT) col='#d7c67f';
+    else if(b===B_MOUNTAIN) col='#c2c2c2';
+    f.fillStyle=col;
+    f.fillRect(x*TILE,y*TILE,TILE,TILE);
+  }
   f.globalCompositeOperation='source-over';
   // walls
   w.fillStyle=w.createPattern(ASSETS.textures.wall,'repeat');
