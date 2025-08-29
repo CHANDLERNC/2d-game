@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { skillTrees } from '../modules/player.js';
+import { skillTreeGraph } from '../modules/player.js';
 
 function findNode(node, name) {
   if (node.name === name) return node;
@@ -12,7 +12,7 @@ function findNode(node, name) {
 }
 
 test('Venom Slash ability defined in rogue skill tree', () => {
-  const rogue = skillTrees.rogue;
+  const rogue = skillTreeGraph.rogue;
   assert.ok(rogue, 'rogue skill tree exists');
   const ability = findNode(rogue, 'Venom Slash');
   assert.ok(ability, 'Venom Slash ability present');
@@ -21,7 +21,7 @@ test('Venom Slash ability defined in rogue skill tree', () => {
 });
 
 test('Shadowmeld ability defined in rogue skill tree', () => {
-  const rogue = skillTrees.rogue;
+  const rogue = skillTreeGraph.rogue;
   assert.ok(rogue, 'rogue skill tree exists');
   const ability = findNode(rogue, 'Shadowmeld');
   assert.ok(ability, 'Shadowmeld ability present');
