@@ -8,12 +8,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) with
 - Optional cellular‑automata cave floors with secret rooms and environmental hazards like spike traps and lava.
 - Animated tiles for lava pools and spike traps.
 - Project license clarifying sole ownership.
-- Warrior and Mage player classes with unique stat bonuses.
+- Berserker and Spellbinder player classes with unique stat bonuses.
 - Player magic system with three ability trees and Q-bound spells.
 - Additional spells added to each magic tree.
-- Warrior skill tree with 12 abilities and escalating point costs.
-- Stamina resource and Power Strike ability for the Warrior class.
-- Additional warrior stamina abilities: Whirlwind and Shield Bash.
+- Berserker skill tree with 12 abilities and escalating point costs.
+- Stamina resource and Raging Strike ability for the Berserker class.
+- Additional Berserker stamina abilities: Blade Cyclone and Thunder Bash.
 - Random weapon name generator for unique gear titles.
 - Gear now uses expanded name generators with more fantasy prefixes, suffixes, and unique weapon titles like "Shadow's Bane".
 - Weapon damage-over-time affix that can ignite foes.
@@ -61,8 +61,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) with
 - Snake boss now uses an image sprite with a simple bobbing idle animation.
 - Enemy elemental resistances now scale with floor level.
 - Mini bosses now always drop gold and may also drop gear or weapons.
-- Warrior abilities now unlock sequentially on the skill tree and bind to Q instead of using modifier keys.
-- Adjusted special ability damage scaling for Mage and Warrior classes, weakening early skills and strengthening later unlocks.
+- Berserker abilities now unlock sequentially on the skill tree and bind to Q instead of using modifier keys.
+- Adjusted special ability damage scaling for Spellbinder and Berserker classes, weakening early skills and strengthening later unlocks.
 - Rebalanced loot rarity distribution to favor common and uncommon gear and increased bonuses on rare items.
 - Mini bosses and bosses now appear at twice the size of normal monsters.
 - Replaced dragon and dragon hatchling sprites with a bone dragon sporting blue flames.
@@ -75,8 +75,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) with
 ### Fixed
 - Slime idle animations now render without missing image assets.
 - Melee attacks now track the mouse and register hits within a 35° cone (2-tile reach by default).
-- Warrior class no longer registers as a mage.
-- Warrior skill menu now displays ability descriptions.
+- Berserker class no longer registers as a Spellbinder.
+- Berserker skill menu now displays ability descriptions.
 
 ### Docs
 - Document multi-file layout and link to the standalone controls page from the start screen.

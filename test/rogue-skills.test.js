@@ -11,20 +11,20 @@ function findNode(node, name) {
   return null;
 }
 
-test('Poison Strike ability defined in rogue skill tree', () => {
+test('Venom Slash ability defined in rogue skill tree', () => {
   const rogue = skillTrees.rogue;
   assert.ok(rogue, 'rogue skill tree exists');
-  const ability = findNode(rogue, 'Poison Strike');
-  assert.ok(ability, 'Poison Strike ability present');
+  const ability = findNode(rogue, 'Venom Slash');
+  assert.ok(ability, 'Venom Slash ability present');
   assert.equal(ability.cast, 'poisonStrike');
   assert.equal(ability.cost, 2);
 });
 
-test('Vanish ability defined in rogue skill tree', () => {
+test('Shadowmeld ability defined in rogue skill tree', () => {
   const rogue = skillTrees.rogue;
   assert.ok(rogue, 'rogue skill tree exists');
-  const ability = findNode(rogue, 'Vanish');
-  assert.ok(ability, 'Vanish ability present');
+  const ability = findNode(rogue, 'Shadowmeld');
+  assert.ok(ability, 'Shadowmeld ability present');
   assert.equal(ability.cast, 'vanish');
   assert.equal(ability.cost, 3);
 });

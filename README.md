@@ -1,6 +1,6 @@
 # 2D Dungeon Game
 
-An offline HTML5 dungeon crawler with inline sprites, now featuring warrior, mage and rogue classes, a warrior skill tree, consumable potions and legendary gear.
+An offline HTML5 dungeon crawler with inline sprites, now featuring Berserker, Spellbinder and Nightblade classes, a Berserker skill tree, consumable potions and legendary gear.
 
 Recent updates rework the audio system with smoother sound effects and dynamic music that cross‑fades between calm, combat and boss themes.
 
