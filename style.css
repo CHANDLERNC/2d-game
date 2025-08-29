@@ -50,3 +50,15 @@ html,body{margin:0;background:#0b0b0e;color:#ddd;font-family:system-ui,Segoe UI,
   .gender-card:hover{background:#12141f}
   .gender-card input{accent-color:#7a4bd9}
   .gender-preview{width:32px;height:32px;border-radius:6px;background:#0f1119;display:grid;place-items:center}
+
+/* Mobile controls */
+#mobileControls{position:fixed;inset:0;pointer-events:none}
+#dpad{position:absolute;bottom:80px;left:30px;width:120px;height:120px}
+#dpad .mc-btn{position:absolute;width:40px;height:40px;border-radius:8px;background:#141622;border:1px solid #3a3e4d;color:#e6e6f0;opacity:.6;pointer-events:auto}
+#dpad .mc-btn:active{opacity:.9}
+#btnUp{left:40px;top:0}
+#btnDown{left:40px;top:80px}
+#btnLeft{left:0;top:40px}
+#btnRight{left:80px;top:40px}
+#btnAction{position:absolute;bottom:80px;right:30px;width:60px;height:60px;border-radius:30px;background:#141622;border:1px solid #3a3e4d;color:#e6e6f0;opacity:.6;pointer-events:auto}
+#btnAction:active{opacity:.9}

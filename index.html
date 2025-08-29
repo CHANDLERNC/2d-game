@@ -99,12 +99,28 @@
       </div>
 
     <p class="hint" style="margin-top:10px">All sprites (player, monsters, portal, shop) are generated at runtime.</p>
+
+    <label style="display:flex;align-items:center;gap:6px;margin-top:8px;pointer-events:auto">
+      <input type="checkbox" id="mobileToggle"> Mobile Controls (iOS)
+    </label>
+
       <div style="display:flex;gap:8px;margin-top:8px">
         <button id="playBtn" class="btn">Play</button>
         <button class="btn" onclick="alert('Thanks for playing!')">Quit</button>
         <a href="controls.html" class="btn" style="text-decoration:none;display:inline-block">Controls</a>
       </div>
   </div>
+</div>
+
+<!-- Mobile Controls Overlay -->
+<div id="mobileControls" style="display:none;position:fixed;inset:0;pointer-events:none">
+  <div id="dpad">
+    <button id="btnUp" class="mc-btn">▲</button>
+    <button id="btnLeft" class="mc-btn">◀</button>
+    <button id="btnDown" class="mc-btn">▼</button>
+    <button id="btnRight" class="mc-btn">▶</button>
+  </div>
+  <button id="btnAction" class="mc-btn">E</button>
 </div>
 
   <div id="respawn" class="stone" style="position:fixed;inset:0;display:none;place-items:center">
