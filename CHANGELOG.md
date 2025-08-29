@@ -68,6 +68,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) with
 - Replaced dragon and dragon hatchling sprites with a bone dragon sporting blue flames.
 - Health and mana potions now use custom SVG sprites with rarity glow and a simple rotation animation.
 - Weapon damage and armor/resistance values now scale with item level and rarity. Player base resistances increase slightly each level.
+- Gear slot drops now balance weapons and armor with dynamic weighting and floor-based scaling.
 
 ### Removed
 - Blue slime enemy variant.
