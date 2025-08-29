@@ -1,5 +1,5 @@
 import { initAudio, playFootstep, playAttack, playHit, playCalmMusic, playCombatMusic, playBossMusic } from './modules/audio.js';
-import { keys, initInput } from './modules/input.js';
+import { keys, initInput, initMobileControls } from './modules/input.js';
 import { player, playerSpriteKey, magicTrees, skillTrees, skillTreeGraph, updatePlayerSprite } from './modules/player.js';
 import { inventory, SLOTS, BAG_SIZE, POTION_BAG_SIZE } from './modules/playerInventory.js';
 import { hpFill, mpFill, hpLbl, mpLbl, hudFloor, hudSeed, hudGold, hudDmg, hudScore, hudKills, xpFill, xpLbl, hudLvl, hudSpell, hudAbilityLabel, updateResourceUI, updateXPUI, updateScoreUI, toggleActionLog, showToast, showBossAlert, showRespawn } from './modules/ui.js';
@@ -2699,6 +2699,12 @@ function setupUIEvents(){
   if(playBtn) playBtn.addEventListener('click', ()=>{
     const startScreen=document.getElementById('start');
     if(startScreen) startScreen.style.display='none';
+    const mobileToggle=document.getElementById('mobileToggle');
+    if(mobileToggle && mobileToggle.checked){
+      const mc=document.getElementById('mobileControls');
+      if(mc) mc.style.display='block';
+      initMobileControls();
+    }
     startGame();
   });
 
