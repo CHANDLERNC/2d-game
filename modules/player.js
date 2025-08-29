@@ -151,22 +151,67 @@ function flattenBranch(branch) {
 const [healBranch, dmgBranch, dotBranch] = skillTreeGraph.mage.children;
 const summonerBranches = skillTreeGraph.summoner.children;
 const magicTrees = {
-  healing: { display: 'Healing', class: 'mage', abilities: flattenBranch(healBranch) },
-  damage: { display: 'Damage', class: 'mage', abilities: flattenBranch(dmgBranch) },
-  dot: { display: 'Damage over Time', class: 'mage', abilities: flattenBranch(dotBranch) },
-  summoning: { display: 'Summoning', class: 'summoner', abilities: flattenBranch(summonerBranches[0]) },
-  mastery: { display: 'Minion Mastery', class: 'summoner', abilities: flattenBranch(summonerBranches[1]) }
+  spellbinderHealing: {
+    display: 'Healing',
+    class: 'mage',
+    abilities: flattenBranch(healBranch)
+  },
+  spellbinderDamage: {
+    display: 'Damage',
+    class: 'mage',
+    abilities: flattenBranch(dmgBranch)
+  },
+  spellbinderDot: {
+    display: 'Damage over Time',
+    class: 'mage',
+    abilities: flattenBranch(dotBranch)
+  },
+  soulcallerSummoning: {
+    display: 'Summoning',
+    class: 'summoner',
+    abilities: flattenBranch(summonerBranches[0])
+  },
+  soulcallerMastery: {
+    display: 'Minion Mastery',
+    class: 'summoner',
+    abilities: flattenBranch(summonerBranches[1])
+  }
 };
 
 // Build skill trees for non-mage classes
 const warriorBranches = skillTreeGraph.warrior.children;
 const rogueBranches = skillTreeGraph.rogue.children;
 const skillTrees = {
-  battle: { display: warriorBranches[0].name, class: 'warrior', abilities: flattenBranch(warriorBranches[0]), graph: warriorBranches[0] },
-  endurance: { display: warriorBranches[1].name, class: 'warrior', abilities: flattenBranch(warriorBranches[1]), graph: warriorBranches[1] },
-  warriorSkills: { display: warriorBranches[2].name, class: 'warrior', abilities: flattenBranch(warriorBranches[2]), graph: warriorBranches[2] },
-  assassination: { display: 'Assassination', class: 'rogue', abilities: flattenBranch(rogueBranches[0]), graph: rogueBranches[0] },
-  shadow: { display: 'Shadow Arts', class: 'rogue', abilities: flattenBranch(rogueBranches[1]), graph: rogueBranches[1] }
+  berserkerBattle: {
+    display: warriorBranches[0].name,
+    class: 'warrior',
+    abilities: flattenBranch(warriorBranches[0]),
+    graph: warriorBranches[0]
+  },
+  berserkerEndurance: {
+    display: warriorBranches[1].name,
+    class: 'warrior',
+    abilities: flattenBranch(warriorBranches[1]),
+    graph: warriorBranches[1]
+  },
+  berserkerRage: {
+    display: warriorBranches[2].name,
+    class: 'warrior',
+    abilities: flattenBranch(warriorBranches[2]),
+    graph: warriorBranches[2]
+  },
+  nightbladeAssassination: {
+    display: 'Assassination',
+    class: 'rogue',
+    abilities: flattenBranch(rogueBranches[0]),
+    graph: rogueBranches[0]
+  },
+  nightbladeShadow: {
+    display: 'Shadow Arts',
+    class: 'rogue',
+    abilities: flattenBranch(rogueBranches[1]),
+    graph: rogueBranches[1]
+  }
 };
 
 // Initialize player progression structures
