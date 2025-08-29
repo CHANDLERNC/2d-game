@@ -4,7 +4,7 @@ import { player, playerSpriteKey, magicTrees, skillTrees, updatePlayerSprite } f
 import { inventory, SLOTS, BAG_SIZE, POTION_BAG_SIZE } from './modules/playerInventory.js';
 import { hpFill, mpFill, hpLbl, mpLbl, hudFloor, hudSeed, hudGold, hudDmg, hudScore, hudKills, xpFill, xpLbl, hudLvl, hudSpell, hudAbilityLabel, updateResourceUI, updateXPUI, updateScoreUI, toggleActionLog, showToast, showBossAlert, showRespawn } from './modules/ui.js';
 import { TILE, MAP_W, MAP_H, T_EMPTY, T_FLOOR, T_WALL, T_TRAP, T_LAVA, TRAP_CHANCE, LAVA_CHANCE, map, fog, vis, rooms, stairs, merchant, merchantStyle, torches, lavaTiles, spikeTraps, walkable, canMoveFrom, resetMapState } from './modules/map.js';
-import { MONSTER_BASE_COUNT, MONSTER_MIN_COUNT, MONSTER_COUNT_GROWTH, MONSTER_COUNT_VARIANCE, FOV_RADIUS, LOOT_CHANCE, MONSTER_LOOT_CHANCE, AGGRO_RANGE, TORCH_CHANCE, TORCH_LIGHT_RADIUS, FOV_RAYS, SCORE_PER_SECOND, OUT_OF_COMBAT_HEAL_DELAY, OUT_OF_COMBAT_HEAL_RATE, SCORE_PER_KILL, SCORE_PER_FLOOR_CLEAR, SCORE_PER_FLOOR_REACHED, BOSS_VARIANTS, XP_GAIN_MULT, ENEMY_SPEED_MULT, MONSTER_HP_MULT, MONSTER_DMG_MULT } from './modules/config.js';
+import { MONSTER_BASE_COUNT, MONSTER_MIN_COUNT, MONSTER_COUNT_GROWTH, MONSTER_COUNT_VARIANCE, FOV_RADIUS, LOOT_CHANCE, MONSTER_LOOT_CHANCE, AGGRO_RANGE, TORCH_CHANCE, TORCH_LIGHT_RADIUS, FOV_RAYS, SCORE_PER_SECOND, OUT_OF_COMBAT_HEAL_DELAY, OUT_OF_COMBAT_HEAL_RATE, OUT_OF_COMBAT_MANA_RATE, OUT_OF_COMBAT_STAM_RATE, SCORE_PER_KILL, SCORE_PER_FLOOR_CLEAR, SCORE_PER_FLOOR_REACHED, BOSS_VARIANTS, XP_GAIN_MULT, ENEMY_SPEED_MULT, MONSTER_HP_MULT, MONSTER_DMG_MULT } from './modules/config.js';
 import { startLoop } from './modules/loop.js';
 import { applyDamageToPlayer as coreApplyDamageToPlayer } from './modules/combat.js';
 import { renderLayers } from './modules/rendering.js';
@@ -1776,12 +1776,30 @@ function update(dt){
   } else {
     playCalmMusic();
   }
-  if(player.combatTimer > OUT_OF_COMBAT_HEAL_DELAY && player.hp < player.hpMax){
-    player.healAcc += OUT_OF_COMBAT_HEAL_RATE * dt/1000;
-    const heal = Math.floor(player.healAcc);
-    if(heal > 0){
-      player.hp = Math.min(player.hpMax, player.hp + heal);
-      player.healAcc -= heal;
+  if(player.combatTimer > OUT_OF_COMBAT_HEAL_DELAY){
+    if(player.hp < player.hpMax){
+      player.healAcc += OUT_OF_COMBAT_HEAL_RATE * dt/1000;
+      const heal = Math.floor(player.healAcc);
+      if(heal > 0){
+        player.hp = Math.min(player.hpMax, player.hp + heal);
+        player.healAcc -= heal;
+      }
+    }
+    if(player.mp < player.mpMax){
+      player.manaAcc += OUT_OF_COMBAT_MANA_RATE * dt/1000;
+      const mpRegen = Math.floor(player.manaAcc);
+      if(mpRegen > 0){
+        player.mp = Math.min(player.mpMax, player.mp + mpRegen);
+        player.manaAcc -= mpRegen;
+      }
+    }
+    if(player.sp < player.spMax){
+      player.stamAcc += OUT_OF_COMBAT_STAM_RATE * dt/1000;
+      const spRegen = Math.floor(player.stamAcc);
+      if(spRegen > 0){
+        player.sp = Math.min(player.spMax, player.sp + spRegen);
+        player.stamAcc -= spRegen;
+      }
     }
   }
   if(scoreUpdateTimer >= 1000){ updateScoreUI(); scoreUpdateTimer = 0; }
@@ -2365,14 +2383,15 @@ function levelUp(){
 
 // ===== Stats =====
 function baseStats(){
-  let hpGainPerLevel = 12, mpGainPerLevel = 6, spGainPerLevel = 6;
-  if(player.class==='mage') mpGainPerLevel = 10;
-  if(player.class==='rogue') spGainPerLevel = 8;
+  const lvl = player.lvl;
+  const hpGainPerLevel = 20;
+  const mpGainPerLevel = player.class==='mage'?12:8;
+  const spGainPerLevel = player.class==='rogue'?12:8;
   return {
-    dmgMin:2, dmgMax:4, crit:5, armor:5 + (player.lvl-1)*2, armorPct:0,
-    hpMax:150 + (player.lvl-1)*hpGainPerLevel,
-    mpMax:60 + (player.lvl-1)*mpGainPerLevel,
-    spMax:60 + (player.lvl-1)*spGainPerLevel,
+    dmgMin:2, dmgMax:4, crit:5, armor:5 + (lvl-1)*2, armorPct:0,
+    hpMax:150 + (lvl-1)*hpGainPerLevel,
+    mpMax:60 + (lvl-1)*mpGainPerLevel,
+    spMax:60 + (lvl-1)*spGainPerLevel,
     speedPct:0,
     resF:0,resI:0,resS:0,resM:0,resP:0,
     spellBonus:0
@@ -2396,9 +2415,14 @@ function applyLevelBonuses(stats){
   stats.resF += baseRes; stats.resI += baseRes; stats.resS += baseRes; stats.resM += baseRes; stats.resP += baseRes;
 }
 
-function accumulate(stats, mods){
+function accumulate(stats, mods, factor = 1){
   for(const k in mods){
-    if(k==='mpMax'){ stats.mpMax += mods.mpMax; stats.spMax += mods.mpMax; }
+    if(k==='mpMax'){
+      const val = Math.round(mods.mpMax * factor);
+      stats.mpMax += val; stats.spMax += val;
+    }
+    else if(k==='hpMax'){ stats.hpMax += Math.round(mods.hpMax * factor); }
+    else if(k==='spMax'){ stats.spMax += Math.round(mods.spMax * factor); }
     else if(k==='resFire'){ stats.resF += mods.resFire; }
     else if(k==='resIce'){ stats.resI += mods.resIce; }
     else if(k==='resShock'){ stats.resS += mods.resShock; }
@@ -2410,9 +2434,10 @@ function accumulate(stats, mods){
 }
 
 function applyGearBonuses(stats){
+  const levelFactor = 1 + player.lvl * 0.05;
   for(const slot of SLOTS){
     const it=inventory.equip[slot]; if(!it) continue;
-    accumulate(stats, it.mods);
+    accumulate(stats, it.mods, levelFactor);
   }
 }
 

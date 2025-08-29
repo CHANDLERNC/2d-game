@@ -12,6 +12,8 @@ const player = {
   atkCD: 0,
   combatTimer: 0,
   healAcc: 0,
+  manaAcc: 0,
+  stamAcc: 0,
   faceDx: 1,
   faceDy: 0,
   effects: []
