@@ -28,3 +28,22 @@ test('Shadowmeld ability defined in rogue skill tree', () => {
   assert.equal(ability.cast, 'vanish');
   assert.equal(ability.cost, 3);
 });
+
+test('Backstab and Smoke Bomb abilities are present', () => {
+  const rogue = skillTreeGraph.rogue;
+  const backstab = findNode(rogue, 'Backstab');
+  assert.ok(backstab, 'Backstab ability present');
+  assert.equal(backstab.cost, 3);
+  const smoke = findNode(rogue, 'Smoke Bomb');
+  assert.ok(smoke, 'Smoke Bomb ability present');
+  assert.equal(smoke.cast, 'smokeBomb');
+  assert.equal(smoke.cost, 5);
+});
+
+test('rogue skill tree contains between 12 and 20 abilities', () => {
+  function count(node) {
+    return 1 + (node.children ? node.children.reduce((s, c) => s + count(c), 0) : 0);
+  }
+  const total = skillTreeGraph.rogue.children.reduce((sum, branch) => sum + count(branch), 0);
+  assert.ok(total >= 12 && total <= 20, `found ${total}`);
+});

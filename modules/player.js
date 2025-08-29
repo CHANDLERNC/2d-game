@@ -100,8 +100,26 @@ const skillTreeGraph = {
 
   rogue: node({ name: 'Nightblade' }, [
     node({ name: 'Keen Aim', desc: 'Increase critical chance by 10%.', bonus: { crit: 10 }, cost: 1 }, [
-      node({ name: 'Venom Slash', desc: 'Spend 20 stamina to strike and poison an enemy.', cost: 2, cast: 'poisonStrike' }),
-      node({ name: 'Shadowmeld', desc: 'Spend 25 stamina to become invisible for 4 seconds.', cost: 3, cast: 'vanish' })
+      node({ name: 'Venom Slash', desc: 'Spend 20 stamina to strike and poison an enemy.', cost: 2, cast: 'poisonStrike' }, [
+        node({ name: 'Backstab', desc: 'Deal 50% more damage when striking from behind.', bonus: { backstab: 50 }, cost: 3 }, [
+          node({ name: 'Lethal Precision', desc: 'Increase critical damage by 20%.', bonus: { critDmg: 20 }, cost: 4 }, [
+            node({ name: 'Assassinate', desc: 'Finishing move for 100% more damage (30 stamina).', cost: 5, cast: 'assassinate' }, [
+              node({ name: 'Death Blossom', desc: 'Spin and strike nearby foes for 120% damage (35 stamina).', cost: 7, cast: 'deathBlossom' })
+            ])
+          ])
+        ])
+      ])
+    ]),
+    node({ name: 'Evasion Training', desc: 'Increase dodge chance by 5%.', bonus: { dodge: 5 }, cost: 1 }, [
+      node({ name: 'Shadowmeld', desc: 'Spend 25 stamina to become invisible for 4 seconds.', cost: 3, cast: 'vanish' }, [
+        node({ name: 'Silent Step', desc: 'Increase movement speed by 10% while stealthed.', bonus: { stealthSpeedPct: 10 }, cost: 4 }, [
+          node({ name: 'Smoke Bomb', desc: 'Create a smoke cloud that blinds enemies for 3 seconds (20 stamina).', cost: 5, cast: 'smokeBomb' }, [
+            node({ name: 'Master of Shadows', desc: 'Increase stealth duration by 2 seconds.', bonus: { stealthDur: 2 }, cost: 6 }, [
+              node({ name: 'Shadowmaster', desc: 'Attacks from stealth deal 50% more damage.', bonus: { stealthDmg: 50 }, cost: 8 })
+            ])
+          ])
+        ])
+      ])
     ])
   ])
 };
@@ -130,11 +148,13 @@ const magicTrees = {
 
 // Build skill trees for non-mage classes
 const warriorBranches = skillTreeGraph.warrior.children;
+const rogueBranches = skillTreeGraph.rogue.children;
 const skillTrees = {
   battle: { display: warriorBranches[0].name, class: 'warrior', abilities: flattenBranch(warriorBranches[0]), graph: warriorBranches[0] },
   endurance: { display: warriorBranches[1].name, class: 'warrior', abilities: flattenBranch(warriorBranches[1]), graph: warriorBranches[1] },
   warriorSkills: { display: warriorBranches[2].name, class: 'warrior', abilities: flattenBranch(warriorBranches[2]), graph: warriorBranches[2] },
-  rogue: { display: skillTreeGraph.rogue.name, class: 'rogue', abilities: flattenBranch(skillTreeGraph.rogue.children[0]), graph: skillTreeGraph.rogue.children[0] }
+  assassination: { display: 'Assassination', class: 'rogue', abilities: flattenBranch(rogueBranches[0]), graph: rogueBranches[0] },
+  shadow: { display: 'Shadow Arts', class: 'rogue', abilities: flattenBranch(rogueBranches[1]), graph: rogueBranches[1] }
 };
 
 // Initialize player progression structures
