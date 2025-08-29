@@ -672,6 +672,7 @@ function castLightFrom(sx, sy, radius){
       const ix=x|0, iy=y|0;
       if(ix<0||iy<0||ix>=MAP_W||iy>=MAP_H) break;
       const idx=iy*MAP_W+ix;
+      if(fog[idx]===0){ player.tilesDiscovered++; }
       vis[idx]=1; fog[idx]=Math.max(fog[idx],1);
       if(isBlock(ix,iy) && !(ix===sx && iy===sy)) break;
       x+=Math.cos(ang)*0.5; y+=Math.sin(ang)*0.5;
@@ -833,18 +834,20 @@ function pickupHere(){
   const it = lootMap.get(key);
   if(!it) return;
   if(it.type === 'gold'){
-    player.gold += it.amt; hudGold.textContent = player.gold; showToast(`+${it.amt} gold`); lootMap.delete(key); return;
+    player.gold += it.amt; hudGold.textContent = player.gold;
+    player.goldCollected = (player.goldCollected||0) + it.amt;
+    showToast(`+${it.amt} gold`); lootMap.delete(key); return;
   }
   if(it.type === 'potion'){
     const pidx = inventory.potionBag.findIndex(b=>!b);
     if(pidx === -1){ showToast('Potion bag full'); return; }
-    inventory.potionBag[pidx] = it; lootMap.delete(key); showToast(`Picked up ${it.name}`);
+    inventory.potionBag[pidx] = it; lootMap.delete(key); showToast(`Picked up ${it.name}`); player.itemsCollected++;
     redrawInventory();
     return;
   }
   const idx = inventory.bag.findIndex(b=>!b);
   if(idx === -1){ showToast('Bag full'); return; }
-  inventory.bag[idx] = it; lootMap.delete(key); showToast(`Picked up ${it.name}`);
+  inventory.bag[idx] = it; lootMap.delete(key); showToast(`Picked up ${it.name}`); player.itemsCollected++;
   redrawInventory();
 }
 
@@ -863,6 +866,7 @@ function usePotionFromBag(idx){
 }
 
 function usePotion(it){
+  player.potionsUsed = (player.potionsUsed||0) + 1;
   let healed=0, restored=0;
   if(it.hp){ const before=player.hp; player.hp=Math.min(player.hpMax, player.hp+it.hp); healed=player.hp-before; }
   if(it.mp){
@@ -1220,6 +1224,7 @@ function dealDamageToMonster(m, base, elem=null, crit=false){
             : elem==='poison'? clamp(0,cap,m.resPoison||0) : 0;
   const dmg = Math.max(1, Math.floor(dmgBase * (1 - res/100)));
   m.hp -= dmg; m.hitFlash = 4; playHit();
+  player.damageDealt = (player.damageDealt||0) + dmg;
   m.aggroT = 10000; // leash to player for at least 10s after taking damage
   player.combatTimer = 0; player.healAcc = 0;
   const col = elem==='fire' ? '#ff6b4a'
@@ -1828,6 +1833,8 @@ function draw(dt){
     if(m.hitFlash>0) m.hitFlash--;
     if(m.hp<=0){
       player.kills++; player.score += SCORE_PER_KILL; updateScoreUI();
+      if(m.miniBoss) player.miniBossKills = (player.miniBossKills||0) + 1;
+      if(m.bigBoss) player.bossKills = (player.bossKills||0) + 1;
       if(m.miniBoss){
         if(Math.random()<MONSTER_LOOT_CHANCE){ dropGearNear(m.x,m.y); }
         lootMap.set(`${m.x},${m.y}`,{color:'#ffd24a',type:'gold',amt:rng.int(8,20)});
@@ -1981,6 +1988,7 @@ function update(dt){
         if(!firstMonsterAt(nx,ny)){
           player.x=nx; player.y=ny; pickupHere(); recomputeFOV(); checkHazard(player.x,player.y);
           const diag = (dx!==0 && dy!==0) ? Math.SQRT2 : 1;
+          player.distanceTraveled = (player.distanceTraveled||0) + diag;
           const gearFactor = (1 - Math.min(0.5, player.speedPct/100));
           const freezeMul = speedMultFromEffects(player);
           const dur = Math.max(60, baseStepDelay * gearFactor * diag * freezeMul);
@@ -2309,6 +2317,7 @@ function castSelectedSpell(){
   if(!player.magic[b.tree][b.idx]){ showToast('Spell locked'); return; }
   if(player.mp<ab.mp){ showToast('Not enough mana'); return; }
   player.mp-=ab.mp; updateResourceUI();
+  player.spellsCast = (player.spellsCast||0) + 1;
   if(ab.type==='heal'){
     const amt=ab.value===null?player.hpMax:ab.value;
     const heal=Math.min(amt, player.hpMax-player.hp);
@@ -2475,6 +2484,9 @@ function loadGame(){
   player.lvl=saved.lvl||1;
   player.gold=saved.gold||0;
   player.score=0; player.kills=0; player.timeSurvived=0; player.floorsCleared=0;
+  player.tilesDiscovered=0; player.miniBossKills=0; player.bossKills=0;
+  player.itemsCollected=0; player.goldCollected=0; player.damageDealt=0; player.damageTaken=0;
+  player.spellsCast=0; player.potionsUsed=0; player.distanceTraveled=0;
   updatePlayerSprite();
   inventory.bag=new Array(BAG_SIZE).fill(null);
   inventory.potionBag=new Array(POTION_BAG_SIZE).fill(null);
@@ -2659,7 +2671,11 @@ function startGame(){
   player.class = cSel ? cSel.value : 'warrior';
   player.boundSpell=null; player.boundSkill=null;
   updatePlayerSprite();
-  player.score=0; player.kills=0; player.timeSurvived=0; player.floorsCleared=0; scoreUpdateTimer=0; updateScoreUI();
+  player.score=0; player.kills=0; player.timeSurvived=0; player.floorsCleared=0;
+  player.tilesDiscovered=0; player.miniBossKills=0; player.bossKills=0;
+  player.itemsCollected=0; player.goldCollected=0; player.damageDealt=0; player.damageTaken=0;
+  player.spellsCast=0; player.potionsUsed=0; player.distanceTraveled=0;
+  scoreUpdateTimer=0; updateScoreUI();
   hudAbilityLabel.textContent = player.class==='mage'?'Spell:':'Skill:';
   hudFloor.textContent=floorNum; hudSeed.textContent=seed>>>0; hudGold.textContent=player.gold; hudLvl.textContent=player.lvl;
   generate(); recalcStats();

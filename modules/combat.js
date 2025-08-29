@@ -72,6 +72,8 @@ export function applyDamageToPlayer(player, dmg, {
     resistCap
   });
   player.hp = Math.max(0, player.hp - eff);
+  // track damage taken for achievement stats
+  player.damageTaken = (player.damageTaken || 0) + eff;
   const dmgCol = type==='magic' ? '#b84aff' :
                  type==='poison'? '#76d38b' : '#ff6b6b';
   damageTexts.push({ tx:player.x, ty:player.y, text:`-${eff}`, color:dmgCol, age:0, ttl:900 });

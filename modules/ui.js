@@ -1,5 +1,6 @@
 // UI elements and helpers
 import { player } from './player.js';
+import { generateAchievements } from './achievements.js';
 
 let actionLog=[];
 
@@ -80,6 +81,15 @@ function showRespawn(){
     const fk=document.getElementById('finalKills'); if(fk) fk.textContent=player.kills;
     const ff=document.getElementById('finalFloors'); if(ff) ff.textContent=player.floorsCleared;
     const ft=document.getElementById('finalTime'); if(ft) ft.textContent=Math.floor(player.timeSurvived/1000);
+    const fa=document.getElementById('finalAchievements');
+    if(fa){
+      fa.innerHTML='';
+      for(const a of generateAchievements(player)){
+        const li=document.createElement('li');
+        li.textContent=a;
+        fa.appendChild(li);
+      }
+    }
     d.style.display='grid';
   }
 }
