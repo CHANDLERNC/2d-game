@@ -2072,20 +2072,20 @@ function redrawSkills(){
   let html = `<div class="section-title">Skill Points: ${player.skillPoints}</div>`;
   for(const [treeName, tree] of Object.entries(skillTrees)){
     if(tree.class && tree.class!==player.class) continue;
-    html += `<div class="section-title">${tree.display}</div><div>`;
+    html += `<div class="section-title">${tree.display}</div><div class="skill-grid">`;
     tree.abilities.forEach((ab,i)=>{
       const unlocked=player.skills[treeName][i];
       const bind = player.boundSkill && player.boundSkill.tree===treeName && player.boundSkill.idx===i;
       if(unlocked){
         if(ab.cast){
-          html += `<div class="list-row"><div>${ab.name}<div class="muted">${ab.desc}</div></div><div>${bind?'<span class="green">Bound</span>':`<button class="btn sml" data-bind="${treeName}-${i}">Bind</button>`}</div></div>`;
+          html += `<div class="skill-card"><div class="item-title">${ab.name}</div><div class="muted">${ab.desc}</div><div>${bind?'<span class="green">Bound</span>':`<button class="btn sml" data-bind="${treeName}-${i}">Bind</button>`}</div></div>`;
         }else{
-          html += `<div class="list-row"><div>${ab.name}<div class="muted">${ab.desc}</div></div><div><span class="green">Unlocked</span></div></div>`;
+          html += `<div class="skill-card"><div class="item-title">${ab.name}</div><div class="muted">${ab.desc}</div><div><span class="green">Unlocked</span></div></div>`;
         }
       }else{
         const prevUnlocked = i===0 || player.skills[treeName][i-1];
         const dis=(player.skillPoints<ab.cost || !prevUnlocked)?'disabled':'';
-        html += `<div class="list-row"><div>${ab.name}<div class="muted">${ab.desc}</div></div><div><button class="btn sml" data-unlock="${treeName}-${i}" ${dis}>Unlock (${ab.cost})</button></div></div>`;
+        html += `<div class="skill-card"><div class="item-title">${ab.name}</div><div class="muted">${ab.desc}</div><div><button class="btn sml" data-unlock="${treeName}-${i}" ${dis}>Unlock (${ab.cost})</button></div></div>`;
       }
     });
     html += '</div>';

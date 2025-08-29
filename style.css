@@ -23,18 +23,21 @@ html,body{margin:0;background:#0b0b0e;color:#ddd;font-family:system-ui,Segoe UI,
   #actionLog{display:none;position:fixed;bottom:64px;left:50%;transform:translateX(-50%);padding:8px 12px;pointer-events:auto;font-size:13px;width:360px;max-width:90vw;max-height:50vh;overflow:auto}
   .shop-items{display:grid;grid-template-columns:1fr 1fr;gap:8px}
   .shop-item{display:flex;flex-direction:column;gap:4px;padding:6px;border-radius:6px}
-  .shop-item:hover{background:#1a1d28}
-  .list-row{display:flex;justify-content:space-between;gap:8px;padding:6px 6px;border-radius:6px}
-  .inv-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:4px 8px}
-  .inv-grid .list-row{flex-direction:column;gap:2px}
-  .list-row:hover{background:#1a1d28}
-  .muted{opacity:.75}
-  .kv{display:flex;gap:6px;align-items:center}
+.shop-item:hover{background:#1a1d28}
+.list-row{display:flex;justify-content:space-between;gap:8px;padding:6px 6px;border-radius:6px}
+.inv-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:4px 8px}
+.inv-grid .list-row{flex-direction:column;gap:2px}
+.list-row:hover{background:#1a1d28}
+.skill-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+.skill-card{display:flex;flex-direction:column;gap:4px;padding:6px;border-radius:6px}
+.skill-card:hover{background:#1a1d28}
+.muted{opacity:.75}
+.kv{display:flex;gap:6px;align-items:center}
   .mono{font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace}
   .pill{display:inline-block;padding:1px 6px;border:1px solid #2d3140;border-radius:999px;background:#10131c}
   .hr{height:1px;background:#2a2d39;margin:8px -8px}
   .hint{opacity:.8}
-  .actions{display:flex;gap:8px;flex-wrap:wrap}
+.actions{display:flex;gap:8px;flex-wrap:wrap}
   .sml{padding:6px 8px;font-size:12px;border-radius:6px}
   .section-title{font-weight:bold;margin:6px 0 4px}
   .item-title{font-weight:600}
