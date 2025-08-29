@@ -1971,7 +1971,7 @@ function renderCharPage(){
   const panel=document.getElementById('charPage');
   if(!panel) return;
   let html='<div class="section-title">Character</div>';
-  html+=`<div class="kv">Class: <b>${player.class}</b></div>`;
+  html+=`<div class="kv">Class: <b>${skillTrees[player.class].name}</b></div>`;
   html+=`<div class="kv">HP: <b>${player.hp}/${player.hpMax}</b></div>`;
   html+=`<div class="kv">${player.class==='mage'?'Mana':'Stamina'}: <b>${player.class==='mage'?player.mp+'/'+player.mpMax:player.sp+'/'+player.spMax}</b></div>`;
   html+=`<div class="kv">Attack: <b>${currentStats.dmgMin}-${currentStats.dmgMax}</b></div>`;
