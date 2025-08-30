@@ -1,4 +1,4 @@
-import { initAudio, playFootstep, playAttack, playHit, playCalmMusic, playCombatMusic, playBossMusic } from './modules/audio.js';
+import { initAudio, playFootstep, playAttack, playHit, playCalmMusic, playCombatMusic, playBossMusic, setMasterVolume, setMusicVolume, setSfxVolume } from './modules/audio.js';
 import { keys, initInput, initMobileControls } from './modules/input.js';
 import { player, playerSpriteKey, magicTrees, skillTrees, skillTreeGraph, updatePlayerSprite } from './modules/player.js';
 import { inventory, SLOTS, BAG_SIZE, POTION_BAG_SIZE } from './modules/playerInventory.js';
@@ -2688,6 +2688,16 @@ function startGame(){
   const smoothToggle=document.getElementById('smoothToggle'); const speedRange=document.getElementById('speedRange');
   if(smoothToggle){ smoothToggle.checked = smoothEnabled; smoothToggle.addEventListener('change', e=>{ smoothEnabled = e.target.checked; if(!smoothEnabled){ player.rx=player.x; player.ry=player.y; } }); }
   if(speedRange){ baseStepDelay = player.stepDelay; speedRange.value = String(baseStepDelay); speedRange.addEventListener('input', e=>{ const v=parseInt(e.target.value,10); if(!isNaN(v)) baseStepDelay=v; }); }
+  const masterVol=document.getElementById('masterVol');
+  const musicVol=document.getElementById('musicVol');
+  const sfxVol=document.getElementById('sfxVol');
+  const masterVal=parseFloat(localStorage.getItem('volumeMaster')||'1');
+  const musicVal=parseFloat(localStorage.getItem('volumeMusic')||'1');
+  const sfxVal=parseFloat(localStorage.getItem('volumeSfx')||'1');
+  setMasterVolume(masterVal); setMusicVolume(musicVal); setSfxVolume(sfxVal);
+  if(masterVol){ masterVol.value=String(masterVal); masterVol.addEventListener('input', e=>{ const v=parseFloat(e.target.value); setMasterVolume(v); localStorage.setItem('volumeMaster', String(v)); }); }
+  if(musicVol){ musicVol.value=String(musicVal); musicVol.addEventListener('input', e=>{ const v=parseFloat(e.target.value); setMusicVolume(v); localStorage.setItem('volumeMusic', String(v)); }); }
+  if(sfxVol){ sfxVol.value=String(sfxVal); sfxVol.addEventListener('input', e=>{ const v=parseFloat(e.target.value); setSfxVolume(v); localStorage.setItem('volumeSfx', String(v)); }); }
   startLoop(update, draw);
 }
 
