@@ -113,5 +113,6 @@ function playBossMusic()   { if (currentMusic !== 'boss')   startMusic('boss'); 
 
 function setMusicVolume(v){ initAudio(); musicGain.gain.value = v; }
 function setSfxVolume(v){ initAudio(); sfxGain.gain.value = v; }
+function setMasterVolume(v){ initAudio(); masterGain.gain.value = v; }
 
-export { initAudio, playFootstep, playAttack, playHit, playCalmMusic, playCombatMusic, playBossMusic, setMusicVolume, setSfxVolume };
+export { initAudio, playFootstep, playAttack, playHit, playCalmMusic, playCombatMusic, playBossMusic, setMusicVolume, setSfxVolume, setMasterVolume };
