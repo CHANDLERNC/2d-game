@@ -4,6 +4,7 @@ import { player, playerSpriteKey, magicTrees, skillTrees, skillTreeGraph, update
 import { minions, spawnMinion } from './modules/minions.js';
 import { inventory, SLOTS, BAG_SIZE, POTION_BAG_SIZE } from './modules/playerInventory.js';
 import { hpFill, mpFill, hpLbl, mpLbl, hudFloor, hudSeed, hudGold, hudDmg, hudScore, hudKills, xpFill, xpLbl, hudLvl, hudSpell, hudAbilityLabel, updateResourceUI, updateXPUI, updateScoreUI, toggleActionLog, showToast, showBossAlert, showRespawn } from './modules/ui.js';
+import { getSaveData, applySaveData } from './modules/saveLoad.js';
 import { TILE, MAP_W, MAP_H, T_EMPTY, T_FLOOR, T_WALL, T_TRAP, T_LAVA, TRAP_CHANCE, LAVA_CHANCE, map, fog, vis, rooms, stairs, merchant, merchantStyle, torches, lavaTiles, spikeTraps, biomeMap, B_DESERT, B_FOREST, B_MOUNTAIN, walkable, canMoveFrom, resetMapState } from './modules/map.js';
 import { MONSTER_BASE_COUNT, MONSTER_MIN_COUNT, MONSTER_COUNT_GROWTH, MONSTER_COUNT_VARIANCE, FOV_RADIUS, LOOT_CHANCE, MONSTER_LOOT_CHANCE, AGGRO_RANGE, TORCH_CHANCE, TORCH_LIGHT_RADIUS, FOV_RAYS, SCORE_PER_SECOND, OUT_OF_COMBAT_HEAL_DELAY, OUT_OF_COMBAT_HEAL_RATE, OUT_OF_COMBAT_MANA_RATE, OUT_OF_COMBAT_STAM_RATE, SCORE_PER_KILL, SCORE_PER_FLOOR_CLEAR, SCORE_PER_FLOOR_REACHED, BOSS_VARIANTS, XP_GAIN_MULT, ENEMY_SPEED_MULT, MONSTER_HP_MULT, MONSTER_DMG_MULT } from './modules/config.js';
 import { startLoop } from './modules/loop.js';
@@ -2561,12 +2562,7 @@ function toggleEscMenu(force){
 }
 
 function saveGame(){
-  // Persist only the essentials needed to resume later
-  const data={
-    floorNum,
-    player:{ class:player.class, lvl:player.lvl, gold:player.gold },
-    equip: inventory.equip
-  };
+  const data = { floorNum, ...getSaveData() };
   try{ localStorage.setItem('dungeonSave', JSON.stringify(data)); showToast('Game saved'); }
   catch(e){ console.warn('Save failed', e); }
 }
@@ -2578,18 +2574,12 @@ function loadGame(){
   // new map each load — seed does not need to persist
   seed=(Math.random()*1e9)|0; rng=new RNG(seed);
   generate();
-  const saved=data.player||{};
-  player.class=saved.class||'warrior';
-  player.lvl=saved.lvl||1;
-  player.gold=saved.gold||0;
+  applySaveData(data);
+  updatePlayerSprite();
   player.score=0; player.kills=0; player.timeSurvived=0; player.floorsCleared=0;
   player.tilesDiscovered=0; player.miniBossKills=0; player.bossKills=0;
   player.itemsCollected=0; player.goldCollected=0; player.damageDealt=0; player.damageTaken=0;
   player.spellsCast=0; player.potionsUsed=0; player.distanceTraveled=0;
-  updatePlayerSprite();
-  inventory.bag=new Array(BAG_SIZE).fill(null);
-  inventory.potionBag=new Array(POTION_BAG_SIZE).fill(null);
-  inventory.equip=data.equip||{helmet:null,chest:null,legs:null,hands:null,feet:null,weapon:null};
   hudFloor.textContent=floorNum; hudSeed.textContent=seed>>>0; hudGold.textContent=player.gold; hudLvl.textContent=player.lvl;
   player.rx=player.x; player.ry=player.y; player.fromX=player.x; player.fromY=player.y; player.toX=player.x; player.toY=player.y; player.moving=false; player.moveT=1;
   recalcStats();
