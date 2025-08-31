@@ -124,8 +124,12 @@ const skillTreeGraph = {
   ]),
 
   summoner: node({ name: 'Soulcaller' }, [
-    node({ name: 'Summon Skeleton', type: 'summon', mp: 15, cost: 1 }, [
-      node({ name: 'Summon Golem', type: 'summon', mp: 30, cost: 2 })
+    node({ name: 'Summon Skeleton', type: 'summon', summon: 'skeleton', mp: 15, cost: 1 }, [
+      node({ name: 'Summon Golem', type: 'summon', summon: 'golem', mp: 30, cost: 2 }, [
+        node({ name: 'Summon Demon', type: 'summon', summon: 'demon', mp: 45, cost: 3 }, [
+          node({ name: 'Summon Dragon', type: 'summon', summon: 'dragon', mp: 60, cost: 4 })
+        ])
+      ])
     ]),
     node({ name: 'Empower Minions', desc: 'Increase minion damage by 10%.', bonus: { minionDmg: 10 }, cost: 1 }, [
       node({ name: 'Horde Mastery', desc: 'Increase max minions by 1.', bonus: { maxMinions: 1 }, cost: 2 })

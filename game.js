@@ -1,6 +1,7 @@
 import { initAudio, playFootstep, playAttack, playHit, playCalmMusic, playCombatMusic, playBossMusic, setMasterVolume, setMusicVolume, setSfxVolume } from './modules/audio.js';
 import { keys, initInput, initMobileControls } from './modules/input.js';
 import { player, playerSpriteKey, magicTrees, skillTrees, skillTreeGraph, updatePlayerSprite } from './modules/player.js';
+import { minions, spawnMinion } from './modules/minions.js';
 import { inventory, SLOTS, BAG_SIZE, POTION_BAG_SIZE } from './modules/playerInventory.js';
 import { hpFill, mpFill, hpLbl, mpLbl, hudFloor, hudSeed, hudGold, hudDmg, hudScore, hudKills, xpFill, xpLbl, hudLvl, hudSpell, hudAbilityLabel, updateResourceUI, updateXPUI, updateScoreUI, toggleActionLog, showToast, showBossAlert, showRespawn } from './modules/ui.js';
 import { TILE, MAP_W, MAP_H, T_EMPTY, T_FLOOR, T_WALL, T_TRAP, T_LAVA, TRAP_CHANCE, LAVA_CHANCE, map, fog, vis, rooms, stairs, merchant, merchantStyle, torches, lavaTiles, spikeTraps, biomeMap, B_DESERT, B_FOREST, B_MOUNTAIN, walkable, canMoveFrom, resetMapState } from './modules/map.js';
@@ -2318,6 +2319,9 @@ function castSelectedSpell(){
     const amt=ab.value===null?player.hpMax:ab.value;
     const heal=Math.min(amt, player.hpMax-player.hp);
     player.hp+=heal; hpFill.style.width=`${(player.hp/player.hpMax)*100}%`; hpLbl.textContent=`HP ${player.hp}/${player.hpMax}`; addDamageText(player.x,player.y,'+'+heal,'#76d38b');
+    return;
+  } else if(ab.type==='summon') {
+    spawnMinion(ab.summon || 'skeleton', player.x, player.y);
     return;
   }
   const px = player.rx!==undefined?player.rx:player.x, py = player.ry!==undefined?player.ry:player.y;
