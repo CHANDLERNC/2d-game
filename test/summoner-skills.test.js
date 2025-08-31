@@ -28,6 +28,14 @@ test('Summon Golem ability defined in summoner skill tree', () => {
   assert.equal(ability.cost, 2);
 });
 
+test('Summon Demon ability defined in summoner skill tree', () => {
+  const summoner = skillTreeGraph.summoner;
+  const ability = findNode(summoner, 'Summon Demon');
+  assert.ok(ability, 'Summon Demon ability present');
+  assert.equal(ability.type, 'summon');
+  assert.equal(ability.cost, 3);
+});
+
 test('summoner skill tree contains between 4 and 8 abilities', () => {
   function count(node) {
     return 1 + (node.children ? node.children.reduce((s, c) => s + count(c), 0) : 0);
