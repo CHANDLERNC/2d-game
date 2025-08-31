@@ -1388,6 +1388,7 @@ function currentWeaponProfile(){
   return {...base};
 }
 function firstMonsterAt(tx,ty){ return monsters.find(mm=>mm.x===tx && mm.y===ty); }
+function firstMinionAt(tx,ty){ return minions.find(mn=>mn.x===tx && mn.y===ty); }
 function performPlayerAttack(dx,dy,dmgMult=1){
   if(player.atkCD>0) return;
   const prof = currentWeaponProfile();
@@ -1789,6 +1790,20 @@ function draw(dt){
     }
   }
 
+  // friendly minions
+  for(const m of minions){
+    if(!vis[m.y*MAP_W+m.x]) continue;
+    const mtx = (m.rx!==undefined ? m.rx : m.x);
+    const mty = (m.ry!==undefined ? m.ry : m.y);
+    const size = 24;
+    const mx = mtx*TILE - camX + (TILE-size)/2; const my = mty*TILE - camY + (TILE-size)/2;
+    const spr = ASSETS.sprites[m.spriteKey] || ASSETS.sprites.skeleton;
+    const frame = spr.frames && spr.frames.length>0 ? spr.frames[Math.floor(now/200)%spr.frames.length] : spr.cv;
+    ctx.drawImage(frame, mx, my);
+    ctx.fillStyle='#111'; ctx.fillRect(mx, my-6, size, 3);
+    ctx.fillStyle='#76d38b'; const hw=size*(Math.max(0,m.hp)/m.hpMax); ctx.fillRect(mx, my-6, hw, 3);
+  }
+
   // monsters (sprites by type)
   for(const m of monsters){
     if(!vis[m.y*MAP_W+m.x]) continue;
@@ -2017,6 +2032,45 @@ function update(dt){
   }
   // status tick
   tickEffects(player, dt);
+
+  // minion AI ticks
+  for(const mn of minions){
+    if(mn.rx===undefined){ mn.rx=mn.x; mn.ry=mn.y; mn.moving=false; mn.moveT=1; mn.moveDur=mn.stepDelay; }
+    mn.atkCD=Math.max(0,mn.atkCD-dt); mn.stepCD=Math.max(0,mn.stepCD-dt);
+    let target=null,bestDist=Infinity;
+    for(const mo of monsters){ const d=Math.abs(mo.x-mn.x)+Math.abs(mo.y-mn.y); if(d<bestDist){bestDist=d; target=mo;} }
+    if(target){
+      if(bestDist===1){
+        if(mn.atkCD<=0){
+          const dmg=rng.int(mn.dmgMin,mn.dmgMax); dealDamageToMonster(target,dmg,null,false); mn.atkCD=mn.atkDelay;
+        }
+      } else if(mn.stepCD<=0){
+        const dx=Math.sign(target.x-mn.x), dy=Math.sign(target.y-mn.y);
+        const nx=mn.x+dx, ny=mn.y+dy;
+        if(canMoveFrom(mn.x,mn.y,dx,dy) && !firstMonsterAt(nx,ny) && !firstMinionAt(nx,ny) && !(nx===player.x && ny===player.y)){
+          mn.x=nx; mn.y=ny; mn.stepCD=mn.stepDelay;
+          if(smoothEnabled){ mn.fromX=mn.rx; mn.fromY=mn.ry; mn.toX=mn.x; mn.toY=mn.y; mn.moveT=0; mn.moving=true; mn.moveDur=mn.stepDelay; }
+          else{ mn.rx=mn.x; mn.ry=mn.y; }
+        }
+      }
+    } else if(mn.stepCD<=0){
+      const dist=Math.abs(player.x-mn.x)+Math.abs(player.y-mn.y);
+      if(dist>1){
+        const dx=Math.sign(player.x-mn.x), dy=Math.sign(player.y-mn.y);
+        const nx=mn.x+dx, ny=mn.y+dy;
+        if(canMoveFrom(mn.x,mn.y,dx,dy) && !firstMonsterAt(nx,ny) && !firstMinionAt(nx,ny) && !(nx===player.x && ny===player.y)){
+          mn.x=nx; mn.y=ny; mn.stepCD=mn.stepDelay;
+          if(smoothEnabled){ mn.fromX=mn.rx; mn.fromY=mn.ry; mn.toX=mn.x; mn.toY=mn.y; mn.moveT=0; mn.moving=true; mn.moveDur=mn.stepDelay; }
+          else{ mn.rx=mn.x; mn.ry=mn.y; }
+        }
+      }
+    }
+    if(smoothEnabled && mn.moving){
+      mn.moveT=Math.min(1,mn.moveT + dt / mn.moveDur);
+      const t=smoothstep01(mn.moveT); mn.rx=lerp(mn.fromX,mn.toX,t); mn.ry=lerp(mn.fromY,mn.toY,t);
+      if(mn.moveT>=1){ mn.moving=false; mn.rx=mn.toX; mn.ry=mn.toY; }
+    } else { mn.rx=mn.x; mn.ry=mn.y; }
+  }
 
   // monster AI ticks every frame
   for(const m of monsters){ monsterAI(m, dt); }
