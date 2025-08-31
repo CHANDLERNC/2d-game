@@ -5,6 +5,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) with
 
 ## [Unreleased]
 ### Added
+- Random treasure chests (2–5 per floor) spawn around the map with loot.
 - Optional cellular‑automata cave floors with secret rooms and environmental hazards like spike traps and lava.
 - Animated tiles for lava pools and spike traps.
 - Project license clarifying sole ownership.
