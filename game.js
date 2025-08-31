@@ -843,7 +843,8 @@ function spawnChests(){
     }
     const key = `${x},${y}`;
     if(lootMap.has(key)){ attempts++; continue; }
-    lootMap.set(key,{type:'chest', color:'#b8860b'});
+    const isMimic = rng.int(1,600) === 1;
+    lootMap.set(key,{type:'chest', color:'#b8860b', mimic:isMimic});
     placed++;
   }
 }
@@ -866,9 +867,20 @@ function pickupHere(){
   }
   if(it.type === 'chest'){
     lootMap.delete(key);
-    const drops = rng.int(1,3);
-    for(let i=0;i<drops;i++) dropLoot(player.x, player.y);
-    showToast('Opened a chest!');
+    if(it.mimic){
+      const m = spawnMonster(8, player.x, player.y);
+      m.hpMax *= 2; m.hp = m.hpMax;
+      m.miniBoss = true;
+      const dmg = rng.int(m.dmgMin, m.dmgMax);
+      applyDamageToPlayer(dmg);
+      m.atkCD = rng.int(20, 35);
+      monsters.push(m);
+      showToast("It's a mimic!");
+    }else{
+      const drops = rng.int(1,3);
+      for(let i=0;i<drops;i++) dropLoot(player.x, player.y);
+      showToast('Opened a chest!');
+    }
     return;
   }
   const idx = inventory.bag.findIndex(b=>!b);
