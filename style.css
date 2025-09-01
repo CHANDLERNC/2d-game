@@ -27,6 +27,18 @@ html,body{margin:0;background:#0b0b0e;color:#ddd;font-family:system-ui,Segoe UI,
 .list-row{display:flex;justify-content:space-between;gap:8px;padding:6px 6px;border-radius:6px}
 .inv-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:4px 8px}
 .inv-grid .list-row{flex-direction:column;gap:2px}
+
+/* New inventory layout */
+.inventory-layout{display:flex;gap:16px}
+.inv-left{width:180px;display:flex;flex-direction:column}
+.equip-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px 8px}
+.equip-grid .list-row{flex-direction:column;gap:2px}
+.inv-right{flex:1;display:flex;flex-direction:column}
+.potion-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:4px 8px;margin-bottom:8px}
+.potion-grid .list-row{flex-direction:column;gap:2px}
+.bag-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:4px 8px}
+.bag-grid .list-row{flex-direction:column;gap:2px}
+.stat-list .list-row{padding:2px 0}
 .list-row:hover{background:#1a1d28}
 .skill-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
 .skill-card{display:flex;flex-direction:column;gap:4px;padding:6px;border-radius:6px}
