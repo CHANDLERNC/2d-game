@@ -1039,8 +1039,18 @@ function redrawInventory(){
   }
 
   // events (why: keep DOM light using delegation instead of many listeners)
-  panel.onmouseover = (e)=>{
-    const row = e.target.closest('.list-row'); if(!row) return; showItemDetailsFromRow(row);
+  let lastRow=null;
+  panel.onmousemove = (e)=>{
+    const row = e.target.closest('.list-row');
+    if(!row || row===lastRow) return;
+    lastRow=row;
+    showItemDetailsFromRow(row);
+  };
+  panel.onmouseleave=()=>{
+    lastRow=null;
+    setDetailsText(INV_DETAILS_DEFAULT);
+    disableInvActions();
+    showCompare(null);
   };
   panel.onclick = (e)=>{
     const row = e.target.closest('.list-row'); if(row){
@@ -1095,8 +1105,10 @@ function showCompare(it){
   const cmp=document.getElementById('invCompare'); if(!cmp) return;
   if(!it || !it.slot){ cmp.style.display='none'; cmp.innerHTML=''; return; }
   const eq=inventory.equip[it.slot];
-  if(!eq){ cmp.style.display='none'; cmp.innerHTML=''; return; }
-  cmp.innerHTML=`<div class="section-title">Equipped</div>${renderDetails(eq,'eq')}<div class="hr"></div><div class="section-title">Hovered</div>${renderDetails(it,'bag')}`;
+  let html='';
+  if(eq){ html+=`<div class="section-title">Equipped</div>${renderDetails(eq,'eq')}<div class="hr"></div>`; }
+  html+=`<div class="section-title">${eq?'Hovered':'Item'}</div>${renderDetails(it,'bag')}`;
+  cmp.innerHTML=html;
   cmp.style.display='block';
 }
 
