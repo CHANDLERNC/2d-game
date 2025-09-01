@@ -1024,7 +1024,9 @@ function redrawInventory(){
   html += '<div class="inventory-footer"><div class="footer-item">HP '+player.hp+'/'+currentStats.hpMax+'</div><div class="footer-item">Gold '+player.gold+'</div></div>';
   html += '</div>';
   html += '</div>';
+  html += '<div id="invCompare" class="panel"></div>';
   panel.innerHTML = html;
+  const cmp=document.getElementById('invCompare'); if(cmp) cmp.style.display='none';
 
   const portrait = document.getElementById('invChar');
   if(portrait && SPRITES[playerSpriteKey]){
@@ -1064,27 +1066,39 @@ function showItemDetailsFromRow(row){
   const det = document.getElementById('invDetails');
   det.dataset.sel=''; det.dataset.kind='';
   const t=row.dataset.type;
-  if(!t){ setDetailsText(INV_DETAILS_DEFAULT); disableInvActions(); return; }
+  if(!t){ setDetailsText(INV_DETAILS_DEFAULT); disableInvActions(); showCompare(null); return; }
   if(t==='bag'){
-    const i=parseInt(row.dataset.idx,10); const it=inventory.bag[i]; if(!it){ setDetailsText('(empty slot)'); disableInvActions(); return; }
+    const i=parseInt(row.dataset.idx,10); const it=inventory.bag[i]; if(!it){ setDetailsText('(empty slot)'); disableInvActions(); showCompare(null); return; }
     det.dataset.sel=String(i); det.dataset.kind='bag';
     setDetailsText(renderDetails(it, 'bag'));
     document.getElementById('btnSell').disabled=false; document.getElementById('btnDrop').disabled=false;
+    showCompare(it);
   }else if(t==='pbag'){
-    const i=parseInt(row.dataset.idx,10); const it=inventory.potionBag[i]; if(!it){ setDetailsText('(empty slot)'); disableInvActions(); return; }
+    const i=parseInt(row.dataset.idx,10); const it=inventory.potionBag[i]; if(!it){ setDetailsText('(empty slot)'); disableInvActions(); showCompare(null); return; }
     det.dataset.sel=String(i); det.dataset.kind='pbag';
     setDetailsText(renderDetails(it, 'bag'));
     document.getElementById('btnSell').disabled=false; document.getElementById('btnDrop').disabled=false;
+    showCompare(null);
   }else if(t==='eq'){
-    const slot=row.dataset.slot; const it=inventory.equip[slot]; if(!it){ setDetailsText(`No ${slot} equipped.`); disableInvActions(); return; }
+    const slot=row.dataset.slot; const it=inventory.equip[slot]; if(!it){ setDetailsText(`No ${slot} equipped.`); disableInvActions(); showCompare(null); return; }
     det.dataset.sel=slot; det.dataset.kind='eq';
     setDetailsText(renderDetails(it, 'eq'));
     document.getElementById('btnSell').disabled=false; document.getElementById('btnDrop').disabled=true; // avoid dropping equipped directly
+    showCompare(null);
   }
 }
 
 function disableInvActions(){ document.getElementById('btnSell').disabled=true; document.getElementById('btnDrop').disabled=true; }
 function setDetailsText(html){ const det=document.getElementById('invDetails'); det.innerHTML=html; }
+
+function showCompare(it){
+  const cmp=document.getElementById('invCompare'); if(!cmp) return;
+  if(!it || !it.slot){ cmp.style.display='none'; cmp.innerHTML=''; return; }
+  const eq=inventory.equip[it.slot];
+  if(!eq){ cmp.style.display='none'; cmp.innerHTML=''; return; }
+  cmp.innerHTML=`<div class="section-title">Equipped</div>${renderDetails(eq,'eq')}<div class="hr"></div><div class="section-title">Hovered</div>${renderDetails(it,'bag')}`;
+  cmp.style.display='block';
+}
 
 function shortMods(it){
   if(it.type==='potion'){
