@@ -34,9 +34,9 @@ html,body{margin:0;background:#0b0b0e;color:#ddd;font-family:system-ui,Segoe UI,
 #inventory .char-portrait{width:96px;height:96px;border:1px solid #2a2d39;border-radius:6px;background:#0f1119;margin-bottom:8px;display:flex;align-items:center;justify-content:center}
 #inventory .equip-grid{display:grid;grid-template-columns:repeat(2,48px);gap:12px}
 #inventory .inv-right{flex:1;display:flex;flex-direction:column}
-#inventory .inv-slot{width:48px;height:48px;border:1px solid #2a2d39;border-radius:6px;background:#10131c;display:flex;align-items:center;justify-content:center;cursor:pointer}
+#inventory .inv-slot{width:48px;height:48px;border:1px solid #2a2d39;border-radius:6px;background:#10131c;display:flex;align-items:center;justify-content:center;cursor:pointer;box-sizing:border-box;padding:0}
 #inventory .inv-slot.empty{opacity:.4}
-#inventory .item-name{font-size:10px;text-align:center;display:block;padding:2px}
+#inventory .item-name{font-size:10px;text-align:center;display:block;width:100%;padding:2px;box-sizing:border-box;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #inventory .potion-grid{display:grid;grid-template-columns:repeat(3,48px);gap:12px;margin-bottom:12px}
 #inventory .bag-grid{display:grid;grid-template-columns:repeat(8,48px);gap:12px}
 #inventory #invDetails{margin-top:8px;min-height:40px}
