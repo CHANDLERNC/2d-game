@@ -992,26 +992,13 @@ function redrawInventory(){
   let html = '';
   html += '<div class="inventory-layout">';
   html += '<div class="inv-left">';
-  html += '<div class="section-title">Equipped</div>';
+  html += '<div class="char-portrait"><canvas id="invChar"></canvas></div>';
   html += '<div class="equip-grid">';
   for(const slot of SLOTS){
     const it = inventory.equip[slot];
-    const name = it?`<span style="color:${it.color}">${escapeHtml(it.name)}</span>`:'-';
-    html += `<div class="list-row" data-type="eq" data-slot="${slot}"><div>${slot}: ${name}</div><div class="muted">${it?shortMods(it):''}</div></div>`;
+    const label = it ? `<span style="color:${it.color}" class="item-name">${escapeHtml(it.name)}</span>` : '';
+    html += `<div class="inv-slot list-row ${it?'':'empty'}" data-type="eq" data-slot="${slot}">${label}</div>`;
   }
-  html += '</div>';
-  html += '<div class="hr"></div>';
-  html += '<div class="section-title">Stats</div>';
-  html += '<div class="stat-list">';
-  html += `<div class="list-row"><div>HP</div><div class="muted">${player.hp}/${currentStats.hpMax}</div></div>`;
-  if(player.class==='mage' || player.class==='summoner')
-    html += `<div class="list-row"><div>Mana</div><div class="muted">${player.mp}/${currentStats.mpMax}</div></div>`;
-  else
-    html += `<div class="list-row"><div>Stamina</div><div class="muted">${player.sp}/${currentStats.spMax}</div></div>`;
-  html += `<div class="list-row"><div>ATK</div><div class="muted">${currentStats.dmgMin}-${currentStats.dmgMax}</div></div>`;
-  html += `<div class="list-row"><div>CRIT</div><div class="muted">${currentStats.crit}%</div></div>`;
-  html += `<div class="list-row"><div>Armor</div><div class="muted">${currentStats.armor}</div></div>`;
-  html += `<div class="list-row"><div>Res F/I/S/M/P</div><div class="muted">${currentStats.resF}/${currentStats.resI}/${currentStats.resS}/${currentStats.resM}/${currentStats.resP}</div></div>`;
   html += '</div>';
   html += '</div>';
   html += '<div class="inv-right">';
@@ -1019,22 +1006,35 @@ function redrawInventory(){
   html += '<div class="potion-grid">';
   for(let i=0;i<POTION_BAG_SIZE;i++){
     const it = inventory.potionBag[i];
-    html += `<div class="list-row" data-type="pbag" data-idx="${i}"><div>${i+1}. ${it?`<span style="color:${it.color}">${escapeHtml(it.name)}</span>`:'(empty)'}</div><div class="muted">${it?shortMods(it):''}</div></div>`;
+    const label = it ? `<span style="color:${it.color}" class="item-name">${escapeHtml(it.name)}</span>` : '';
+    html += `<div class="inv-slot list-row ${it?'':'empty'}" data-type="pbag" data-idx="${i}">${label}</div>`;
   }
   html += '</div>';
   html += '<div class="section-title">Bag</div>';
   html += '<div class="bag-grid">';
   for(let i=0;i<BAG_SIZE;i++){
     const it = inventory.bag[i];
-    html += `<div class="list-row" data-type="bag" data-idx="${i}"><div>${i+1}. ${it?`<span style="color:${it.color}">${escapeHtml(it.name)}</span>`:'(empty)'}</div><div class="muted">${it?shortMods(it):''}</div></div>`;
+    const label = it ? `<span style="color:${it.color}" class="item-name">${escapeHtml(it.name)}</span>` : '';
+    html += `<div class="inv-slot list-row ${it?'':'empty'}" data-type="bag" data-idx="${i}">${label}</div>`;
   }
   html += '</div>';
   html += '<div class="hr"></div>';
   html += `<div id="invDetails" class="muted">${INV_DETAILS_DEFAULT}</div>`;
   html += '<div class="actions" style="margin-top:8px"><button id="btnSell" class="btn sml" disabled>Sell</button><button id="btnDrop" class="btn sml" disabled>Drop</button></div>';
+  html += '<div class="inventory-footer"><div class="footer-item">HP '+player.hp+'/'+currentStats.hpMax+'</div><div class="footer-item">Gold '+player.gold+'</div></div>';
   html += '</div>';
   html += '</div>';
   panel.innerHTML = html;
+
+  const portrait = document.getElementById('invChar');
+  if(portrait && SPRITES[playerSpriteKey]){
+    const spr = SPRITES[playerSpriteKey].idle ? SPRITES[playerSpriteKey].idle[0] : SPRITES[playerSpriteKey].cv;
+    portrait.width = portrait.height = 64;
+    const g = portrait.getContext('2d');
+    g.imageSmoothingEnabled = false;
+    g.clearRect(0,0,64,64);
+    g.drawImage(spr,0,0,64,64);
+  }
 
   // events (why: keep DOM light using delegation instead of many listeners)
   panel.onmouseover = (e)=>{

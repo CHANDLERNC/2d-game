@@ -15,7 +15,7 @@ html,body{margin:0;background:#0b0b0e;color:#ddd;font-family:system-ui,Segoe UI,
   .stone{background-image:linear-gradient(180deg,rgba(255,255,255,.03),rgba(0,0,0,.08));}
   .footer{padding:6px 12px;border-top:1px solid #2a2d39;background:linear-gradient(#0f1016,#0b0c11);opacity:.85}
   #bossAlert{position:fixed;top:20px;left:50%;transform:translateX(-50%);padding:8px 14px;background:#141622;border:1px solid #3a3e4d;border-radius:8px;pointer-events:none;opacity:.95;z-index:1000}
-  #inventory{display:none;position:fixed;right:8px;top:64px;padding:8px 12px;pointer-events:auto;font-size:13px;width:600px;max-width:90vw}
+  #inventory{display:none;position:fixed;right:8px;top:64px;padding:12px;pointer-events:auto;font-size:13px;width:700px;max-width:95vw}
   #shop{display:none;position:fixed;left:8px;top:64px;min-width:320px;width:620px;max-width:90vw;max-height:70vh;overflow:auto;padding:10px 12px;pointer-events:auto;font-size:13px}
   #magic{display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);padding:8px 12px;pointer-events:auto;font-size:13px;width:340px;max-width:90vw;max-height:70vh;overflow:auto}
   #skills{display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);padding:8px 12px;pointer-events:auto;font-size:13px;width:340px;max-width:90vw;max-height:70vh;overflow:auto}
@@ -30,15 +30,18 @@ html,body{margin:0;background:#0b0b0e;color:#ddd;font-family:system-ui,Segoe UI,
 
 /* New inventory layout */
 #inventory .inventory-layout{display:flex;gap:16px}
-#inventory .inv-left{width:180px;display:flex;flex-direction:column}
-#inventory .equip-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px 8px}
-#inventory .equip-grid .list-row{flex-direction:column;gap:2px}
+#inventory .inv-left{width:180px;display:flex;flex-direction:column;align-items:center}
+#inventory .char-portrait{width:96px;height:96px;border:1px solid #2a2d39;border-radius:6px;background:#0f1119;margin-bottom:8px;display:flex;align-items:center;justify-content:center}
+#inventory .equip-grid{display:grid;grid-template-columns:repeat(2,48px);gap:6px}
 #inventory .inv-right{flex:1;display:flex;flex-direction:column}
-#inventory .potion-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:4px 8px;margin-bottom:8px}
-#inventory .potion-grid .list-row{flex-direction:column;gap:2px}
-#inventory .bag-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:4px 8px}
-#inventory .bag-grid .list-row{flex-direction:column;gap:2px}
-#inventory .stat-list .list-row{padding:2px 0}
+#inventory .inv-slot{width:48px;height:48px;border:1px solid #2a2d39;border-radius:6px;background:#10131c;display:flex;align-items:center;justify-content:center;cursor:pointer}
+#inventory .inv-slot.empty{opacity:.4}
+#inventory .item-name{font-size:10px;text-align:center;display:block;padding:2px}
+#inventory .potion-grid{display:grid;grid-template-columns:repeat(3,48px);gap:6px;margin-bottom:8px}
+#inventory .bag-grid{display:grid;grid-template-columns:repeat(8,48px);gap:6px}
+#inventory #invDetails{margin-top:8px;min-height:40px}
+#inventory .inventory-footer{display:flex;gap:12px;margin-top:8px;font-size:12px}
+#inventory .inventory-footer .footer-item{display:flex;align-items:center;gap:4px}
 #inventory .list-row:hover{background:#1a1d28}
 .skill-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
 .skill-card{display:flex;flex-direction:column;gap:4px;padding:6px;border-radius:6px}
