@@ -2428,7 +2428,11 @@ function castSelectedSpell(){
     player.hp+=heal; hpFill.style.width=`${(player.hp/player.hpMax)*100}%`; hpLbl.textContent=`HP ${player.hp}/${player.hpMax}`; addDamageText(player.x,player.y,'+'+heal,'#76d38b');
     return;
   } else if(ab.type==='summon') {
-    spawnMinion(ab.summon || 'skeleton', player.x, player.y);
+    const key = `${b.tree}-${b.idx}`;
+    const limit = 4 + (player.maxMinions || 0);
+    const dmgMult = 1 + (player.minionDmg || 0)/100;
+    const spawned = spawnMinion(ab.summon || 'skeleton', player.x, player.y, { owner: key, limit, dmgMult });
+    if(!spawned) showToast('Minion limit reached');
     return;
   }
   const px = player.rx!==undefined?player.rx:player.x, py = player.ry!==undefined?player.ry:player.y;
@@ -2672,7 +2676,9 @@ function baseStats(){
     spMax:60 + (lvl-1)*spGainPerLevel,
     speedPct:0,
     resF:0,resI:0,resS:0,resM:0,resP:0,
-    spellBonus:0
+    spellBonus:0,
+    minionDmg:0,
+    maxMinions:0
   };
 }
 
@@ -2744,6 +2750,8 @@ function recalcStats(){
   if(stats.armorPct) stats.armor = Math.round(stats.armor * (1 + stats.armorPct/100));
   player.hpMax=stats.hpMax; player.mpMax=stats.mpMax; player.spMax=stats.spMax;
   player.speedPct=stats.speedPct; player.spellBonus=stats.spellBonus;
+  player.minionDmg = stats.minionDmg || 0;
+  player.maxMinions = stats.maxMinions || 0;
   if(player.hp>stats.hpMax) player.hp=stats.hpMax; if(player.mp>stats.mpMax) player.mp=stats.mpMax; if(player.sp>stats.spMax) player.sp=stats.spMax;
   player.armor = stats.armor;
   player.resFire=stats.resF; player.resIce=stats.resI; player.resShock=stats.resS; player.resMagic=stats.resM; player.resPoison=stats.resP;
