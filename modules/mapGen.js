@@ -21,6 +21,11 @@ function connectRooms(rng, extra=1){
     y: r.y + ((r.h/2)|0)
   }));
 
+  const edgeKey = (a,b) => a<b ? `${a},${b}` : `${b},${a}`;
+  const degrees = Array(centers.length).fill(0);
+  const edges = new Set();
+
+  // minimum spanning tree to ensure connectivity
   const connected = new Set([0]);
   while(connected.size < centers.length){
     let bestA=-1,bestB=-1,bestDist=Infinity;
@@ -35,6 +40,8 @@ function connectRooms(rng, extra=1){
     const a=centers[bestA], b=centers[bestB];
     carveHallway(rng, a.x,a.y,b.x,b.y);
     connected.add(bestB);
+    degrees[bestA]++; degrees[bestB]++;
+    edges.add(edgeKey(bestA,bestB));
   }
 
   // add some extra random connections for loops
@@ -43,6 +50,19 @@ function connectRooms(rng, extra=1){
     let b=rng.int(0, centers.length-1);
     if(a===b) b=(b+1)%centers.length;
     carveHallway(rng, centers[a].x, centers[a].y, centers[b].x, centers[b].y);
+    degrees[a]++; degrees[b]++;
+    edges.add(edgeKey(a,b));
+  }
+
+  // ensure every room has at least two exits
+  for(let i=0;i<centers.length;i++){
+    if(degrees[i] >= 2) continue;
+    for(let j=0;j<centers.length && degrees[i] < 2;j++){
+      if(i===j || edges.has(edgeKey(i,j))) continue;
+      carveHallway(rng, centers[i].x, centers[i].y, centers[j].x, centers[j].y);
+      degrees[i]++; degrees[j]++;
+      edges.add(edgeKey(i,j));
+    }
   }
 }
 
