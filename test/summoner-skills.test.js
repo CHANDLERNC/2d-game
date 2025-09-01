@@ -36,6 +36,20 @@ test('Summon Demon ability defined in summoner skill tree', () => {
   assert.equal(ability.cost, 3);
 });
 
+test('Empower Minions ability increases minion damage', () => {
+  const summoner = skillTreeGraph.summoner;
+  const ability = findNode(summoner, 'Empower Minions');
+  assert.ok(ability, 'Empower Minions ability present');
+  assert.equal(ability.bonus.minionDmg, 10);
+});
+
+test('Horde Mastery ability increases max minions', () => {
+  const summoner = skillTreeGraph.summoner;
+  const ability = findNode(summoner, 'Horde Mastery');
+  assert.ok(ability, 'Horde Mastery ability present');
+  assert.equal(ability.bonus.maxMinions, 1);
+});
+
 test('summoner skill tree contains between 4 and 8 abilities', () => {
   function count(node) {
     return 1 + (node.children ? node.children.reduce((s, c) => s + count(c), 0) : 0);

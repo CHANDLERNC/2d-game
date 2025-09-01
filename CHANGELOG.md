@@ -42,6 +42,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) with
 - Passive health regeneration when out of combat.
 - Animated projectile sprites for elemental arrows and magic bolts.
 - Weighted monster spawning tied to player strength with elite variants that gain unique abilities.
+- Summoner minion mastery branch boosting minion damage and increasing summon cap.
 
 ### Changed
 - Dungeon room connections now use a spanning tree with extra corridors for more varied layouts.
@@ -54,6 +55,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) with
 - Increased player starting health by 50 points.
 - Reduced base health of all monster types.
 - Magic abilities now require sequential unlocking with escalating point costs.
+- Summoned creatures are capped at four per ability unless upgraded.
 - Reworked class skill trees into nested data structures and updated progression logic.
 - Reworked weapon and armor attributes for improved random bonuses.
 - Reduced monster density on early floors.
