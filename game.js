@@ -832,27 +832,32 @@ function affixMods(slot, rarityIdx, lvl=1){
   const affCount = rng.int(minAff, maxAff);
   for(let i=0;i<affCount;i++){
     const a = pool[rng.int(0, pool.length-1)];
-    if(a.k==='status'){
-      if(!R.status) R.status=[];
-      if(R.status.length < 4){
-        let stacks = 1;
-        while(stacks < 4 && rng.next() < 0.25) stacks++;
-        for(let s=0; s<stacks && R.status.length < 4; s++){
-          const roll=rng.int(0,4);
-          const chance=rng.int(10,30)/100;
-          let status;
-          if(roll===0)      status={k:'burn',  dur:2200,power:1.0,chance,elem:'fire'};
-          else if(roll===1) status={k:'bleed', dur:2000,power:1.0,chance,elem:'bleed'};
-          else if(roll===2) status={k:'poison',dur:2200,power:1.0,chance,elem:'poison'};
-          else if(roll===3) status={k:'freeze',dur:1800,power:0.4,chance,elem:'ice'};
-          else              status={k:'shock', dur:2000,power:0.25,chance,elem:'shock'};
-          R.status.push(status);
+    const repeats = (slot==='ring1' || slot==='ring2' || slot==='necklace')
+      ? rng.int(1, rarityIdx + 1)
+      : 1;
+    for(let rep=0; rep<repeats; rep++){
+      if(a.k==='status'){
+        if(!R.status) R.status=[];
+        if(R.status.length < 4){
+          let stacks = 1;
+          while(stacks < 4 && rng.next() < 0.25) stacks++;
+          for(let s=0; s<stacks && R.status.length < 4; s++){
+            const roll=rng.int(0,4);
+            const chance=rng.int(10,30)/100;
+            let status;
+            if(roll===0)      status={k:'burn',  dur:2200,power:1.0,chance,elem:'fire'};
+            else if(roll===1) status={k:'bleed', dur:2000,power:1.0,chance,elem:'bleed'};
+            else if(roll===2) status={k:'poison',dur:2200,power:1.0,chance,elem:'poison'};
+            else if(roll===3) status={k:'freeze',dur:1800,power:0.4,chance,elem:'ice'};
+            else              status={k:'shock', dur:2000,power:0.25,chance,elem:'shock'};
+            R.status.push(status);
+          }
         }
+      }else{
+        const factor = typeof a.lvl === 'number' ? a.lvl : (a.lvl ? 1 : 0);
+        const val = rng.int(a.min,a.max) * mult;
+        R[a.k]=(R[a.k]||0)+Math.floor(val*levelMult(lvl, factor));
       }
-    }else{
-      const factor = typeof a.lvl === 'number' ? a.lvl : (a.lvl ? 1 : 0);
-      const val = rng.int(a.min,a.max) * mult;
-      R[a.k]=(R[a.k]||0)+Math.floor(val*levelMult(lvl, factor));
     }
   }
   return R;
