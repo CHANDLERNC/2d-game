@@ -776,7 +776,14 @@ const ARMOR_AFFIX_POOL = [
 ];
 
 function levelMult(lvl, factor=1){
-  return 1 + (lvl - 1) * 0.15 * factor;
+  const early = 0.15 * factor;
+  const late = 0.30 * factor;
+  const breakpoint = 25;
+  if(lvl > breakpoint){
+    const base = 1 + (breakpoint - 1) * early;
+    return base + (lvl - breakpoint) * late;
+  }
+  return 1 + (lvl - 1) * early;
 }
 
 function affixMods(slot, rarityIdx, lvl=1){

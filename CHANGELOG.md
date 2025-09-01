@@ -74,6 +74,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) with
 - Health and mana potions now use custom SVG sprites with rarity glow and a simple rotation animation.
 - Weapon damage and armor/resistance values now scale with item level and rarity. Player base resistances increase slightly each level.
 - Gear slot drops now balance weapons and armor with dynamic weighting and floor-based scaling.
+- Increased weapon and armor stat scaling beyond floor 25 to keep pace with high-level monsters.
 
 ### Removed
 - Blue slime enemy variant.
