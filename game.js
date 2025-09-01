@@ -699,13 +699,16 @@ function recomputeFOV(){
 // ===== Loot / Inventory =====
 const ITEM_BASES = {
   helmet:['Helmet','Cap','Hood','Cowl','Circlet'],
+  necklace:['Necklace','Amulet','Pendant','Talisman','Charm'],
   chest:['Armor','Robe','Vest','Tunic','Mail'],
   legs:['Greaves','Leggings','Pants','Skirt','Kilt'],
   hands:['Gloves','Gauntlets','Wraps','Mitts','Bracers'],
   feet:['Boots','Sandals','Shoes','Sabatons','Slippers'],
+  ring1:['Ring','Band','Loop','Circle','Signet'],
+  ring2:['Ring','Band','Loop','Circle','Signet'],
   weapon:['Sword','Axe','Mace','Dagger','Bow','Wand','Staff','Spear','Halberd','Crossbow','Flail','Katana']
 };
-// Total base items: 37
+// Total base items: 52
 const RARITY=[
   {n:'Common',c:'#bfbfbf',m:1.0},
   {n:'Uncommon',c:'#38c172',m:1.05},
@@ -775,6 +778,32 @@ const ARMOR_AFFIX_POOL = [
   {k:'crit', min:3, max:8, lvl:.5},
 ];
 
+// Affix options for rings and necklaces with class-specific bonuses
+function jewelryAffixPool(){
+  const base=[
+    {k:'hpMax', min:10, max:25, lvl:.5},
+    {k:'mpMax', min:10, max:20, lvl:.5},
+    {k:'speedPct', min:3, max:10, lvl:.5},
+    {k:'crit', min:3, max:8, lvl:.5},
+  ];
+  switch(player.class){
+    case 'rogue':
+      base.push({k:'stealth', min:5, max:15, lvl:.5});
+      break;
+    case 'summoner':
+      base.push({k:'maxMinions', min:1, max:2, lvl:1});
+      base.push({k:'minionDmg', min:5, max:15, lvl:.5});
+      break;
+    case 'warrior':
+      base.push({k:'hpMax', min:15, max:30, lvl:.5});
+      break;
+    case 'mage':
+      base.push({k:'mpMax', min:15, max:30, lvl:.5});
+      break;
+  }
+  return base;
+}
+
 function levelMult(lvl, factor=1){
   const early = 0.15 * factor;
   const late = 0.30 * factor;
@@ -793,7 +822,11 @@ function affixMods(slot, rarityIdx, lvl=1){
     R.dmgMin=Math.floor(rng.int(1,3)*mult*levelMult(lvl));
     R.dmgMax=Math.floor(rng.int(2,6)*mult*levelMult(lvl));
   }
-  const pool = slot==='weapon'?WEAPON_AFFIX_POOL:ARMOR_AFFIX_POOL;
+  const pool = slot==='weapon'
+    ? WEAPON_AFFIX_POOL
+    : (slot==='ring1' || slot==='ring2' || slot==='necklace')
+      ? jewelryAffixPool()
+      : ARMOR_AFFIX_POOL;
   const maxAff = Math.min(slot==='weapon'?4:5, 1 + rarityIdx);
   const minAff = rarityIdx > 0 ? 2 : 1;
   const affCount = rng.int(minAff, maxAff);
@@ -1054,6 +1087,9 @@ function shortMods(it){
   if(m.ls) bits.push(`LS ${m.ls}%`);
   if(m.md) bits.push(`MD ${m.md}%`);
   if(m.atkSpd) bits.push(`AS+${m.atkSpd}%`);
+  if(m.stealth) bits.push(`STL+${m.stealth}`);
+  if(m.minionDmg) bits.push(`MDMG+${m.minionDmg}%`);
+  if(m.maxMinions) bits.push(`MIN+${m.maxMinions}`);
   if(m.kb) bits.push(`KB ${m.kb}`);
   if(m.pierce) bits.push(`PRC ${m.pierce}`);
   if(m.status){
@@ -1088,10 +1124,13 @@ function renderDetails(it, origin){
   if(m.armorPct) rows.push(`<div>Armor %: <span class="mono">+${m.armorPct}%</span></div>`);
   if(m.hpMax) rows.push(`<div>HP Max: <span class="mono">+${m.hpMax}</span></div>`);
   if(m.mpMax) rows.push(`<div>${player.class==='mage'||player.class==='summoner'?'MP':'SP'} Max: <span class="mono">+${m.mpMax}</span></div>`);
+  if(m.stealth) rows.push(`<div>Stealth: <span class="mono">+${m.stealth}</span></div>`);
   if(m.speedPct) rows.push(`<div>Speed: <span class="mono">${m.speedPct>0?'+':''}${m.speedPct}%</span></div>`);
   if(m.ls) rows.push(`<div>Lifesteal: <span class="mono">${m.ls}%</span></div>`);
   if(m.md) rows.push(`<div>${player.class==='mage'||player.class==='summoner'?'Mana':'Stamina'} Drain: <span class="mono">${m.md}%</span></div>`);
   if(m.atkSpd) rows.push(`<div>Attack Speed: <span class="mono">+${m.atkSpd}%</span></div>`);
+  if(m.minionDmg) rows.push(`<div>Minion Damage: <span class="mono">+${m.minionDmg}%</span></div>`);
+  if(m.maxMinions) rows.push(`<div>Max Minions: <span class="mono">+${m.maxMinions}</span></div>`);
   if(m.kb) rows.push(`<div>Knockback: <span class="mono">${m.kb}</span></div>`);
   if(m.pierce) rows.push(`<div>Projectile Pierce: <span class="mono">${m.pierce}</span></div>`);
   if(m.status){
@@ -1127,6 +1166,7 @@ function getItemValue(it){
   score+= (m.hpMax||0)*0.8 + (m.mpMax||0)*0.6 + (m.speedPct||0)*4;
   score+= (m.ls||0)*6 + (m.md||0)*6;
   score+= (m.atkSpd||0)*4 + (m.kb||0)*8 + (m.pierce||0)*12;
+  score+= (m.stealth||0)*2 + (m.minionDmg||0)*2 + (m.maxMinions||0)*25;
   if(m.status){
     const sts = Array.isArray(m.status) ? m.status : [m.status];
     for(const st of sts){
@@ -1183,7 +1223,7 @@ function makeRandomGear(){
   const name = `${RARITY[rarityIdx].n} ${baseName}`;
   const item = { color: RARITY[rarityIdx].c, type:'gear', slot, name, rarity: rarityIdx, lvl: floorNum, mods: affixMods(slot, rarityIdx, floorNum) };
   if(slot==='weapon'){ item.wclass = base.toLowerCase(); }
-  else {
+  else if(slot!=='ring1' && slot!=='ring2' && slot!=='necklace'){
     // Armor types provide baseline stats and defensive buffs
     const t = ARMOR_TYPES[rng.int(0, ARMOR_TYPES.length-1)];
     item.armorType = t;
@@ -1762,6 +1802,21 @@ function drawLootIcon(it, x, y){
         ctx.fillRect(x+7, y+8, 4, 4);
         ctx.strokeRect(x+7, y+8, 4, 4);
         break;
+      case 'necklace': {
+        const spr = ASSETS.sprites.necklace_loot;
+        const frames = spr.frames;
+        const idx = frames.length ? Math.floor(performance.now()/100)%frames.length : 0;
+        ctx.drawImage(frames[idx]||spr.cv, x, y);
+        break;
+      }
+      case 'ring1':
+      case 'ring2': {
+        const spr = ASSETS.sprites.ring_loot;
+        const frames = spr.frames;
+        const idx = frames.length ? Math.floor(performance.now()/100)%frames.length : 0;
+        ctx.drawImage(frames[idx]||spr.cv, x, y);
+        break;
+      }
       default:
         ctx.fillRect(x, y, 14, 14);
         ctx.strokeRect(x, y, 14, 14);
@@ -2678,7 +2733,8 @@ function baseStats(){
     resF:0,resI:0,resS:0,resM:0,resP:0,
     spellBonus:0,
     minionDmg:0,
-    maxMinions:0
+    maxMinions:0,
+    stealth:0
   };
 }
 
@@ -2752,6 +2808,7 @@ function recalcStats(){
   player.speedPct=stats.speedPct; player.spellBonus=stats.spellBonus;
   player.minionDmg = stats.minionDmg || 0;
   player.maxMinions = stats.maxMinions || 0;
+  player.stealth = stats.stealth || 0;
   if(player.hp>stats.hpMax) player.hp=stats.hpMax; if(player.mp>stats.mpMax) player.mp=stats.mpMax; if(player.sp>stats.spMax) player.sp=stats.spMax;
   player.armor = stats.armor;
   player.resFire=stats.resF; player.resIce=stats.resI; player.resShock=stats.resS; player.resMagic=stats.resM; player.resPoison=stats.resP;

@@ -9,6 +9,9 @@ class PlayerStats {
     this.spMax = 60;
     this.baseAtkBonus = 0;
     this.armor = 0;
+    this.stealth = 0;
+    this.minionDmg = 0;
+    this.maxMinions = 0;
   }
 }
 

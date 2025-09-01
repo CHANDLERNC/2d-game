@@ -42,8 +42,19 @@ function applySaveData(data = {}) {
   player.boundSpell = p.boundSpell ?? null;
 
   const inv = data.inventory || {};
+  // Default equipment now includes necklace and two ring slots
   inventory.equip = deepClone(
-    inv.equip || { helmet: null, chest: null, legs: null, hands: null, feet: null, weapon: null }
+    inv.equip || {
+      helmet: null,
+      necklace: null,
+      chest: null,
+      legs: null,
+      hands: null,
+      feet: null,
+      ring1: null,
+      ring2: null,
+      weapon: null,
+    }
   );
   inventory.bag = deepClone(inv.bag || new Array(BAG_SIZE).fill(null));
   inventory.potionBag = deepClone(inv.potionBag || new Array(POTION_BAG_SIZE).fill(null));

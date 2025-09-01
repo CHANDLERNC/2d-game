@@ -1,12 +1,34 @@
 // Player inventory handling equipment and items.
-const SLOTS = ["helmet", "chest", "legs", "hands", "feet", "weapon"];
+// Added necklace and two ring slots for additional gear options
+const SLOTS = [
+  "helmet",
+  "necklace",
+  "chest",
+  "legs",
+  "hands",
+  "feet",
+  "ring1",
+  "ring2",
+  "weapon",
+];
 const BAG_SIZE = 12;
 const POTION_BAG_SIZE = 3;
 
 class PlayerInventory {
   constructor() {
     this.gold = 0;
-    this.equip = { helmet:null, chest:null, legs:null, hands:null, feet:null, weapon:null };
+    // Include new equipment slots in the player inventory
+    this.equip = {
+      helmet: null,
+      necklace: null,
+      chest: null,
+      legs: null,
+      hands: null,
+      feet: null,
+      ring1: null,
+      ring2: null,
+      weapon: null,
+    };
     this.bag = new Array(BAG_SIZE).fill(null);
     this.potionBag = new Array(POTION_BAG_SIZE).fill(null);
     this.shopStock = [];

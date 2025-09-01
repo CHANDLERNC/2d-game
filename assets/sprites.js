@@ -545,6 +545,17 @@ function genSprites(){
   SPRITES.bow_loot = makeSpinAnim(bowLootSVG);
   SPRITES.sword_loot = makeSpinAnim(swordLootSVG);
   SPRITES.chest_loot = makeSpinAnim(chestLootSVG);
+  // Jewelry loot icons
+  const ringLootSVG = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12">
+    <circle cx="6" cy="6" r="3" stroke="#dcdcdc" stroke-width="2" fill="none"/>
+    <circle cx="6" cy="6" r="1" stroke="#f8f8f8" stroke-width="1" fill="none"/>
+  </svg>`;
+  const necklaceLootSVG = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12">
+    <path d="M2 3 Q6 8 10 3" stroke="#dcdcdc" stroke-width="2" fill="none"/>
+    <circle cx="6" cy="8" r="2" stroke="#f8f8f8" stroke-width="1" fill="none"/>
+  </svg>`;
+  SPRITES.ring_loot = makeSpinAnim(ringLootSVG);
+  SPRITES.necklace_loot = makeSpinAnim(necklaceLootSVG);
 
   // Bat idle animations 24x24
   function makeBatAnim(wing, body){
