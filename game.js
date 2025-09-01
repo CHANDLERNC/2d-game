@@ -984,12 +984,25 @@ function sellFromPotionBag(idx){ const it=inventory.potionBag[idx]; if(!it) retu
 
 function unequipAndSell(slot){ const it=inventory.equip[slot]; if(!it) return; const price=getSellPrice(it); inventory.equip[slot]=null; player.gold+=price; hudGold.textContent=player.gold; showToast(`Sold ${it.name} for ${price}`); redrawInventory(); recalcStats(); }
 
+const INV_DETAILS_DEFAULT = 'Hover an item to see details. Click bag item to Equip or Use. Click potion to Use. Click equipped item to Unequip. Press F or use the Sell button to sell. Use Drop button to drop.';
+
 function redrawInventory(){
   recalcStats();
   let panel = document.getElementById('inventory'); if(!panel){ panel=document.createElement('div'); panel.id='inventory'; panel.className='panel'; document.body.appendChild(panel); }
   let html = '';
-  html += '<div class="section-title">Character Stats</div>';
-  html += '<div>';
+  html += '<div class="inventory-layout">';
+  html += '<div class="inv-left">';
+  html += '<div class="section-title">Equipped</div>';
+  html += '<div class="equip-grid">';
+  for(const slot of SLOTS){
+    const it = inventory.equip[slot];
+    const name = it?`<span style="color:${it.color}">${escapeHtml(it.name)}</span>`:'-';
+    html += `<div class="list-row" data-type="eq" data-slot="${slot}"><div>${slot}: ${name}</div><div class="muted">${it?shortMods(it):''}</div></div>`;
+  }
+  html += '</div>';
+  html += '<div class="hr"></div>';
+  html += '<div class="section-title">Stats</div>';
+  html += '<div class="stat-list">';
   html += `<div class="list-row"><div>HP</div><div class="muted">${player.hp}/${currentStats.hpMax}</div></div>`;
   if(player.class==='mage' || player.class==='summoner')
     html += `<div class="list-row"><div>Mana</div><div class="muted">${player.mp}/${currentStats.mpMax}</div></div>`;
@@ -999,29 +1012,28 @@ function redrawInventory(){
   html += `<div class="list-row"><div>CRIT</div><div class="muted">${currentStats.crit}%</div></div>`;
   html += `<div class="list-row"><div>Armor</div><div class="muted">${currentStats.armor}</div></div>`;
   html += `<div class="list-row"><div>Res F/I/S/M/P</div><div class="muted">${currentStats.resF}/${currentStats.resI}/${currentStats.resS}/${currentStats.resM}/${currentStats.resP}</div></div>`;
-  html += '</div><div class="hr"></div>';
-  html += '<div class="section-title">Equipped</div>';
-  html += '<div>';
-  for(const slot of SLOTS){
-    const it = inventory.equip[slot];
-    const name = it?`<span style="color:${it.color}">${escapeHtml(it.name)}</span>`:'-';
-    html += `<div class="list-row" data-type="eq" data-slot="${slot}"><div>${slot}: ${name}</div><div class="muted">${it?shortMods(it):''}</div></div>`;
-  }
-  html += '</div><div class="hr"></div>';
-  html += '<div class="section-title">Bag</div><div class="inv-grid">';
-  for(let i=0;i<BAG_SIZE;i++){
-    const it = inventory.bag[i];
-    html += `<div class="list-row" data-type="bag" data-idx="${i}"><div>${i+1}. ${it?`<span style="color:${it.color}">${escapeHtml(it.name)}</span>`:'(empty)'}</div><div class="muted">${it?shortMods(it):''}</div></div>`;
-  }
-  html += '</div><div class="hr"></div>';
-  html += '<div class="section-title">Potions</div><div class="inv-grid">';
+  html += '</div>';
+  html += '</div>';
+  html += '<div class="inv-right">';
+  html += '<div class="section-title">Potions</div>';
+  html += '<div class="potion-grid">';
   for(let i=0;i<POTION_BAG_SIZE;i++){
     const it = inventory.potionBag[i];
     html += `<div class="list-row" data-type="pbag" data-idx="${i}"><div>${i+1}. ${it?`<span style="color:${it.color}">${escapeHtml(it.name)}</span>`:'(empty)'}</div><div class="muted">${it?shortMods(it):''}</div></div>`;
   }
-  html += '</div><div class="hr"></div>';
-  html += '<div id="invDetails" class="muted">Hover an item to see details. Click bag item to Equip or Use. Click potion to Use. Click equipped item to Unequip. Press F or use the Sell button to sell. Use Drop button to drop.</div>';
+  html += '</div>';
+  html += '<div class="section-title">Bag</div>';
+  html += '<div class="bag-grid">';
+  for(let i=0;i<BAG_SIZE;i++){
+    const it = inventory.bag[i];
+    html += `<div class="list-row" data-type="bag" data-idx="${i}"><div>${i+1}. ${it?`<span style="color:${it.color}">${escapeHtml(it.name)}</span>`:'(empty)'}</div><div class="muted">${it?shortMods(it):''}</div></div>`;
+  }
+  html += '</div>';
+  html += '<div class="hr"></div>';
+  html += `<div id="invDetails" class="muted">${INV_DETAILS_DEFAULT}</div>`;
   html += '<div class="actions" style="margin-top:8px"><button id="btnSell" class="btn sml" disabled>Sell</button><button id="btnDrop" class="btn sml" disabled>Drop</button></div>';
+  html += '</div>';
+  html += '</div>';
   panel.innerHTML = html;
 
   // events (why: keep DOM light using delegation instead of many listeners)
@@ -1052,6 +1064,7 @@ function showItemDetailsFromRow(row){
   const det = document.getElementById('invDetails');
   det.dataset.sel=''; det.dataset.kind='';
   const t=row.dataset.type;
+  if(!t){ setDetailsText(INV_DETAILS_DEFAULT); disableInvActions(); return; }
   if(t==='bag'){
     const i=parseInt(row.dataset.idx,10); const it=inventory.bag[i]; if(!it){ setDetailsText('(empty slot)'); disableInvActions(); return; }
     det.dataset.sel=String(i); det.dataset.kind='bag';
