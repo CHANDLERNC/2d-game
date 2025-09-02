@@ -1811,6 +1811,32 @@ function mageAI(m, dt, dx, dy, manhattan){
   }
 }
 
+// Dragon boss AI with cone breath attack
+// Animation inspiration: https://opengameart.org/content/dragon-fire-breath-16x16
+function dragonBossAI(m, dt, dx, dy, manhattan){
+  const {elem, status} = (function(key){
+    if(key==='dragon_blue') return {elem:'ice', status:{k:'freeze',dur:1800,power:0.40,chance:0.9}};
+    if(key==='dragon_gold') return {elem:'shock',status:{k:'shock',dur:2000,power:0.25,chance:0.9}};
+    return {elem:'fire', status:{k:'burn', dur:2200, power:1.0, chance:0.9}};
+  })(m.spriteKey);
+
+  if(manhattan<=6 && clearPath8(m.x,m.y,player.x,player.y) && m.atkCD===0){
+    const ang=Math.atan2(player.y-m.y, player.x-m.x);
+    const dmg=rng.int(m.dmgMin,m.dmgMax);
+    for(let s=-2; s<=2; s++){
+      const a=ang + s*0.1;
+      const adx=Math.cos(a), ady=Math.sin(a);
+      projectiles.push({x:m.x+0.5,y:m.y+0.5,dx:adx,dy:ady,speed:10,damage:dmg,type:'magic',elem,owner:'enemy',alive:true,maxDist:8,dist:0,status});
+    }
+    m.atkCD=rng.int(50,70);
+    return;
+  }
+  if(m.moveCD===0){
+    if(!tryMoveMonster(m, dx, 0, 160)) tryMoveMonster(m, 0, dy, 160);
+    m.moveCD=Math.round(rng.int(6,10)*ENEMY_SPEED_MULT);
+  }
+}
+
 const MONSTER_BEHAVIORS = {0:slimeAI,1:batAI,2:skeletonAI,3:mageAI,4:mageAI,5:goblinAI,6:ghostAI,7:skeletonAI,8:batAI};
 
 function monsterAI(m, dt){
@@ -1824,6 +1850,11 @@ function monsterAI(m, dt){
   const dx = sign(player.x - m.x), dy = sign(player.y - m.y);
   const manhattan = Math.abs(player.x-m.x)+Math.abs(player.y-m.y);
   if(manhattan>AGGRO_RANGE && (m.aggroT||0)<=0) return;
+  if(m.bigBoss && m.spriteKey && m.spriteKey.startsWith('dragon')){
+    dragonBossAI(m, dt, dx, dy, manhattan);
+    if(prevAtk===0 && m.atkCD>0) m.attackAnim = 6;
+    return;
+  }
   const fn = MONSTER_BEHAVIORS[m.type] || mageAI;
   fn(m, dt, dx, dy, manhattan);
   if(m.bigBoss && prevAtk===0 && m.atkCD>0) m.attackAnim = 6;
