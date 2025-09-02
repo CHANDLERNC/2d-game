@@ -58,7 +58,8 @@ html,body{margin:0;background:#0b0b0e;color:#ddd;font-family:system-ui,Segoe UI,
   .hr{height:1px;background:#2a2d39;margin:8px -8px}
   .hint{opacity:.8}
 .actions{display:flex;gap:8px;flex-wrap:wrap}
-  .sml{padding:6px 8px;font-size:12px;border-radius:6px}
+.sml{padding:6px 8px;font-size:12px;border-radius:6px}
+.tab-btn.active{background:#1a1d2a}
   .section-title{font-weight:bold;margin:6px 0 4px}
   .item-title{font-weight:600}
   .green{color:#76d38b}

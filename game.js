@@ -2679,6 +2679,10 @@ function toggleEscMenu(force){
   const menu=document.getElementById('escMenu'); if(!menu) return;
   const show=typeof force==='boolean'?force:(menu.style.display===''||menu.style.display==='none');
   menu.style.display=show?'grid':'none';
+  if(show){
+    const btn=document.getElementById('menuTabBtn');
+    if(btn) btn.click();
+  }
   updatePaused();
 }
 
@@ -2947,6 +2951,21 @@ function setupUIEvents(){
 
   const loadBtn=document.getElementById('loadBtn');
   if(loadBtn) loadBtn.addEventListener('click', loadGame);
+
+  const menuTabBtn=document.getElementById('menuTabBtn');
+  const settingsTabBtn=document.getElementById('settingsTabBtn');
+  const menuTab=document.getElementById('menuTab');
+  const settingsTab=document.getElementById('settingsTab');
+  if(menuTabBtn && settingsTabBtn && menuTab && settingsTab){
+    const showTab=tab=>{
+      menuTab.style.display = tab==='menu' ? 'block' : 'none';
+      settingsTab.style.display = tab==='settings' ? 'block' : 'none';
+      menuTabBtn.classList.toggle('active', tab==='menu');
+      settingsTabBtn.classList.toggle('active', tab==='settings');
+    };
+    menuTabBtn.addEventListener('click', ()=>showTab('menu'));
+    settingsTabBtn.addEventListener('click', ()=>showTab('settings'));
+  }
 }
 
 if(document.readyState==='loading') window.addEventListener('DOMContentLoaded', setupUIEvents);
