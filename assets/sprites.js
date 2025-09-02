@@ -861,7 +861,9 @@ function genSprites(){
 
   // Dragon idle animation 48x48
   // Inspired by OpenGameArt dragon sprites
-  function makeDragonAnim(){
+  // Reference: https://opengameart.org/content/dragon-48x48-green
+  function makeDragonAnim(cols){
+    const {body, wingCol, belly, horn, flame} = cols;
     const frames=[], bob=[0,1,0,-1], wing=[0,-2,0,-2];
     for(let i=0;i<4;i++){
       const c=document.createElement('canvas');
@@ -869,7 +871,6 @@ function genSprites(){
       const g=c.getContext('2d');
       g.imageSmoothingEnabled=false;
       const oy=bob[i], wy=wing[i];
-      const body='#5c8a42', wingCol='#7ba75e', belly='#a2d46f', horn='#ffffb5', flame='#6cf';
       px(g,2,8+wy+oy,18,12,wingCol);
       px(g,28,8+wy+oy,18,12,wingCol);
       px(g,14,22+oy,20,12,body);
@@ -885,7 +886,9 @@ function genSprites(){
     }
     return { cv: frames[0], frames };
   }
-  SPRITES.dragon = makeDragonAnim();
+  SPRITES.dragon_red  = makeDragonAnim({body:'#8a423f', wingCol:'#a75e5e', belly:'#d46f6f', horn:'#ffffb5', flame:'#ff9b4a'});
+  SPRITES.dragon_blue = makeDragonAnim({body:'#425c8a', wingCol:'#5e7ba7', belly:'#6fa2d4', horn:'#ffffb5', flame:'#6cf'});
+  SPRITES.dragon_gold = makeDragonAnim({body:'#b8860b', wingCol:'#d4af37', belly:'#f0d64f', horn:'#fff8dc', flame:'#ffd24a'});
 
   // Snake idle animation 48x48
   // Inspired by OpenGameArt snake sprite sheets
