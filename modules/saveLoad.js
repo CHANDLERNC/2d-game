@@ -56,8 +56,12 @@ function applySaveData(data = {}) {
       weapon: null,
     }
   );
-  inventory.bag = deepClone(inv.bag || new Array(BAG_SIZE).fill(null));
-  inventory.potionBag = deepClone(inv.potionBag || new Array(POTION_BAG_SIZE).fill(null));
+  inventory.bag = deepClone(inv.bag || []);
+  inventory.bag.length = BAG_SIZE;
+  for (let i = 0; i < BAG_SIZE; i++) inventory.bag[i] = inventory.bag[i] || null;
+  inventory.potionBag = deepClone(inv.potionBag || []);
+  inventory.potionBag.length = POTION_BAG_SIZE;
+  for (let i = 0; i < POTION_BAG_SIZE; i++) inventory.potionBag[i] = inventory.potionBag[i] || null;
 
   // keep player references in sync
   player.equip = inventory.equip;

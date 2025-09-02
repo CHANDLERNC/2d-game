@@ -38,8 +38,8 @@ html,body{margin:0;background:#0b0b0e;color:#ddd;font-family:system-ui,Segoe UI,
 #inventory .item-img{width:32px;height:32px;image-rendering:pixelated}
 #inventory .inv-slot.empty{opacity:.4}
   #inventory .item-name{font-size:12px;text-align:center;display:block;width:100%;padding:2px;box-sizing:border-box;white-space:normal;overflow:visible;text-overflow:clip;word-break:break-word}
-  #inventory .potion-grid{display:grid;grid-template-columns:repeat(3,96px);gap:12px;margin-bottom:12px}
-  #inventory .bag-grid{display:grid;grid-template-columns:repeat(8,96px);gap:12px}
+  #inventory .potion-grid{display:grid;grid-template-columns:repeat(3,96px);gap:12px;margin-bottom:12px;max-height:144px;overflow-y:auto}
+  #inventory .bag-grid{display:grid;grid-template-columns:repeat(8,96px);gap:12px;max-height:216px;overflow-y:auto}
   #inventory #invDetails{margin-top:8px;min-height:40px}
 #inventory .inventory-footer{display:flex;gap:12px;margin-top:8px;font-size:12px}
 #inventory .inventory-footer .footer-item{display:flex;align-items:center;gap:4px}

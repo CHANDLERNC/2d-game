@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { player } from '../modules/player.js';
-import { inventory, SLOTS } from '../modules/playerInventory.js';
+import { inventory, SLOTS, BAG_SIZE, POTION_BAG_SIZE } from '../modules/playerInventory.js';
 import { getSaveData, applySaveData } from '../modules/saveLoad.js';
 
 function setupState(){
@@ -48,6 +48,8 @@ test('inventory and abilities persist through save data', () => {
   assert.equal(inventory.bag[0].name, 'Health Potion');
   assert.equal(inventory.potionBag[0].name, 'Mana Potion');
   assert.equal(inventory.equip.necklace.name, 'Amulet of Tests');
+  assert.equal(inventory.bag.length, BAG_SIZE);
+  assert.equal(inventory.potionBag.length, POTION_BAG_SIZE);
   assert.equal(player.skillPoints, 2);
   assert.equal(player.magicPoints, 3);
   assert.ok(player.skills.berserkerBattle[0]);
