@@ -567,6 +567,9 @@ function genSprites(){
   </svg>`;
   SPRITES.ring_loot = makeSpinAnim(ringLootSVG);
   SPRITES.necklace_loot = makeSpinAnim(necklaceLootSVG);
+  // Static icons for inventory display
+  SPRITES.icon_ring = makeIcon(ringLootSVG);
+  SPRITES.icon_necklace = makeIcon(necklaceLootSVG);
 
   const axeSVG = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12" shape-rendering="crispEdges">
     <rect x="5" y="1" width="2" height="9" fill="#8b5a2b"/>
