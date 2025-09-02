@@ -41,7 +41,8 @@ function makeFloorTiles(count = 16) {
   }
   return tiles;
 }
-const floorTiles = makeFloorTiles();
+// generate enough variations to include newly added patterns
+const floorTiles = makeFloorTiles(32);
 const wallTex = (() => {
   const c = document.createElement('canvas');
   c.width = c.height = 32;
