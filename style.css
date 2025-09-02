@@ -17,7 +17,7 @@ html,body{margin:0;background:#0b0b0e;color:#ddd;font-family:system-ui,Segoe UI,
   .stone{background-image:linear-gradient(180deg,rgba(255,255,255,.03),rgba(0,0,0,.08));}
   .footer{padding:6px 12px;border-top:1px solid #2a2d39;background:linear-gradient(#0f1016,#0b0c11);opacity:.85}
   #bossAlert{position:fixed;top:20px;left:50%;transform:translateX(-50%);padding:8px 14px;background:#141622;border:1px solid #3a3e4d;border-radius:8px;pointer-events:none;opacity:.95;z-index:1000}
-  #inventory{display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);padding:12px;pointer-events:auto;font-size:13px;width:1100px;max-width:95vw}
+  #inventory{display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);padding:12px;pointer-events:auto;font-size:13px;width:1100px;max-width:95vw;max-height:90vh;overflow-y:auto}
   #shop{display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);min-width:320px;width:620px;max-width:90vw;max-height:70vh;overflow:auto;padding:10px 12px;pointer-events:auto;font-size:13px}
   #magic{display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);padding:8px 12px;pointer-events:auto;font-size:13px;width:340px;max-width:90vw;max-height:70vh;overflow:auto}
   #skills{display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);padding:8px 12px;pointer-events:auto;font-size:13px;width:340px;max-width:90vw;max-height:70vh;overflow:auto}
@@ -48,7 +48,7 @@ html,body{margin:0;background:#0b0b0e;color:#ddd;font-family:system-ui,Segoe UI,
   #inventory .item-name{font-size:12px;text-align:center;display:block;width:100%;padding:2px;box-sizing:border-box;white-space:normal;overflow:visible;text-overflow:clip;word-break:break-word}
   #inventory .potion-grid{display:grid;grid-template-columns:repeat(5,96px);gap:12px;margin-bottom:12px;max-height:216px;overflow-y:auto}
   #inventory .bag-grid{display:grid;grid-template-columns:repeat(8,96px);gap:12px;max-height:216px;overflow-y:auto}
-  #inventory #invDetails{margin-top:8px;min-height:40px}
+  #inventory #invDetails{margin-top:8px;height:160px;overflow-y:auto}
 #inventory .inventory-footer{display:flex;gap:12px;margin-top:8px;font-size:12px}
 #inventory .inventory-footer .footer-item{display:flex;align-items:center;gap:4px}
   #inventory .list-row:hover{background:#1a1d28}
