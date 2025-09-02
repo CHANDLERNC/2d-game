@@ -25,6 +25,17 @@ function monsterCountForFloor(floor){
 // Cap applied to resistance calculations (percentage)
 const RESIST_CAP = 75;
 let canvas=document.getElementById('gameCanvas'); let ctx=canvas.getContext('2d');
+const minimapCanvas=document.getElementById('minimap');
+const minimapCtx=minimapCanvas.getContext('2d');
+const minimapOpacity=document.getElementById('minimapOpacity');
+let minimapVisible=true;
+if(minimapOpacity){
+  minimapCanvas.style.opacity=minimapOpacity.value;
+  minimapOpacity.addEventListener('input',e=>minimapCanvas.style.opacity=e.target.value);
+}
+const MINIMAP_SCALE=4;
+minimapCanvas.width=MAP_W*MINIMAP_SCALE;
+minimapCanvas.height=MAP_H*MINIMAP_SCALE;
 let mouseX=0, mouseY=0;
 canvas.addEventListener('mousemove', e=>{ const r=canvas.getBoundingClientRect(); mouseX=e.clientX-r.left; mouseY=e.clientY-r.top; });
 function resizeCanvas(){ canvas.width = VIEW_W = window.innerWidth; canvas.height = VIEW_H = window.innerHeight; }
@@ -2089,11 +2100,38 @@ function draw(dt){
   for(let y=0;y<MAP_H;y++)for(let x=0;x<MAP_W;x++){ const idx=y*MAP_W+x; const v=fog[idx]; const vv=vis[idx]; if(v && !vv) ctx.fillRect(x*TILE - camX, y*TILE - camY, TILE, TILE); }
 
   ctx.restore();
+  renderMinimap();
   // HUD
   hpFill.style.width=(100*player.hp/player.hpMax).toFixed(0)+'%';
   updateResourceUI();
   updateXPUI();
   hpLbl.textContent=`HP ${player.hp}/${player.hpMax}`;
+}
+
+function renderMinimap(){
+  if(!minimapVisible) return;
+  const scale = minimapCanvas.width / MAP_W;
+  minimapCtx.clearRect(0,0,minimapCanvas.width,minimapCanvas.height);
+  minimapCtx.fillStyle='#000';
+  minimapCtx.fillRect(0,0,minimapCanvas.width,minimapCanvas.height);
+  for(let y=0;y<MAP_H;y++){
+    for(let x=0;x<MAP_W;x++){
+      const idx=y*MAP_W+x;
+      if(fog[idx]===0) continue;
+      const t=map[idx];
+      let color = t===T_WALL ? '#333' : '#666';
+      if(vis[idx]) color = t===T_WALL ? '#777' : '#bbb';
+      minimapCtx.fillStyle=color;
+      minimapCtx.fillRect(x*scale, y*scale, scale, scale);
+    }
+  }
+  minimapCtx.fillStyle='#0f0';
+  minimapCtx.fillRect(player.x*scale, player.y*scale, scale, scale);
+}
+
+function toggleMinimap(){
+  minimapVisible=!minimapVisible;
+  minimapCanvas.style.display=minimapVisible?'block':'none';
 }
 
 // ===== Update (smooth tween + 8-dir) =====
@@ -2304,6 +2342,7 @@ function handleKeyAction(key, e){
   }
   if(key==='c') toggleCharPage();
   if(key==='/') toggleActionLog();
+  if(key==='m') toggleMinimap();
   if(key==='e' && !e.repeat){
     if(player.x===stairs.x && player.y===stairs.y){
       player.floorsCleared++; player.score += SCORE_PER_FLOOR_CLEAR;
