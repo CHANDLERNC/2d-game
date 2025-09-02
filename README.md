@@ -2,7 +2,8 @@
 
 An offline HTML5 dungeon crawler with inline sprites, now featuring Berserker, Spellbinder and Nightblade classes, a Berserker skill tree, consumable potions and legendary gear.
 
-Recent updates rework the audio system with smoother sound effects and dynamic music that cross‑fades between calm, combat and boss themes. Players can fine‑tune overall, music and SFX volume via new sliders stored in local storage.
+Recent updates rework the audio system with smoother sound effects and dynamic music that cross‑fades between calm, combat and boss themes. Players can fine‑tune overall, music and SFX volume via new sliders stored in local storage, now accessible through the pause menu's **Settings** tab.
+Gameplay options like movement speed and minimap opacity are also adjusted from this Settings view.
 
 The game now auto-saves your current floor and equipped gear to local storage when you leave the page. Use the pause menu to manually save or load this progress.
 

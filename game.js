@@ -2718,6 +2718,11 @@ function toggleEscMenu(force){
   const menu=document.getElementById('escMenu'); if(!menu) return;
   const show=typeof force==='boolean'?force:(menu.style.display===''||menu.style.display==='none');
   menu.style.display=show?'grid':'none';
+  if(show){
+    const main=document.getElementById('escMainPanel');
+    const settings=document.getElementById('escSettingsPanel');
+    if(main && settings){ main.style.display='flex'; settings.style.display='none'; }
+  }
   updatePaused();
 }
 
@@ -2986,6 +2991,21 @@ function setupUIEvents(){
 
   const loadBtn=document.getElementById('loadBtn');
   if(loadBtn) loadBtn.addEventListener('click', loadGame);
+
+  const escMainTab=document.getElementById('escMainTab');
+  const escSettingsTab=document.getElementById('escSettingsTab');
+  const escMainPanel=document.getElementById('escMainPanel');
+  const escSettingsPanel=document.getElementById('escSettingsPanel');
+  if(escMainTab && escSettingsTab && escMainPanel && escSettingsPanel){
+    escMainTab.addEventListener('click', ()=>{
+      escMainPanel.style.display='flex';
+      escSettingsPanel.style.display='none';
+    });
+    escSettingsTab.addEventListener('click', ()=>{
+      escMainPanel.style.display='none';
+      escSettingsPanel.style.display='flex';
+    });
+  }
 }
 
 if(document.readyState==='loading') window.addEventListener('DOMContentLoaded', setupUIEvents);

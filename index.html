@@ -32,27 +32,6 @@
       <div class="hud-kv"><b>Kills:</b> <span id="hudKills">0</span></div>
       <div class="hud-kv"><b id="hudAbilityLabel">Spell:</b> <span id="hudSpell">None</span></div>
     <div class="hud-kv" id="hudDmg" style="opacity:.85;margin-left:auto">ATK 2-4 | CRIT 5% | ARM 0</div>
-    <div class="hud-kv" style="margin-left:8px; pointer-events:auto">
-      <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
-        <input type="checkbox" id="smoothToggle" checked> Smooth
-      </label>
-    </div>
-    <div class="hud-kv" style="display:flex;align-items:center;gap:6px; pointer-events:auto">
-      <label for="speedRange">Speed</label>
-      <input type="range" id="speedRange" min="60" max="220" value="140" step="5" style="width:140px">
-    </div>
-    <div class="hud-kv" style="display:flex;align-items:center;gap:4px; pointer-events:auto">
-      <label for="masterVol">Vol</label>
-      <input type="range" id="masterVol" min="0" max="1" step="0.01" value="1" style="width:80px">
-      <label for="musicVol">Mus</label>
-      <input type="range" id="musicVol" min="0" max="1" step="0.01" value="1" style="width:80px">
-      <label for="sfxVol">SFX</label>
-      <input type="range" id="sfxVol" min="0" max="1" step="0.01" value="1" style="width:80px">
-    </div>
-    <div class="hud-kv" style="display:flex;align-items:center;gap:4px; pointer-events:auto">
-      <label for="minimapOpacity">Map</label>
-      <input type="range" id="minimapOpacity" min="0.2" max="1" step="0.05" value="0.8" style="width:80px">
-    </div>
   </div>
   <div></div>
   <div class="footer">Sprites generated at runtime — multi-file</div>
@@ -162,10 +141,37 @@
 <div id="escMenu" class="stone" style="position:fixed;inset:0;display:none;place-items:center">
   <div class="panel" style="padding:18px 22px;text-align:center">
     <h2 style="margin:6px 0 12px 0">Paused</h2>
-    <div style="display:flex;gap:8px;flex-direction:column">
+    <div style="display:flex;gap:8px;justify-content:center;margin-bottom:12px">
+      <button id="escMainTab" class="btn">Main</button>
+      <button id="escSettingsTab" class="btn">Settings</button>
+    </div>
+    <div id="escMainPanel" style="display:flex;gap:8px;flex-direction:column">
       <button id="resumeBtn" class="btn">Resume</button>
       <button id="saveBtn" class="btn">Save Game</button>
       <button id="loadBtn" class="btn">Load Game</button>
+    </div>
+    <div id="escSettingsPanel" style="display:none;flex-direction:column;gap:8px;align-items:center">
+      <div class="hud-kv" style="pointer-events:auto">
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+          <input type="checkbox" id="smoothToggle" checked> Smooth
+        </label>
+      </div>
+      <div class="hud-kv" style="display:flex;align-items:center;gap:6px;pointer-events:auto">
+        <label for="speedRange">Speed</label>
+        <input type="range" id="speedRange" min="60" max="220" value="140" step="5" style="width:140px">
+      </div>
+      <div class="hud-kv" style="display:flex;align-items:center;gap:4px;pointer-events:auto">
+        <label for="masterVol">Vol</label>
+        <input type="range" id="masterVol" min="0" max="1" step="0.01" value="1" style="width:80px">
+        <label for="musicVol">Mus</label>
+        <input type="range" id="musicVol" min="0" max="1" step="0.01" value="1" style="width:80px">
+        <label for="sfxVol">SFX</label>
+        <input type="range" id="sfxVol" min="0" max="1" step="0.01" value="1" style="width:80px">
+      </div>
+      <div class="hud-kv" style="display:flex;align-items:center;gap:4px;pointer-events:auto">
+        <label for="minimapOpacity">Map</label>
+        <input type="range" id="minimapOpacity" min="0.2" max="1" step="0.05" value="0.8" style="width:80px">
+      </div>
     </div>
   </div>
 </div>
