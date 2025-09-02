@@ -1,6 +1,6 @@
 html,body{margin:0;background:#0b0b0e;color:#ddd;font-family:system-ui,Segoe UI,Roboto,Ubuntu,Arial,sans-serif;overflow:hidden}
   #ui{position:fixed;inset:0;display:grid;grid-template-rows:auto 1fr auto;pointer-events:none}
-  .topbar{display:flex;gap:16px;align-items:center;justify-content:center;padding:8px 14px;background:linear-gradient(#191a1f,#111219);border-bottom:1px solid #2a2d39;transform:scale(1.75);transform-origin:top left;width:calc(100%/1.75)}
+  .topbar{display:flex;gap:16px;align-items:center;justify-content:center;padding:8px 14px;background:linear-gradient(#191a1f,#111219);border-bottom:1px solid #2a2d39;transform:scale(1.75);transform-origin:top left;width:calc(100%/1.75);margin-top:8px}
   .panel{background:rgba(15,16,22,0.9);border:1px solid #2a2d39;border-radius:10px;box-shadow:0 0 0 1px rgba(255,255,255,0.03) inset}
   .stat{height:14px;width:220px; background:#222;border:1px solid #333;border-radius:6px;position:relative}
   .fill{position:absolute;left:0;top:0;height:100%;background:#3c7}
@@ -9,6 +9,7 @@ html,body{margin:0;background:#0b0b0e;color:#ddd;font-family:system-ui,Segoe UI,
   .fill.xp{background:#7a4bd9}
   .label{position:absolute;left:0;right:0;top:-18px;font-size:12px;opacity:.85;text-align:center}
   .hud-kv{font-size:13px;opacity:.9}
+  #hudDmg{margin-left:-8px}
   #gameCanvas{position:fixed;left:0;top:0}
   #minimap{position:fixed;right:10px;bottom:10px;width:192px;height:192px;border:1px solid #2a2d39;background:rgba(0,0,0,0.8);image-rendering:pixelated;pointer-events:none}
   .btn{display:inline-block;padding:8px 14px;border:1px solid #3a3e4d;border-radius:8px;background:#141622;color:#e6e6f0;cursor:pointer}
