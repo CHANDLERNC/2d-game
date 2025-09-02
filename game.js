@@ -1565,6 +1565,7 @@ const WEAPON_RULES = {
   staff: {kind:'ranged', projSpeed:10, projRange:12, cooldown:300, dtype:'magic', elem:'shock', status:{k:'shock', dur:2000, power:0.25, chance:0.60}},
   _default:{kind:'melee', reach:2, cooldown:260, status:{k:'bleed', elem:'bleed', dur:2000, power:1.0, chance:0.25}}
 };
+const ATTACK_ANIM_TIME = 200; // ms
 function wclassFromName(n){
   if(!n) return null; const s=n.toLowerCase();
   for(const k of ['sword','axe','mace','dagger','bow','wand','staff','spear','halberd','crossbow','flail','katana']) if(s.includes(k)) return k;
@@ -1585,6 +1586,11 @@ function performPlayerAttack(dx,dy,dmgMult=1){
   if(mag===0) return;
   const ndx = dx/mag, ndy = dy/mag;
   player.faceDx = ndx; player.faceDy = ndy; playAttack();
+  const dir = Math.abs(ndx) > Math.abs(ndy) ? (ndx>0?'right':'left') : (ndy>0?'down':'up');
+  if(prof.kind==='melee'){
+    player.attackDir = dir;
+    player.attackTimer = ATTACK_ANIM_TIME;
+  }
   const {min,max,crit,ls,md} = currentAtk();
   let dmg=rng.int(min,max);
   const wasCrit=(Math.random()*100<crit); if(wasCrit) dmg=Math.floor(dmg*1.5);
@@ -2159,6 +2165,25 @@ function draw(dt){
   if(invis) ctx.globalAlpha=0.4;
   ctx.drawImage(frame, px, py);
   if(invis) ctx.globalAlpha=1;
+  if(player.attackTimer>0){
+    ctx.save();
+    ctx.translate(px+12, py+12);
+    const t = 1 - player.attackTimer/ATTACK_ANIM_TIME;
+    let start, end;
+    switch(player.attackDir){
+      case 'down': start=Math.PI/4; end=3*Math.PI/4; break;
+      case 'left': start=3*Math.PI/4; end=5*Math.PI/4; break;
+      case 'up': start=-3*Math.PI/4; end=-Math.PI/4; break;
+      default: start=-Math.PI/4; end=Math.PI/4; break;
+    }
+    ctx.strokeStyle='#fff';
+    ctx.lineWidth=2;
+    ctx.globalAlpha=1 - t;
+    ctx.beginPath();
+    ctx.arc(0,0,16,start,end);
+    ctx.stroke();
+    ctx.restore();
+  }
   // player status pips
   drawStatusPips(ctx, player, px+12, py-9);
 
@@ -2303,6 +2328,7 @@ function update(dt){
 
   // attack cooldown
   player.atkCD = Math.max(0, player.atkCD - dt);
+  player.attackTimer = Math.max(0, player.attackTimer - dt);
   // standing in lava adds burn duration equal to time spent
   const tileUnder = map[player.y * MAP_W + player.x];
   if(tileUnder === T_LAVA){

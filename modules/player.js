@@ -16,6 +16,8 @@ const player = {
   stamAcc: 0,
   faceDx: 1,
   faceDy: 0,
+  attackTimer: 0,
+  attackDir: 'right',
   effects: []
 };
 
