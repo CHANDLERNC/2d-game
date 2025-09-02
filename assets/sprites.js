@@ -329,6 +329,17 @@ function genSprites(){
     return sprite;
   }
 
+  function makeIcon(svg, size = 14){
+    const img = new Image();
+    const c = document.createElement('canvas');
+    c.width = c.height = size;
+    const g = c.getContext('2d');
+    g.imageSmoothingEnabled = false;
+    img.onload = () => { g.clearRect(0,0,size,size); g.drawImage(img,0,0,size,size); };
+    img.src = URL.createObjectURL(new Blob([svg], {type: 'image/svg+xml'}));
+    return { cv: c };
+  }
+
   const hpPotionSVG = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12" shape-rendering="crispEdges">
   <!-- Palette -->
   <!-- O = outline #6b0018, B = body #d61a3c, H = highlight #ff9aaa, D = deep red #a10f28 -->
@@ -556,6 +567,69 @@ function genSprites(){
   </svg>`;
   SPRITES.ring_loot = makeSpinAnim(ringLootSVG);
   SPRITES.necklace_loot = makeSpinAnim(necklaceLootSVG);
+
+  const axeSVG = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12" shape-rendering="crispEdges">
+    <rect x="5" y="1" width="2" height="9" fill="#8b5a2b"/>
+    <rect x="3" y="1" width="3" height="4" fill="#dcdcdc"/>
+    <rect x="6" y="1" width="3" height="4" fill="#a0a0a0"/>
+  </svg>`;
+  const maceSVG = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12" shape-rendering="crispEdges">
+    <rect x="5" y="2" width="2" height="6" fill="#8b5a2b"/>
+    <rect x="4" y="0" width="4" height="4" fill="#dcdcdc"/>
+  </svg>`;
+  const daggerSVG = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12" shape-rendering="crispEdges">
+    <rect x="5" y="1" width="2" height="4" fill="#dcdcdc"/>
+    <rect x="4" y="5" width="4" height="1" fill="#b8860b"/>
+    <rect x="5" y="6" width="2" height="3" fill="#8b4513"/>
+  </svg>`;
+  const wandSVG = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12" shape-rendering="crispEdges">
+    <rect x="5" y="2" width="2" height="6" fill="#8b5a2b"/>
+    <rect x="5" y="0" width="2" height="2" fill="#b84aff"/>
+  </svg>`;
+  const staffSVG = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12" shape-rendering="crispEdges">
+    <rect x="5" y="1" width="2" height="8" fill="#8b5a2b"/>
+    <rect x="4" y="0" width="4" height="2" fill="#c0c0c0"/>
+  </svg>`;
+  const spearSVG = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12" shape-rendering="crispEdges">
+    <path d="M6 0 L9 3 H3 L6 0" fill="#dcdcdc"/>
+    <rect x="5" y="3" width="2" height="7" fill="#8b5a2b"/>
+  </svg>`;
+  const halberdSVG = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12" shape-rendering="crispEdges">
+    <path d="M6 0 L9 3 H3 L6 0" fill="#dcdcdc"/>
+    <rect x="5" y="3" width="2" height="7" fill="#8b5a2b"/>
+    <rect x="7" y="4" width="3" height="3" fill="#dcdcdc"/>
+  </svg>`;
+  const crossbowSVG = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12" shape-rendering="crispEdges">
+    <rect x="5" y="1" width="2" height="9" fill="#8b5a2b"/>
+    <rect x="2" y="4" width="8" height="2" fill="#8b5a2b"/>
+    <rect x="3" y="4" width="6" height="1" fill="#dcdcdc"/>
+  </svg>`;
+  const flailSVG = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12" shape-rendering="crispEdges">
+    <rect x="5" y="1" width="2" height="4" fill="#8b5a2b"/>
+    <rect x="6" y="5" width="1" height="2" fill="#dcdcdc"/>
+    <rect x="5" y="7" width="4" height="4" fill="#dcdcdc"/>
+  </svg>`;
+  const katanaSVG = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12">
+    <path d="M2 10 L9 1" stroke="#dcdcdc" stroke-width="2"/>
+    <rect x="1" y="9" width="4" height="1" fill="#8b5a2b"/>
+  </svg>`;
+  const weaponIcons = {
+    sword: swordLootSVG,
+    bow: bowLootSVG,
+    axe: axeSVG,
+    mace: maceSVG,
+    dagger: daggerSVG,
+    wand: wandSVG,
+    staff: staffSVG,
+    spear: spearSVG,
+    halberd: halberdSVG,
+    crossbow: crossbowSVG,
+    flail: flailSVG,
+    katana: katanaSVG
+  };
+  for(const [k,svg] of Object.entries(weaponIcons)){
+    SPRITES['icon_'+k] = makeIcon(svg);
+  }
 
   // Bat idle animations 24x24
   function makeBatAnim(wing, body){

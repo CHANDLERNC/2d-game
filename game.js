@@ -996,8 +996,8 @@ function redrawInventory(){
   html += '<div class="equip-grid">';
   for(const slot of SLOTS){
     const it = inventory.equip[slot];
-    const label = it ? `<span style="color:${it.color}" class="item-name">${escapeHtml(it.name)}</span>` : '';
-    html += `<div class="inv-slot list-row ${it?'':'empty'}" data-type="eq" data-slot="${slot}">${label}</div>`;
+    const icon = it && it.icon ? `<canvas class="item-img" data-icon="${it.icon}"></canvas>` : '';
+    html += `<div class="inv-slot list-row ${it?'':'empty'}" data-type="eq" data-slot="${slot}">${icon}</div>`;
   }
   html += '</div>';
   html += '</div>';
@@ -1006,16 +1006,16 @@ function redrawInventory(){
   html += '<div class="potion-grid">';
   for(let i=0;i<POTION_BAG_SIZE;i++){
     const it = inventory.potionBag[i];
-    const label = it ? `<span style="color:${it.color}" class="item-name">${escapeHtml(it.name)}</span>` : '';
-    html += `<div class="inv-slot list-row ${it?'':'empty'}" data-type="pbag" data-idx="${i}">${label}</div>`;
+    const icon = it && it.icon ? `<canvas class="item-img" data-icon="${it.icon}"></canvas>` : '';
+    html += `<div class="inv-slot list-row ${it?'':'empty'}" data-type="pbag" data-idx="${i}">${icon}</div>`;
   }
   html += '</div>';
   html += '<div class="section-title">Bag</div>';
   html += '<div class="bag-grid">';
   for(let i=0;i<BAG_SIZE;i++){
     const it = inventory.bag[i];
-    const label = it ? `<span style="color:${it.color}" class="item-name">${escapeHtml(it.name)}</span>` : '';
-    html += `<div class="inv-slot list-row ${it?'':'empty'}" data-type="bag" data-idx="${i}">${label}</div>`;
+    const icon = it && it.icon ? `<canvas class="item-img" data-icon="${it.icon}"></canvas>` : '';
+    html += `<div class="inv-slot list-row ${it?'':'empty'}" data-type="bag" data-idx="${i}">${icon}</div>`;
   }
   html += '</div>';
   html += '<div class="hr"></div>';
@@ -1026,6 +1026,10 @@ function redrawInventory(){
   html += '</div>';
   html += '<div id="invCompare" class="panel"></div>';
   panel.innerHTML = html;
+  panel.querySelectorAll('canvas.item-img').forEach(c=>{
+    const key=c.dataset.icon; const spr=ASSETS.sprites[key];
+    if(spr){ c.width=c.height=32; const g=c.getContext('2d'); g.imageSmoothingEnabled=false; g.clearRect(0,0,32,32); g.drawImage(spr.cv,0,0,32,32); }
+  });
   const cmp=document.getElementById('invCompare'); if(cmp) cmp.style.display='none';
 
   const portrait = document.getElementById('invChar');
@@ -1042,7 +1046,13 @@ function redrawInventory(){
   let lastRow=null;
   panel.onmousemove = (e)=>{
     const row = e.target.closest('.list-row');
-    if(!row || row===lastRow) return;
+    if(!row){
+      if(lastRow){
+        lastRow=null; setDetailsText(INV_DETAILS_DEFAULT); disableInvActions(); showCompare(null);
+      }
+      return;
+    }
+    if(row===lastRow) return;
     lastRow=row;
     showItemDetailsFromRow(row);
   };
@@ -1266,7 +1276,7 @@ function makeRandomGear(){
   else baseName = generateItemName(base);
   const name = `${RARITY[rarityIdx].n} ${baseName}`;
   const item = { color: RARITY[rarityIdx].c, type:'gear', slot, name, rarity: rarityIdx, lvl: floorNum, mods: affixMods(slot, rarityIdx, floorNum) };
-  if(slot==='weapon'){ item.wclass = base.toLowerCase(); }
+  if(slot==='weapon'){ item.wclass = base.toLowerCase(); item.icon = 'icon_'+item.wclass; }
   else if(slot!=='ring1' && slot!=='ring2' && slot!=='necklace'){
     // Armor types provide baseline stats and defensive buffs
     const t = ARMOR_TYPES[rng.int(0, ARMOR_TYPES.length-1)];
@@ -1283,8 +1293,8 @@ function makeRandomPotion(){
   const rarityIdx = rng.int(0, RARITY.length-1);
   const p = POTION_TYPES[rng.int(0, POTION_TYPES.length-1)];
   const item = { color: RARITY[rarityIdx].c, type:'potion', slot:'Potion', name:`${RARITY[rarityIdx].n} ${p.base}`, rarity:rarityIdx };
-  if(p.k==='hp') item.hp = p.vals[rarityIdx];
-  if(p.k==='mp') item.mp = p.vals[rarityIdx];
+  if(p.k==='hp'){ item.hp = p.vals[rarityIdx]; item.icon='potion_hp'; }
+  if(p.k==='mp'){ item.mp = p.vals[rarityIdx]; item.icon='potion_mp'; }
   return item;
 }
 

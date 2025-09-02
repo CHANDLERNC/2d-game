@@ -1,7 +1,7 @@
 html,body{margin:0;background:#0b0b0e;color:#ddd;font-family:system-ui,Segoe UI,Roboto,Ubuntu,Arial,sans-serif;overflow:hidden}
   #ui{position:fixed;inset:0;display:grid;grid-template-rows:auto 1fr auto;pointer-events:none}
   .topbar{display:flex;gap:16px;align-items:center;padding:8px 14px;background:linear-gradient(#191a1f,#111219);border-bottom:1px solid #2a2d39;transform:scale(1.1);transform-origin:top left;width:calc(100%/1.1)}
-  .panel{background:rgba(15,16,22,0.8);border:1px solid #2a2d39;border-radius:10px;box-shadow:0 0 0 1px rgba(255,255,255,0.03) inset}
+  .panel{background:rgba(15,16,22,0.9);border:1px solid #2a2d39;border-radius:10px;box-shadow:0 0 0 1px rgba(255,255,255,0.03) inset}
   .stat{height:14px;width:220px; background:#222;border:1px solid #333;border-radius:6px;position:relative}
   .fill{position:absolute;left:0;top:0;height:100%;background:#3c7}
   .fill.hp{background:#d44}
@@ -34,7 +34,8 @@ html,body{margin:0;background:#0b0b0e;color:#ddd;font-family:system-ui,Segoe UI,
 #inventory .char-portrait{width:96px;height:96px;border:1px solid #2a2d39;border-radius:6px;background:#0f1119;margin-bottom:8px;display:flex;align-items:center;justify-content:center}
   #inventory .equip-grid{display:grid;grid-template-columns:repeat(2,96px);gap:12px}
 #inventory .inv-right{flex:1;display:flex;flex-direction:column}
-  #inventory .inv-slot{width:96px;height:60px;border:1px solid #2a2d39;border-radius:6px;background:#10131c;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;box-sizing:border-box;padding:0}
+  #inventory .inv-slot{width:96px;height:60px;border:1px solid #2a2d39;border-radius:6px;background:#06080f;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;box-sizing:border-box;padding:0}
+#inventory .item-img{width:32px;height:32px;image-rendering:pixelated}
 #inventory .inv-slot.empty{opacity:.4}
   #inventory .item-name{font-size:12px;text-align:center;display:block;width:100%;padding:2px;box-sizing:border-box;white-space:normal;overflow:visible;text-overflow:clip;word-break:break-word}
   #inventory .potion-grid{display:grid;grid-template-columns:repeat(3,96px);gap:12px;margin-bottom:12px}
