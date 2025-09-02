@@ -44,7 +44,7 @@ html,body{margin:0;background:#0b0b0e;color:#ddd;font-family:system-ui,Segoe UI,
 #inventory .inventory-footer{display:flex;gap:12px;margin-top:8px;font-size:12px}
 #inventory .inventory-footer .footer-item{display:flex;align-items:center;gap:4px}
   #inventory .list-row:hover{background:#1a1d28}
-  #inventory #invCompare{position:absolute;bottom:12px;right:12px;display:none;padding:8px;min-width:260px;max-width:40%;max-height:40vh;overflow:auto}
+  #inventory #invCompare{position:fixed;display:none;padding:8px;min-width:260px;max-width:40%;max-height:40vh;overflow:auto;pointer-events:none;z-index:1000}
 .skill-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
 .skill-card{display:flex;flex-direction:column;gap:4px;padding:6px;border-radius:6px}
 .skill-card:hover{background:#1a1d28}
