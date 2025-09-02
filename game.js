@@ -1292,6 +1292,7 @@ function makeRandomGear(){
   else if(slot==='ring1' || slot==='ring2'){ item.icon = 'icon_ring'; }
   else if(slot==='necklace'){ item.icon = 'icon_necklace'; }
   else{
+    item.icon = 'icon_'+slot;
     // Armor types provide baseline stats and defensive buffs
     const t = ARMOR_TYPES[rng.int(0, ARMOR_TYPES.length-1)];
     item.armorType = t;
