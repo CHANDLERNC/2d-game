@@ -2176,11 +2176,15 @@ function draw(dt){
       case 'up': start=-3*Math.PI/4; end=-Math.PI/4; break;
       default: start=-Math.PI/4; end=Math.PI/4; break;
     }
-    ctx.strokeStyle='#fff';
-    ctx.lineWidth=2;
-    ctx.globalAlpha=1 - t;
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 2;
+    ctx.globalAlpha = 1 - t;
     ctx.beginPath();
-    ctx.arc(0,0,16,start,end);
+    ctx.moveTo(0, 0);
+    ctx.arc(0, 0, 16, start, end);
+    ctx.closePath();
+    ctx.fillStyle = '#fff';
+    ctx.fill();
     ctx.stroke();
     ctx.restore();
   }
