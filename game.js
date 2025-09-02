@@ -1164,7 +1164,9 @@ function showCompare(it, evt, compare=true){
     html+=renderDetails(it,'bag');
   }
   cmp.innerHTML=html;
-  if(evt){ cmp.style.left=`${evt.clientX+16}px`; cmp.style.top=`${evt.clientY+16}px`; }
+  cmp.style.left='50%';
+  cmp.style.top='50%';
+  cmp.style.transform='translate(-50%,-50%)';
   cmp.style.display='block';
 }
 
