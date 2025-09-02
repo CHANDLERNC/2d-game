@@ -37,9 +37,15 @@ html,body{margin:0;background:#0b0b0e;color:#ddd;font-family:system-ui,Segoe UI,
 #inventory .inv-right{flex:1;display:flex;flex-direction:column}
   #inventory .inv-slot{width:96px;height:60px;border:1px solid #2a2d39;border-radius:6px;background:#06080f;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;box-sizing:border-box;padding:0}
 #inventory .item-img{width:32px;height:32px;image-rendering:pixelated}
+#inventory .item-img.rar0{filter:drop-shadow(0 0 6px #bfbfbf)}
+#inventory .item-img.rar1{filter:drop-shadow(0 0 6px #38c172)}
+#inventory .item-img.rar2{filter:drop-shadow(0 0 6px #3490dc)}
+#inventory .item-img.rar3{filter:drop-shadow(0 0 6px #eab308)}
+#inventory .item-img.rar4{filter:drop-shadow(0 0 6px #a855f7)}
+#inventory .item-img.rar5{filter:drop-shadow(0 0 6px #f97316)}
 #inventory .inv-slot.empty{opacity:.4}
   #inventory .item-name{font-size:12px;text-align:center;display:block;width:100%;padding:2px;box-sizing:border-box;white-space:normal;overflow:visible;text-overflow:clip;word-break:break-word}
-  #inventory .potion-grid{display:grid;grid-template-columns:repeat(3,96px);gap:12px;margin-bottom:12px;max-height:144px;overflow-y:auto}
+  #inventory .potion-grid{display:grid;grid-template-columns:repeat(5,96px);gap:12px;margin-bottom:12px;max-height:216px;overflow-y:auto}
   #inventory .bag-grid{display:grid;grid-template-columns:repeat(8,96px);gap:12px;max-height:216px;overflow-y:auto}
   #inventory #invDetails{margin-top:8px;min-height:40px}
 #inventory .inventory-footer{display:flex;gap:12px;margin-top:8px;font-size:12px}

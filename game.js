@@ -1007,7 +1007,7 @@ function redrawInventory(){
   html += '<div class="equip-grid">';
   for(const slot of SLOTS){
     const it = inventory.equip[slot];
-    const icon = it && it.icon ? `<canvas class="item-img" data-icon="${it.icon}"></canvas>` : '';
+    const icon = it && it.icon ? `<canvas class="item-img rar${it.rarity||0}" data-icon="${it.icon}"></canvas>` : '';
     html += `<div class="inv-slot list-row ${it?'':'empty'}" data-type="eq" data-slot="${slot}">${icon}</div>`;
   }
   html += '</div>';
@@ -1017,7 +1017,7 @@ function redrawInventory(){
   html += '<div class="potion-grid">';
   for(let i=0;i<POTION_BAG_SIZE;i++){
     const it = inventory.potionBag[i];
-    const icon = it && it.icon ? `<canvas class="item-img" data-icon="${it.icon}"></canvas>` : '';
+    const icon = it && it.icon ? `<canvas class="item-img rar${it.rarity||0}" data-icon="${it.icon}"></canvas>` : '';
     html += `<div class="inv-slot list-row ${it?'':'empty'}" data-type="pbag" data-idx="${i}">${icon}</div>`;
   }
   html += '</div>';
@@ -1025,7 +1025,7 @@ function redrawInventory(){
   html += '<div class="bag-grid">';
   for(let i=0;i<BAG_SIZE;i++){
     const it = inventory.bag[i];
-    const icon = it && it.icon ? `<canvas class="item-img" data-icon="${it.icon}"></canvas>` : '';
+    const icon = it && it.icon ? `<canvas class="item-img rar${it.rarity||0}" data-icon="${it.icon}"></canvas>` : '';
     html += `<div class="inv-slot list-row ${it?'':'empty'}" data-type="bag" data-idx="${i}">${icon}</div>`;
   }
   html += '</div>';
