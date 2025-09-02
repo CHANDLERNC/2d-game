@@ -997,6 +997,16 @@ function unequipAndSell(slot){ const it=inventory.equip[slot]; if(!it) return; c
 
 const INV_DETAILS_DEFAULT = 'Hover an item to see details. Click bag item to Equip or Use. Click potion to Use. Click equipped item to Unequip. Press F or use the Sell button to sell. Use Drop button to drop.';
 
+function getItemIcon(it, slot){
+  if(!it) return null;
+  if(it.icon) return it.icon;
+  const s = slot || it.slot;
+  if(s==='ring1' || s==='ring2') return 'icon_ring';
+  if(s==='necklace') return 'icon_necklace';
+  if(s==='weapon') return it.wclass ? 'icon_'+it.wclass : null;
+  return s ? 'icon_'+s : null;
+}
+
 function redrawInventory(){
   recalcStats();
   let panel = document.getElementById('inventory'); if(!panel){ panel=document.createElement('div'); panel.id='inventory'; panel.className='panel'; document.body.appendChild(panel); }
@@ -1007,7 +1017,8 @@ function redrawInventory(){
   html += '<div class="equip-grid">';
   for(const slot of SLOTS){
     const it = inventory.equip[slot];
-    const icon = it && it.icon ? `<canvas class="item-img rar${it.rarity||0}" data-icon="${it.icon}"></canvas>` : '';
+    const iconKey = getItemIcon(it, slot); if(it && !it.icon && iconKey) it.icon = iconKey;
+    const icon = iconKey ? `<canvas class="item-img rar${it.rarity||0}" data-icon="${iconKey}"></canvas>` : '';
     html += `<div class="inv-slot list-row ${it?'':'empty'}" data-type="eq" data-slot="${slot}">${icon}</div>`;
   }
   html += '</div>';
@@ -1017,7 +1028,8 @@ function redrawInventory(){
   html += '<div class="potion-grid">';
   for(let i=0;i<POTION_BAG_SIZE;i++){
     const it = inventory.potionBag[i];
-    const icon = it && it.icon ? `<canvas class="item-img rar${it.rarity||0}" data-icon="${it.icon}"></canvas>` : '';
+    const iconKey = getItemIcon(it);
+    const icon = iconKey ? `<canvas class="item-img rar${it.rarity||0}" data-icon="${iconKey}"></canvas>` : '';
     html += `<div class="inv-slot list-row ${it?'':'empty'}" data-type="pbag" data-idx="${i}">${icon}</div>`;
   }
   html += '</div>';
@@ -1025,7 +1037,8 @@ function redrawInventory(){
   html += '<div class="bag-grid">';
   for(let i=0;i<BAG_SIZE;i++){
     const it = inventory.bag[i];
-    const icon = it && it.icon ? `<canvas class="item-img rar${it.rarity||0}" data-icon="${it.icon}"></canvas>` : '';
+    const iconKey = getItemIcon(it);
+    const icon = iconKey ? `<canvas class="item-img rar${it.rarity||0}" data-icon="${iconKey}"></canvas>` : '';
     html += `<div class="inv-slot list-row ${it?'':'empty'}" data-type="bag" data-idx="${i}">${icon}</div>`;
   }
   html += '</div>';
