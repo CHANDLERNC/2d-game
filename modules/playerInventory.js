@@ -11,8 +11,8 @@ const SLOTS = [
   "ring2",
   "weapon",
 ];
-const BAG_SIZE = 12;
-const POTION_BAG_SIZE = 3;
+const BAG_SIZE = 25;
+const POTION_BAG_SIZE = 15;
 
 class PlayerInventory {
   constructor() {
