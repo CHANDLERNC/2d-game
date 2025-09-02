@@ -46,6 +46,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) with
 - Summoner minion mastery branch boosting minion damage and increasing summon cap.
 
 ### Changed
+- Lighten inventory UI background to a soft gray for better contrast against dark dungeons.
 - Dungeon room connections now use a spanning tree with extra corridors for more varied layouts.
 - Split single-file build into modular assets for GitHub Pages.
 - Replace floor and wall textures with procedurally generated patterns to drop binary images.

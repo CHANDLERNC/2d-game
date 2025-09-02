@@ -17,7 +17,7 @@ html,body{margin:0;background:#0b0b0e;color:#ddd;font-family:system-ui,Segoe UI,
   .stone{background-image:linear-gradient(180deg,rgba(255,255,255,.03),rgba(0,0,0,.08));}
   .footer{padding:6px 12px;border-top:1px solid #2a2d39;background:linear-gradient(#0f1016,#0b0c11);opacity:.85}
   #bossAlert{position:fixed;top:20px;left:50%;transform:translateX(-50%);padding:8px 14px;background:#141622;border:1px solid #3a3e4d;border-radius:8px;pointer-events:none;opacity:.95;z-index:1000}
-  #inventory{display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);padding:12px;pointer-events:auto;font-size:12px;width:880px;max-width:90vw;max-height:90vh;overflow-y:auto}
+  #inventory{display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);padding:12px;pointer-events:auto;font-size:12px;width:880px;max-width:90vw;max-height:90vh;overflow-y:auto;background:#d3d3d3;color:#111}
   #shop{display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);min-width:320px;width:620px;max-width:90vw;max-height:70vh;overflow:auto;padding:10px 12px;pointer-events:auto;font-size:13px}
   #magic{display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);padding:8px 12px;pointer-events:auto;font-size:13px;width:340px;max-width:90vw;max-height:70vh;overflow:auto}
   #skills{display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);padding:8px 12px;pointer-events:auto;font-size:13px;width:340px;max-width:90vw;max-height:70vh;overflow:auto}
@@ -36,7 +36,7 @@ html,body{margin:0;background:#0b0b0e;color:#ddd;font-family:system-ui,Segoe UI,
 #inventory .char-portrait{width:80px;height:80px;border:1px solid #2a2d39;border-radius:6px;background:#0f1119;margin-bottom:8px;display:flex;align-items:center;justify-content:center}
   #inventory .equip-grid{display:grid;grid-template-columns:repeat(2,80px);gap:10px}
 #inventory .inv-right{flex:1;display:flex;flex-direction:column}
-  #inventory .inv-slot{width:80px;height:50px;border:1px solid #2a2d39;border-radius:6px;background:#06080f;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;box-sizing:border-box;padding:0}
+  #inventory .inv-slot{width:80px;height:50px;border:1px solid #2a2d39;border-radius:6px;background:#06080f;color:#ddd;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;box-sizing:border-box;padding:0}
 #inventory .item-img{width:32px;height:32px;image-rendering:pixelated}
 #inventory .item-img.rar0{filter:drop-shadow(0 0 6px #bfbfbf)}
 #inventory .item-img.rar1{filter:drop-shadow(0 0 6px #38c172)}
@@ -51,8 +51,8 @@ html,body{margin:0;background:#0b0b0e;color:#ddd;font-family:system-ui,Segoe UI,
   #inventory #invDetails{margin-top:8px;height:160px;overflow-y:auto}
 #inventory .inventory-footer{display:flex;gap:12px;margin-top:8px;font-size:12px}
 #inventory .inventory-footer .footer-item{display:flex;align-items:center;gap:4px}
-  #inventory .list-row:hover{background:#1a1d28}
-  #inventory #invCompare{position:fixed;display:none;padding:8px;min-width:260px;max-width:40%;max-height:40vh;overflow:auto;pointer-events:none;z-index:1000;left:50%;top:50%;transform:translate(-50%,-50%)}
+  #inventory .list-row:hover{background:#1a1d28;color:#ddd}
+  #inventory #invCompare{position:fixed;display:none;padding:8px;min-width:260px;max-width:40%;max-height:40vh;overflow:auto;pointer-events:none;z-index:1000;left:50%;top:50%;transform:translate(-50%,-50%);color:#ddd}
 .skill-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
 .skill-card{display:flex;flex-direction:column;gap:4px;padding:6px;border-radius:6px}
 .skill-card:hover{background:#1a1d28}
