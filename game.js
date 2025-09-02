@@ -66,6 +66,22 @@ function smoothstep01(t){ return t*t*(3-2*t); }
 function lerp(a,b,t){ return a + (b-a)*t; }
 let smoothEnabled = true; let baseStepDelay = 140; // sync to player.stepDelay on start
 
+// Track special boss rooms
+let bossRoom = null;
+function isInBossRoom(x, y){
+  if(!bossRoom) return false;
+  return x>=bossRoom.x && x<bossRoom.x+bossRoom.w && y>=bossRoom.y && y<bossRoom.y+bossRoom.h;
+}
+function initBossRoom(){
+  bossRoom = null;
+  if(floorNum % 5 !== 0) return;
+  const w = rng.int(12, 18), h = rng.int(12, 18);
+  const x = rng.int(1, MAP_W - w - 1), y = rng.int(1, MAP_H - h - 1);
+  bossRoom = {x, y, w, h, boss:true};
+  rooms.push(bossRoom);
+  for(let yy=y; yy<y+h; yy++) for(let xx=x; xx<x+w; xx++) map[yy*MAP_W+xx] = T_FLOOR;
+}
+
 // ===== RNG =====
 function RNG(seed){ this.s=seed|0; }
 RNG.prototype.next=function(){ this.s=(this.s*1664525+1013904223)|0; return ((this.s>>>0)/4294967296); }
@@ -84,6 +100,7 @@ function shuffle(arr){
 function generateRooms(){
   rooms.length = 0;
   map.fill(T_EMPTY);
+  initBossRoom();
   // rooms
   for(let i=0;i<28;i++){
     const w=rng.int(MIN_ROOM_SIZE,11), h=rng.int(MIN_ROOM_SIZE,11);
@@ -127,10 +144,11 @@ function generateRooms(){
     }
     if(adj && rng.next()<TORCH_CHANCE){ torches.push({x,y,phase:rng.next()*Math.PI*2}); }
   }
-  // place player + stairs + merchant
-  const r=rooms[rng.int(0,rooms.length-1)]; player.x=r.x+((r.w/2)|0); player.y=r.y+((r.h/2)|0);
-  let rr=rooms[rng.int(0,rooms.length-1)]; stairs.x=rr.x+((rr.w/2)|0); stairs.y=rr.y+((rr.h/2)|0);
-  let rm=rooms[rng.int(0,rooms.length-1)];
+  // place player + stairs + merchant (avoid boss room)
+  const nonBossRooms = rooms.filter(r=>!r.boss);
+  const r=nonBossRooms[rng.int(0,nonBossRooms.length-1)]; player.x=r.x+((r.w/2)|0); player.y=r.y+((r.h/2)|0);
+  let rr=nonBossRooms[rng.int(0,nonBossRooms.length-1)]; stairs.x=rr.x+((rr.w/2)|0); stairs.y=rr.y+((rr.h/2)|0);
+  let rm=nonBossRooms[rng.int(0,nonBossRooms.length-1)];
   merchant.x=rm.x+((rm.w/2)|0); merchant.y=rm.y+((rm.h/2)|0);
   while((merchant.x===player.x && merchant.y===player.y) || (merchant.x===stairs.x && merchant.y===stairs.y)){
     merchant.x=rng.int(rm.x+1,rm.x+rm.w-2);
@@ -138,11 +156,12 @@ function generateRooms(){
   }
 
   // monsters
+  const spawnRooms = nonBossRooms;
   const spawnCount = monsterCountForFloor(floorNum);
   for(let i=0;i<spawnCount;i++){
     let placed=false, tries=0;
     while(!placed && tries<25){
-      const r=rooms[rng.int(0,rooms.length-1)];
+      const r=spawnRooms[rng.int(0,spawnRooms.length-1)];
       const x=rng.int(r.x+1,r.x+r.w-2), y=rng.int(r.y+1,r.y+r.h-2);
       if((x===player.x && y===player.y) || (x===merchant.x && y===merchant.y)){
         tries++; continue;
@@ -160,7 +179,7 @@ function generateRooms(){
   if(floorNum > 4 && !monsters.some(m=>m.type===3)){
     let placed=false, tries=0;
     while(!placed && tries<25){
-      const r=rooms[rng.int(0,rooms.length-1)];
+      const r=spawnRooms[rng.int(0,spawnRooms.length-1)];
       const x=rng.int(r.x+1,r.x+r.w-2), y=rng.int(r.y+1,r.y+r.h-2);
       if((x===player.x && y===player.y) || (x===merchant.x && y===merchant.y)){
         tries++; continue;
@@ -180,7 +199,7 @@ function generateRooms(){
     // spawn mini boss with 1.8x HP of strongest mob
     let placed=false, tries=0;
     while(!placed && tries<50){
-      const r=rooms[rng.int(0,rooms.length-1)];
+      const r=spawnRooms[rng.int(0,spawnRooms.length-1)];
       const x=rng.int(r.x+1,r.x+r.w-2), y=rng.int(r.y+1,r.y+r.h-2);
       if((x===player.x && y===player.y) || (x===merchant.x && y===merchant.y)){
         tries++; continue;
@@ -198,27 +217,22 @@ function generateRooms(){
     }
 
     // every 5 floors spawn an extra large boss
-    if(floorNum % 5 === 0){
-      placed=false; tries=0;
-      const hpMult = 2.5 + rng.next()*0.5; // 2.5-3x
-      while(!placed && tries<50){
-        const r=rooms[rng.int(0,rooms.length-1)];
-        const x=rng.int(r.x+1,r.x+r.w-2), y=rng.int(r.y+1,r.y+r.h-2);
-        if((x===player.x && y===player.y) || (x===merchant.x && y===merchant.y)){
-          tries++; continue;
-        }
-        if(monsters.some(m=>Math.abs(m.x-x)+Math.abs(m.y-y)<4)){
-          tries++; continue;
-        }
-        const bb=spawnMonster(strongest.type,x,y);
+    if(floorNum % 5 === 0 && bossRoom){
+      const baseMonsters = monsters.filter(m=>!m.miniBoss && !m.bigBoss);
+      if(baseMonsters.length){
+        const template = baseMonsters[rng.int(0, baseMonsters.length-1)];
+        const x = bossRoom.x + ((bossRoom.w/2)|0);
+        const y = bossRoom.y + ((bossRoom.h/2)|0);
+        const bb = spawnMonster(template.type, x, y);
+        if(template.spriteKey) bb.spriteKey = template.spriteKey;
+        const hpMult = 5 + rng.next(); // 5-6x HP
         bb.hpMax = bb.hp = Math.round(strongest.hpMax * hpMult);
         bb.dmgMin = Math.round(bb.dmgMin * 2);
         bb.dmgMax = Math.round(bb.dmgMax * 2);
         bb.bigBoss = true;
-        bb.spriteKey = randomBossVariant();
-        bb.spriteSize = 48;
+        bb.spriteSize = Math.round(48 * (2 + rng.next()));
+        bb.attackAnim = 0;
         monsters.push(bb);
-        placed=true;
       }
       showBossAlert();
     }
@@ -275,6 +289,7 @@ function generateCave(){
     map[wy*MAP_W+wx]=T_FLOOR;
     for(let yy=ry; yy<ry+rh; yy++) for(let xx=rx; xx<rx+rw; xx++) map[yy*MAP_W+xx]=T_FLOOR;
   }
+  initBossRoom();
   // torches
   for(let y=1;y<MAP_H-1;y++) for(let x=1;x<MAP_W-1;x++){
     if(map[y*MAP_W+x]!==T_WALL) continue;
@@ -286,7 +301,7 @@ function generateCave(){
   }
   // collect floor tiles
   const tiles=[];
-  for(let y=1;y<MAP_H-1;y++) for(let x=1;x<MAP_W-1;x++) if(map[y*MAP_W+x]===T_FLOOR) tiles.push({x,y});
+  for(let y=1;y<MAP_H-1;y++) for(let x=1;x<MAP_W-1;x++) if(map[y*MAP_W+x]===T_FLOOR && !isInBossRoom(x,y)) tiles.push({x,y});
   function pick(){ return tiles[rng.int(0,tiles.length-1)]; }
   const p=pick(); player.x=p.x; player.y=p.y;
   let s=pick(); stairs.x=s.x; stairs.y=s.y;
@@ -326,16 +341,20 @@ function generateCave(){
       mb.hpMax = mb.hp = Math.round(strongest.hpMax*1.8);
       mb.miniBoss=true; mb.spriteKey=randomBossVariant(); mb.spriteSize=48; monsters.push(mb); placed=true;
     }
-    if(floorNum%5===0){
-      placed=false; tries=0; const hpMult=2.5 + rng.next()*0.5;
-      while(!placed && tries<50){
-        const t=pick(); const x=t.x, y=t.y;
-        if(Math.abs(x-player.x)+Math.abs(y-player.y)<2 || (x===merchant.x && y===merchant.y) || (x===stairs.x && y===stairs.y)){ tries++; continue; }
-        if(monsters.some(mo=>Math.abs(mo.x-x)+Math.abs(mo.y-y)<4)){ tries++; continue; }
-        const bb=spawnMonster(strongest.type,x,y);
+    if(floorNum%5===0 && bossRoom){
+      const baseMonsters = monsters.filter(m=>!m.miniBoss && !m.bigBoss);
+      if(baseMonsters.length){
+        const template = baseMonsters[rng.int(0, baseMonsters.length-1)];
+        const x = bossRoom.x + ((bossRoom.w/2)|0);
+        const y = bossRoom.y + ((bossRoom.h/2)|0);
+        const bb = spawnMonster(template.type, x, y);
+        if(template.spriteKey) bb.spriteKey = template.spriteKey;
+        const hpMult = 5 + rng.next();
         bb.hpMax = bb.hp = Math.round(strongest.hpMax*hpMult);
         bb.dmgMin = Math.round(bb.dmgMin*2); bb.dmgMax = Math.round(bb.dmgMax*2);
-        bb.bigBoss=true; bb.spriteKey=randomBossVariant(); bb.spriteSize=48; monsters.push(bb); placed=true;
+        bb.bigBoss=true; bb.spriteSize = Math.round(48 * (2 + rng.next()));
+        bb.attackAnim = 0;
+        monsters.push(bb);
       }
       showBossAlert();
     }
@@ -374,8 +393,9 @@ function generateNoiseTerrain(){
     }
     if(adj && rng.next()<TORCH_CHANCE){ torches.push({x,y,phase:rng.next()*Math.PI*2}); }
   }
+  initBossRoom();
   const tiles=[];
-  for(let y=1;y<MAP_H-1;y++) for(let x=1;x<MAP_W-1;x++) if(map[y*MAP_W+x]===T_FLOOR) tiles.push({x,y});
+  for(let y=1;y<MAP_H-1;y++) for(let x=1;x<MAP_W-1;x++) if(map[y*MAP_W+x]===T_FLOOR && !isInBossRoom(x,y)) tiles.push({x,y});
   function pick(){ return tiles[rng.int(0,tiles.length-1)]; }
   const p=pick(); player.x=p.x; player.y=p.y;
   let s=pick(); stairs.x=s.x; stairs.y=s.y;
@@ -427,20 +447,20 @@ function generateNoiseTerrain(){
       mb.hpMax = mb.hp = Math.round(strongest.hpMax*1.8);
       mb.miniBoss=true; mb.spriteKey=randomBossVariant(); mb.spriteSize=48; monsters.push(mb); placed=true;
     }
-    if(floorNum%5===0){
-      placed=false; tries=0; const hpMult=2.5 + rng.next()*0.5;
-      while(!placed && tries<50){
-        const t=pick(); const x=t.x, y=t.y;
-        if(Math.abs(x-player.x)+Math.abs(y-player.y)<2 || (x===merchant.x && y===merchant.y) || (x===stairs.x && y===stairs.y)){
-          tries++; continue;
-        }
-        if(monsters.some(mo=>Math.abs(mo.x-x)+Math.abs(mo.y-y)<4)){
-          tries++; continue;
-        }
-        const bb=spawnMonster(strongest.type,x,y);
+    if(floorNum%5===0 && bossRoom){
+      const baseMonsters = monsters.filter(m=>!m.miniBoss && !m.bigBoss);
+      if(baseMonsters.length){
+        const template = baseMonsters[rng.int(0, baseMonsters.length-1)];
+        const x = bossRoom.x + ((bossRoom.w/2)|0);
+        const y = bossRoom.y + ((bossRoom.h/2)|0);
+        const bb = spawnMonster(template.type, x, y);
+        if(template.spriteKey) bb.spriteKey = template.spriteKey;
+        const hpMult = 5 + rng.next();
         bb.hpMax = bb.hp = Math.round(strongest.hpMax*hpMult);
         bb.dmgMin = Math.round(bb.dmgMin*2); bb.dmgMax = Math.round(bb.dmgMax*2);
-        bb.bigBoss=true; bb.spriteKey=randomBossVariant(); bb.spriteSize=48; monsters.push(bb); placed=true;
+        bb.bigBoss=true; bb.spriteSize = Math.round(48 * (2 + rng.next()));
+        bb.attackAnim = 0;
+        monsters.push(bb);
       }
       showBossAlert();
     }
@@ -454,6 +474,7 @@ function placeHazards(){
     for(let x=1;x<MAP_W-1;x++){
       const idx=y*MAP_W+x;
       if(map[idx]!==T_FLOOR) continue;
+      if(isInBossRoom(x,y)) continue;
       if((x===player.x && y===player.y) || (x===stairs.x && y===stairs.y) || (x===merchant.x && y===merchant.y)) continue;
       if(monsters.some(m=>m.x===x && m.y===y)) continue;
       const r=rng.next();
@@ -1791,6 +1812,8 @@ function mageAI(m, dt, dx, dy, manhattan){
 const MONSTER_BEHAVIORS = {0:slimeAI,1:batAI,2:skeletonAI,3:mageAI,4:mageAI,5:goblinAI,6:ghostAI,7:skeletonAI,8:batAI};
 
 function monsterAI(m, dt){
+  m.attackAnim = Math.max(0, (m.attackAnim||0) - 1);
+  const prevAtk = m.atkCD;
   m.atkCD = Math.max(0, m.atkCD - 1);
   m.moveCD = Math.max(0, m.moveCD - 1);
   m.aggroT = Math.max(0, (m.aggroT || 0) - dt);
@@ -1801,6 +1824,7 @@ function monsterAI(m, dt){
   if(manhattan>AGGRO_RANGE && (m.aggroT||0)<=0) return;
   const fn = MONSTER_BEHAVIORS[m.type] || mageAI;
   fn(m, dt, dx, dy, manhattan);
+  if(m.bigBoss && prevAtk===0 && m.atkCD>0) m.attackAnim = 6;
 }
 
 // ===== Drawing =====
@@ -2025,7 +2049,14 @@ function draw(dt){
       ctx.fill();
       ctx.restore();
     }
-    ctx.drawImage(frame, mx, my);
+    let dx = mx, dy = my, dsize = size;
+    if(m.attackAnim>0){
+      const scale = 1 + 0.3*(m.attackAnim/6);
+      dsize = size*scale;
+      dx = mx + size/2 - dsize/2;
+      dy = my + size/2 - dsize/2;
+    }
+    ctx.drawImage(frame, dx, dy, dsize, dsize);
     if(m.hitFlash>0){ ctx.globalAlpha=0.5; ctx.fillStyle='#ff6666'; ctx.fillRect(mx,my,size,size); ctx.globalAlpha=1; }
     // hp bar
     ctx.fillStyle='#111'; ctx.fillRect(mx, my-6, size, 3);
