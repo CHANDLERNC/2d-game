@@ -1067,17 +1067,17 @@ function redrawInventory(){
   }
 
   // events (why: keep DOM light using delegation instead of many listeners)
+  let lastHoverRow = null;
   panel.onmousemove = (e)=>{
     const row = e.target.closest('.list-row');
-    if(!row){
-      setDetailsText(INV_DETAILS_DEFAULT);
-      disableInvActions();
-      showCompare(null);
-      return;
+    if(!row){ return; }
+    if(row !== lastHoverRow){
+      lastHoverRow = row;
+      showItemDetailsFromRow(row, e);
     }
-    showItemDetailsFromRow(row, e);
   };
   panel.onmouseleave=()=>{
+    lastHoverRow = null;
     setDetailsText(INV_DETAILS_DEFAULT);
     disableInvActions();
     showCompare(null);
