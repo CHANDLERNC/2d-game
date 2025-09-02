@@ -665,14 +665,22 @@ function buildLayers(){
   floorLayer=document.createElement('canvas'); floorLayer.width=MAP_W*TILE; floorLayer.height=MAP_H*TILE;
   wallLayer=document.createElement('canvas'); wallLayer.width=MAP_W*TILE; wallLayer.height=MAP_H*TILE;
   const f=floorLayer.getContext('2d'), w=wallLayer.getContext('2d');
-  f.fillStyle=f.createPattern(ASSETS.textures.floor,'repeat'); f.fillRect(0,0,floorLayer.width,floorLayer.height);
-  // mask non-floor
-  const mask=document.createElement('canvas'); mask.width=floorLayer.width; mask.height=floorLayer.height;
-  const mg=mask.getContext('2d'); mg.fillStyle='#000'; mg.fillRect(0,0,mask.width,mask.height);
-  mg.globalCompositeOperation='destination-out';
-  mg.fillStyle='#fff';
-  for(let y=0;y<MAP_H;y++) for(let x=0;x<MAP_W;x++) if(map[y*MAP_W+x]===T_FLOOR||map[y*MAP_W+x]===T_TRAP||map[y*MAP_W+x]===T_LAVA){ mg.fillRect(x*TILE,y*TILE,TILE,TILE); }
-  f.drawImage(mask,0,0);
+
+  const tiles=ASSETS.textures.floorTiles;
+  for(let y=0;y<MAP_H;y++) for(let x=0;x<MAP_W;x++){
+    const idx=y*MAP_W+x;
+    const t=map[idx];
+    if(t!==T_FLOOR && t!==T_TRAP && t!==T_LAVA) continue;
+    const h=((x*73856093)^(y*19349663)^seed)>>>0;
+    const tile=tiles[h%tiles.length];
+    const rot=(h>>4)&3;
+    f.save();
+    f.translate(x*TILE+TILE/2,y*TILE+TILE/2);
+    f.rotate(rot*Math.PI/2);
+    f.drawImage(tile,-TILE/2,-TILE/2);
+    f.restore();
+  }
+
   f.globalCompositeOperation='multiply';
   for(let y=0;y<MAP_H;y++) for(let x=0;x<MAP_W;x++){
     const idx=y*MAP_W+x;
@@ -685,6 +693,7 @@ function buildLayers(){
     f.fillRect(x*TILE,y*TILE,TILE,TILE);
   }
   f.globalCompositeOperation='source-over';
+
   // walls
   w.fillStyle=w.createPattern(ASSETS.textures.wall,'repeat');
   for(let y=0;y<MAP_H;y++) for(let x=0;x<MAP_W;x++) if(map[y*MAP_W+x]===T_WALL) w.fillRect(x*TILE,y*TILE,TILE,TILE);
