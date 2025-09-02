@@ -5,6 +5,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) with
 
 ## [Unreleased]
 ### Added
+- Minimap overlay revealing explored rooms with adjustable opacity and toggle key.
 - Random treasure chests (2–5 per floor) spawn around the map with loot.
 - Chests now have a rare chance to be mimics that ambush the player.
 - Optional cellular‑automata cave floors with secret rooms and environmental hazards like spike traps and lava.
