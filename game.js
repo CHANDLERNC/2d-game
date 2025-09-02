@@ -1289,7 +1289,9 @@ function makeRandomGear(){
   const name = `${RARITY[rarityIdx].n} ${baseName}`;
   const item = { color: RARITY[rarityIdx].c, type:'gear', slot, name, rarity: rarityIdx, lvl: floorNum, mods: affixMods(slot, rarityIdx, floorNum) };
   if(slot==='weapon'){ item.wclass = base.toLowerCase(); item.icon = 'icon_'+item.wclass; }
-  else if(slot!=='ring1' && slot!=='ring2' && slot!=='necklace'){
+  else if(slot==='ring1' || slot==='ring2'){ item.icon = 'icon_ring'; }
+  else if(slot==='necklace'){ item.icon = 'icon_necklace'; }
+  else{
     // Armor types provide baseline stats and defensive buffs
     const t = ARMOR_TYPES[rng.int(0, ARMOR_TYPES.length-1)];
     item.armorType = t;
