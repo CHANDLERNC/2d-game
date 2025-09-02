@@ -88,6 +88,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) with
 - Melee attacks now track the mouse and register hits within a 35° cone (2-tile reach by default).
 - Berserker class no longer registers as a Spellbinder.
 - Berserker skill menu now displays ability descriptions.
+- Newly added floor tile patterns now generate correctly and appear in-game.
 
 ### Docs
 - Document multi-file layout and link to the standalone controls page from the start screen.
