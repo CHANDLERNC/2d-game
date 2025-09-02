@@ -1043,21 +1043,17 @@ function redrawInventory(){
   }
 
   // events (why: keep DOM light using delegation instead of many listeners)
-  let lastRow=null;
   panel.onmousemove = (e)=>{
     const row = e.target.closest('.list-row');
     if(!row){
-      if(lastRow){
-        lastRow=null; setDetailsText(INV_DETAILS_DEFAULT); disableInvActions(); showCompare(null);
-      }
+      setDetailsText(INV_DETAILS_DEFAULT);
+      disableInvActions();
+      showCompare(null);
       return;
     }
-    if(row===lastRow) return;
-    lastRow=row;
-    showItemDetailsFromRow(row);
+    showItemDetailsFromRow(row, e);
   };
   panel.onmouseleave=()=>{
-    lastRow=null;
     setDetailsText(INV_DETAILS_DEFAULT);
     disableInvActions();
     showCompare(null);
@@ -1082,7 +1078,7 @@ function redrawInventory(){
   };
 }
 
-function showItemDetailsFromRow(row){
+function showItemDetailsFromRow(row, evt){
   const det = document.getElementById('invDetails');
   det.dataset.sel=''; det.dataset.kind='';
   const t=row.dataset.type;
@@ -1092,33 +1088,38 @@ function showItemDetailsFromRow(row){
     det.dataset.sel=String(i); det.dataset.kind='bag';
     setDetailsText(renderDetails(it, 'bag'));
     document.getElementById('btnSell').disabled=false; document.getElementById('btnDrop').disabled=false;
-    showCompare(it);
+    showCompare(it, evt, true);
   }else if(t==='pbag'){
     const i=parseInt(row.dataset.idx,10); const it=inventory.potionBag[i]; if(!it){ setDetailsText('(empty slot)'); disableInvActions(); showCompare(null); return; }
     det.dataset.sel=String(i); det.dataset.kind='pbag';
     setDetailsText(renderDetails(it, 'bag'));
     document.getElementById('btnSell').disabled=false; document.getElementById('btnDrop').disabled=false;
-    showCompare(null);
+    showCompare(it, evt, false);
   }else if(t==='eq'){
     const slot=row.dataset.slot; const it=inventory.equip[slot]; if(!it){ setDetailsText(`No ${slot} equipped.`); disableInvActions(); showCompare(null); return; }
     det.dataset.sel=slot; det.dataset.kind='eq';
     setDetailsText(renderDetails(it, 'eq'));
     document.getElementById('btnSell').disabled=false; document.getElementById('btnDrop').disabled=true; // avoid dropping equipped directly
-    showCompare(null);
+    showCompare(it, evt, false);
   }
 }
 
 function disableInvActions(){ document.getElementById('btnSell').disabled=true; document.getElementById('btnDrop').disabled=true; }
 function setDetailsText(html){ const det=document.getElementById('invDetails'); det.innerHTML=html; }
 
-function showCompare(it){
+function showCompare(it, evt, compare=true){
   const cmp=document.getElementById('invCompare'); if(!cmp) return;
-  if(!it || !it.slot){ cmp.style.display='none'; cmp.innerHTML=''; return; }
-  const eq=inventory.equip[it.slot];
+  if(!it){ cmp.style.display='none'; cmp.innerHTML=''; return; }
   let html='';
-  if(eq){ html+=`<div class="section-title">Equipped</div>${renderDetails(eq,'eq')}<div class="hr"></div>`; }
-  html+=`<div class="section-title">${eq?'Hovered':'Item'}</div>${renderDetails(it,'bag')}`;
+  if(compare && it.slot){
+    const eq=inventory.equip[it.slot];
+    if(eq){ html+=`<div class="section-title">Equipped</div>${renderDetails(eq,'eq')}<div class="hr"></div>`; }
+    html+=`<div class="section-title">${eq?'Hovered':'Item'}</div>${renderDetails(it,'bag')}`;
+  }else{
+    html+=renderDetails(it,'bag');
+  }
   cmp.innerHTML=html;
+  if(evt){ cmp.style.left=`${evt.clientX+16}px`; cmp.style.top=`${evt.clientY+16}px`; }
   cmp.style.display='block';
 }
 
