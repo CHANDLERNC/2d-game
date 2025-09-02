@@ -570,6 +570,36 @@ function genSprites(){
   // Static icons for inventory display
   SPRITES.icon_ring = makeIcon(ringLootSVG);
   SPRITES.icon_necklace = makeIcon(necklaceLootSVG);
+  SPRITES.icon_chest = makeIcon(chestLootSVG);
+
+  const helmetSVG = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12" shape-rendering="crispEdges">
+    <rect x="1" y="4" width="10" height="7" fill="#8c8d9f"/>
+    <rect x="2" y="2" width="8" height="2" fill="#aeb0c0"/>
+    <rect x="3" y="1" width="6" height="1" fill="#c5c6d5"/>
+    <rect x="2" y="9" width="8" height="1" fill="#7a7b8c"/>
+  </svg>`;
+  const legsSVG = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12" shape-rendering="crispEdges">
+    <rect x="2" y="0" width="3" height="11" fill="#8c8d9f"/>
+    <rect x="7" y="0" width="3" height="11" fill="#8c8d9f"/>
+    <rect x="2" y="5" width="3" height="6" fill="#aeb0c0"/>
+    <rect x="7" y="5" width="3" height="6" fill="#aeb0c0"/>
+    <rect x="2" y="10" width="3" height="1" fill="#7a7b8c"/>
+    <rect x="7" y="10" width="3" height="1" fill="#7a7b8c"/>
+  </svg>`;
+  const handsSVG = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12">
+    <circle cx="4" cy="6" r="3" fill="#aeb0c0" stroke="#7a7b8c" stroke-width="1"/>
+    <circle cx="8" cy="6" r="3" fill="#aeb0c0" stroke="#7a7b8c" stroke-width="1"/>
+  </svg>`;
+  const feetSVG = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12" shape-rendering="crispEdges">
+    <rect x="2" y="7" width="3" height="3" fill="#8c8d9f"/>
+    <rect x="7" y="7" width="3" height="3" fill="#8c8d9f"/>
+    <rect x="2" y="10" width="3" height="1" fill="#7a7b8c"/>
+    <rect x="7" y="10" width="3" height="1" fill="#7a7b8c"/>
+  </svg>`;
+  SPRITES.icon_helmet = makeIcon(helmetSVG);
+  SPRITES.icon_legs = makeIcon(legsSVG);
+  SPRITES.icon_hands = makeIcon(handsSVG);
+  SPRITES.icon_feet = makeIcon(feetSVG);
 
   const axeSVG = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12" shape-rendering="crispEdges">
     <rect x="5" y="1" width="2" height="9" fill="#8b5a2b"/>
