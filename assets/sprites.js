@@ -669,6 +669,22 @@ function genSprites(){
     SPRITES.chests[v] = { closed, open };
   }
 
+  // Barrels, crates and debris for breakable props
+  const barrel = new Image();
+  barrel.src = 'assets/Static/barrel.png';
+  SPRITES.barrel = barrel;
+  const crate = new Image();
+  crate.src = 'assets/Static/crate.png';
+  SPRITES.crate = crate;
+  const crate2 = new Image();
+  crate2.src = 'assets/Static/crate2.png';
+  SPRITES.crate2 = crate2;
+  const debris1 = new Image();
+  debris1.src = 'assets/Static/debris1.png';
+  const debris2 = new Image();
+  debris2.src = 'assets/Static/debris2.png';
+  SPRITES.debris = [debris1, debris2];
+
   const helmetSVG = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12" shape-rendering="crispEdges">
     <rect x="1" y="4" width="10" height="7" fill="#8c8d9f"/>
     <rect x="2" y="2" width="8" height="2" fill="#aeb0c0"/>
