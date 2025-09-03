@@ -20,7 +20,8 @@ const mimeTypes = {
 };
 
 const server = http.createServer(async (req, res) => {
-  const filePath = join(__dirname, req.url === '/' ? 'index.html' : req.url);
+  const requested = req.url === '/' ? '/index.html' : req.url;
+  const filePath = join(__dirname, '.' + requested);
   try {
     const data = await readFile(filePath);
     const type = mimeTypes[extname(filePath).toLowerCase()] || 'application/octet-stream';
