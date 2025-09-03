@@ -18,6 +18,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) with
 - Berserker skill tree with 12 abilities and escalating point costs.
 - Stamina resource and Raging Strike ability for the Berserker class.
 - Additional Berserker stamina abilities: Blade Cyclone and Thunder Bash.
+ - Organized weapon PNG assets into type-specific folders (swords, maces, staffs, spears, wands) and added a manifest used for loot generation.
 - Random weapon name generator for unique gear titles.
 - Gear now uses expanded name generators with more fantasy prefixes, suffixes, and unique weapon titles like "Shadow's Bane".
 - Weapon damage-over-time affix that can ignite foes.
