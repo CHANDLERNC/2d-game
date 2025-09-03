@@ -243,7 +243,22 @@ function genSprites(){
 
   // Rat animation frames loaded from external assets
   function loadRatAnim(){
-    const frames = [];
+    const idle = [], move = [], attack = [];
+    // idle frames
+    for(let i=0;i<5;i++){
+      const img = new Image();
+      img.src = `assets/Rat/Frames/Idle_rat_frames/${String(i).padStart(2,'0')}.png`;
+      const c = document.createElement('canvas');
+      c.width = c.height = 32;
+      const g = c.getContext('2d');
+      g.imageSmoothingEnabled = false;
+      img.onload = () => {
+        g.clearRect(0,0,32,32);
+        g.drawImage(img,0,0);
+      };
+      idle.push(c);
+    }
+    // move frames
     for(let i=0;i<5;i++){
       const img = new Image();
       img.src = `assets/Rat/Frames/Move/${String(i).padStart(2,'0')}.png`;
@@ -255,9 +270,23 @@ function genSprites(){
         g.clearRect(0,0,32,32);
         g.drawImage(img,0,0);
       };
-      frames.push(c);
+      move.push(c);
     }
-    return { cv: frames[0], frames };
+    // attack frames
+    for(let i=0;i<4;i++){
+      const img = new Image();
+      img.src = `assets/Rat/Frames/Attack/${String(i).padStart(2,'0')}.png`;
+      const c = document.createElement('canvas');
+      c.width = c.height = 32;
+      const g = c.getContext('2d');
+      g.imageSmoothingEnabled = false;
+      img.onload = () => {
+        g.clearRect(0,0,32,32);
+        g.drawImage(img,0,0);
+      };
+      attack.push(c);
+    }
+    return { cv: idle[0], idle, move, attack, frames: move };
   }
   SPRITES.rat = loadRatAnim();
 
