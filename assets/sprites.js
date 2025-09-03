@@ -241,6 +241,26 @@ function genSprites(){
   SPRITES.slime_purple = loadSlimeAnim('#b84aff');
   SPRITES.slime_shadow = loadSlimeAnim('#3a3a3a');
 
+  // Rat animation frames loaded from external assets
+  function loadRatAnim(){
+    const frames = [];
+    for(let i=0;i<5;i++){
+      const img = new Image();
+      img.src = `assets/Rat/Frames/Move/${String(i).padStart(2,'0')}.png`;
+      const c = document.createElement('canvas');
+      c.width = c.height = 32;
+      const g = c.getContext('2d');
+      g.imageSmoothingEnabled = false;
+      img.onload = () => {
+        g.clearRect(0,0,32,32);
+        g.drawImage(img,0,0);
+      };
+      frames.push(c);
+    }
+    return { cv: frames[0], frames };
+  }
+  SPRITES.rat = loadRatAnim();
+
   // Coin loot 14x14 rotating animation
   function makeCoinAnim(){
     const frames = [];
