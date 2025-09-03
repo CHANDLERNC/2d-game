@@ -659,6 +659,16 @@ function genSprites(){
   SPRITES.icon_necklace = makeIcon(necklaceLootSVG);
   SPRITES.icon_chest = makeIcon(chestLootSVG);
 
+  const chestVariants = ['bronze','silver','golden'];
+  SPRITES.chests = {};
+  for(const v of chestVariants){
+    const closed = new Image();
+    closed.src = `assets/Static/${v}_chest_closed.png`;
+    const open = new Image();
+    open.src = `assets/Static/${v}_chest_open.png`;
+    SPRITES.chests[v] = { closed, open };
+  }
+
   const helmetSVG = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12" shape-rendering="crispEdges">
     <rect x="1" y="4" width="10" height="7" fill="#8c8d9f"/>
     <rect x="2" y="2" width="8" height="2" fill="#aeb0c0"/>
