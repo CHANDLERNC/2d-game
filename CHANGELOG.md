@@ -116,6 +116,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) with
 
 *(See the Aug 26 commit list for merged PRs #19–#29 that introduced these features and fixes.)*
 
+## 2025-09-03
+### Changed
+- Chest spawns now display bronze, silver, and golden closed sprites and swap to open sprites when looted.
+
 ## 2025-08-25
 ### Added
 - Initial single-file HTML5 dungeon game with inline sprites. (9a70473)

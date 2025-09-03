@@ -943,8 +943,9 @@ function spawnChests(){
     if(lootMap.has(key)){ attempts++; continue; }
     const isMimic = rng.int(1,600) === 1;
     const variants = ['bronze','silver','golden'];
+    const colors = { bronze:'#cd7f32', silver:'#c0c0c0', golden:'#ffd700' };
     const variant = variants[rng.int(0, variants.length-1)];
-    lootMap.set(key,{type:'chest', color:'#b8860b', mimic:isMimic, variant, opened:false});
+    lootMap.set(key,{type:'chest', color:colors[variant], mimic:isMimic, variant, opened:false});
     placed++;
   }
 }
@@ -1903,6 +1904,14 @@ function monsterAI(m, dt){
 // ===== Drawing =====
 function drawLootIcon(it, x, y, size = 14){
   ctx.save();
+  if(it.type==='chest'){
+    const variant = ASSETS.sprites.chests[it.variant] ? it.variant : 'bronze';
+    const spr = ASSETS.sprites.chests[variant];
+    const img = it.opened ? spr.open : spr.closed;
+    ctx.drawImage(img, x, y, size, size);
+    ctx.restore();
+    return;
+  }
   if(it.rarity>0){
     ctx.shadowColor = it.color;
     ctx.shadowBlur = 4 + it.rarity*2;
@@ -1919,11 +1928,6 @@ function drawLootIcon(it, x, y, size = 14){
     const frames = spr.frames;
     const idx = frames.length ? Math.floor(performance.now()/100)%frames.length : 0;
     ctx.drawImage(frames[idx]||spr.cv, x+1, y+1);
-  }else if(it.type==='chest'){
-    const variant = ASSETS.sprites.chests[it.variant] ? it.variant : 'bronze';
-    const spr = ASSETS.sprites.chests[variant];
-    const img = it.opened ? spr.open : spr.closed;
-    ctx.drawImage(img, x, y, size, size);
   }else{
     switch(it.slot){
       case 'weapon':
