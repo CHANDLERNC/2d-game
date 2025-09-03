@@ -532,6 +532,7 @@ function scaleStat(base, perFloor){ return Math.max(1, Math.floor(base + perFloo
 
 function chooseMonsterType(floor){
   const pool = [
+    {type:9, w:3}, // rats always
     {type:0, w:3}, // slimes always
     {type:1, w:2}, // bats always
   ];
@@ -544,7 +545,7 @@ function chooseMonsterType(floor){
   // weight tough enemies if player overpowered
   const power = player.lvl + (player.dmgMin + player.dmgMax)/4;
   if(power > floor*2){
-    for(const opt of pool){ if(opt.type>=2) opt.w += 2; }
+    for(const opt of pool){ if(opt.type>=2 && opt.type!==9) opt.w += 2; }
   }
   const total = pool.reduce((s,o)=>s+o.w,0);
   let r = rng.next()*total;
@@ -568,6 +569,7 @@ function spawnMonster(type,x,y,elite=false){
     { hp:8,  dmg:[1,4], atkCD:32, moveCD:[6,12] },    // ghost: drifting foe
     { hp:9,  dmg:[2,5], atkCD:30, moveCD:[5,9] },     // invader: retro alien shooter
     { hp:12, dmg:[3,6], atkCD:28, moveCD:[4,8] },     // chomper: fast arcade muncher
+    { hp:8,  dmg:[1,3], atkCD:24, moveCD:[5,9] },     // rat: weak scavenger
   ];
   let a = archetypes[type] || archetypes[0];
   let spriteKey;
@@ -602,6 +604,8 @@ function spawnMonster(type,x,y,elite=false){
     spriteKey = 'invader';
   } else if(type===8){ // chomper
     spriteKey = 'chomper';
+  } else if(type===9){ // rat
+    spriteKey = 'rat';
   }
   const diff = 1 + SCALE.HARDNESS_MULT * Math.max(0, floorNum-1);
   const m = {
@@ -1780,6 +1784,13 @@ function goblinAI(m, dt, dx, dy, manhattan){
   }
 }
 
+function ratAI(m, dt, dx, dy, manhattan){
+  if(m.moveCD===0){
+    if(!tryMoveMonster(m, dx, 0, 120)) tryMoveMonster(m, 0, dy, 120);
+    m.moveCD = Math.round(rng.int(5, 9) * ENEMY_SPEED_MULT);
+  }
+}
+
 function ghostAI(m, dt, dx, dy, manhattan){
   if(m.moveCD===0){
     if(!tryMoveMonster(m, dx, dy, 140)){
@@ -1852,7 +1863,7 @@ function dragonBossAI(m, dt, dx, dy, manhattan){
   }
 }
 
-const MONSTER_BEHAVIORS = {0:slimeAI,1:batAI,2:skeletonAI,3:mageAI,4:mageAI,5:goblinAI,6:ghostAI,7:skeletonAI,8:batAI};
+const MONSTER_BEHAVIORS = {0:slimeAI,1:batAI,2:skeletonAI,3:mageAI,4:mageAI,5:goblinAI,6:ghostAI,7:skeletonAI,8:batAI,9:ratAI};
 
 function monsterAI(m, dt){
   m.attackAnim = Math.max(0, (m.attackAnim||0) - 1);
@@ -2073,7 +2084,7 @@ function draw(dt){
     const mty = (m.ry!==undefined ? m.ry : m.y);
     const size = m.spriteSize || 24;
     const mx = mtx*TILE - camX + (TILE-size)/2; const my = mty*TILE - camY + (TILE-size)/2;
-    const key = m.spriteKey || (m.type===0?'slime' : m.type===1?'bat' : m.type===2?'skeleton' : m.type===5?'goblin' : m.type===6?'ghost' : m.type===7?'invader' : m.type===8?'chomper' : 'mage');
+    const key = m.spriteKey || (m.type===0?'slime' : m.type===1?'bat' : m.type===2?'skeleton' : m.type===5?'goblin' : m.type===6?'ghost' : m.type===7?'invader' : m.type===8?'chomper' : m.type===9?'rat' : 'mage');
     const spr = ASSETS.sprites[key];
     let frame = spr.cv;
     if(spr.frames && spr.frames.length>0){
