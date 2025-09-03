@@ -58,6 +58,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) with
 - Reduced base health of all monster types.
 - Magic abilities now require sequential unlocking with escalating point costs.
 - Summoned creatures are capped at four per ability unless upgraded.
+- Slime enemies now use externally provided animated sprites instead of generated visuals.
 - Reworked class skill trees into nested data structures and updated progression logic.
 - Reworked weapon and armor attributes for improved random bonuses.
 - Reduced monster density on early floors.
