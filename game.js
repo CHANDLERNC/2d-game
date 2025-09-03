@@ -3157,6 +3157,7 @@ function startGame(){
   // class pick -> sprite & stats
   const cSel = document.querySelector('input[name="class"]:checked');
   player.class = cSel ? cSel.value : 'warrior';
+  player.skillTree = skillTreeGraph[player.class];
   player.boundSpell=null; player.boundSkill=null;
   updatePlayerSprite();
   player.score=0; player.kills=0; player.timeSurvived=0; player.floorsCleared=0;
