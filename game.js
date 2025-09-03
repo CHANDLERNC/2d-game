@@ -537,7 +537,10 @@ function chooseMonsterType(floor){
     {type:1, w:2}, // bats always
   ];
   if(floor>=2) pool.push({type:5, w:2}); // goblins
-  if(floor>=3) pool.push({type:2, w:2}); // skeletons
+  if(floor>=3) {
+    pool.push({type:2, w:2}); // skeleton warriors
+    pool.push({type:10, w:2}); // skeleton archers
+  }
   if(floor>=4) pool.push({type:6, w:1}); // ghosts
   if(floor>=5) pool.push({type:3, w:1}); // mages
   if(floor>=6) pool.push({type:7, w:1}); // invaders
@@ -562,7 +565,7 @@ function spawnMonster(type,x,y,elite=false){
   const archetypes = [
     { hp:18, dmg:[2,4], atkCD:28, moveCD:[6,10] },    // slime base
     { hp:6,  dmg:[1,3], atkCD:22, moveCD:[4,8] },     // bat: frail but fast
-    { hp:14, dmg:[2,5], atkCD:38, moveCD:[6,10] },    // skeleton: durable ranged
+    { hp:14, dmg:[2,5], atkCD:38, moveCD:[6,10] },    // skeleton warrior: sturdy melee
     { hp:11, dmg:[3,7], atkCD:39, moveCD:[6,10] },    // mage: higher damage, slower attack
     { hp:12, dmg:[3,6], atkCD:30, moveCD:[6,10] },    // dragon hatchling
     { hp:10, dmg:[2,5], atkCD:26, moveCD:[5,9] },     // goblin: agile melee
@@ -570,6 +573,7 @@ function spawnMonster(type,x,y,elite=false){
     { hp:9,  dmg:[2,5], atkCD:30, moveCD:[5,9] },     // invader: retro alien shooter
     { hp:12, dmg:[3,6], atkCD:28, moveCD:[4,8] },     // chomper: fast arcade muncher
     { hp:8,  dmg:[1,3], atkCD:24, moveCD:[5,9] },     // rat: weak scavenger
+    { hp:14, dmg:[2,5], atkCD:38, moveCD:[6,10] },    // skeleton archer: ranged attacker
   ];
   let a = archetypes[type] || archetypes[0];
   let spriteKey;
@@ -606,6 +610,8 @@ function spawnMonster(type,x,y,elite=false){
     spriteKey = 'chomper';
   } else if(type===9){ // rat
     spriteKey = 'rat';
+  } else if(type===10){ // skeleton archer
+    spriteKey = 'skeleton_archer';
   }
   const diff = 1 + SCALE.HARDNESS_MULT * Math.max(0, floorNum-1);
   const m = {
@@ -1863,7 +1869,7 @@ function dragonBossAI(m, dt, dx, dy, manhattan){
   }
 }
 
-const MONSTER_BEHAVIORS = {0:slimeAI,1:batAI,2:skeletonAI,3:mageAI,4:mageAI,5:goblinAI,6:ghostAI,7:skeletonAI,8:batAI,9:ratAI};
+const MONSTER_BEHAVIORS = {0:slimeAI,1:batAI,2:goblinAI,3:mageAI,4:mageAI,5:goblinAI,6:ghostAI,7:skeletonAI,8:batAI,9:ratAI,10:skeletonAI};
 
 function monsterAI(m, dt){
   m.attackAnim = Math.max(0, (m.attackAnim||0) - 1);
@@ -1872,7 +1878,7 @@ function monsterAI(m, dt){
   m.moveCD = Math.max(0, m.moveCD - 1);
   m.aggroT = Math.max(0, (m.aggroT || 0) - dt);
   if(getEffect(player,'invis')) return;
-  if(meleeIfAdjacent(m)) return;
+  if(meleeIfAdjacent(m)) { m.attackAnim = 6; return; }
   const dx = sign(player.x - m.x), dy = sign(player.y - m.y);
   const manhattan = Math.abs(player.x-m.x)+Math.abs(player.y-m.y);
   if(manhattan>AGGRO_RANGE && (m.aggroT||0)<=0) return;
@@ -1883,7 +1889,7 @@ function monsterAI(m, dt){
   }
   const fn = MONSTER_BEHAVIORS[m.type] || mageAI;
   fn(m, dt, dx, dy, manhattan);
-  if(m.bigBoss && prevAtk===0 && m.atkCD>0) m.attackAnim = 6;
+  if(prevAtk===0 && m.atkCD>0) m.attackAnim = 6;
 }
 
 // ===== Drawing =====
@@ -2087,7 +2093,11 @@ function draw(dt){
     const key = m.spriteKey || (m.type===0?'slime' : m.type===1?'bat' : m.type===2?'skeleton' : m.type===5?'goblin' : m.type===6?'ghost' : m.type===7?'invader' : m.type===8?'chomper' : m.type===9?'rat' : 'mage');
     const spr = ASSETS.sprites[key];
     let frame = spr.cv;
-    if(spr.frames && spr.frames.length>0){
+    if(m.attackAnim>0 && spr.attack && spr.attack.length>0){
+      const prog = (6 - m.attackAnim) / 6;
+      const animIdx = Math.min(spr.attack.length-1, Math.floor(prog * spr.attack.length));
+      frame = spr.attack[animIdx];
+    }else if(spr.frames && spr.frames.length>0){
       const animIdx = Math.floor(now/200) % spr.frames.length;
       frame = spr.frames[animIdx];
     }
