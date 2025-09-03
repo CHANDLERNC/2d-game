@@ -643,6 +643,7 @@ function spawnMonster(type,x,y,elite=false){
   m.resPoison = elemRes;
   m.resMagic = magicRes;
   if(spriteKey) m.spriteKey = spriteKey;
+  if(type===9) m.spriteSize = 32; // rat uses 32x32 frames
   return m;
 }
 
@@ -2097,6 +2098,10 @@ function draw(dt){
       const prog = (6 - m.attackAnim) / 6;
       const animIdx = Math.min(spr.attack.length-1, Math.floor(prog * spr.attack.length));
       frame = spr.attack[animIdx];
+    }else if(spr.move || spr.idle){
+      const anim = m.moving ? (spr.move || spr.idle) : (spr.idle || spr.move);
+      const animIdx = Math.floor(now/200) % anim.length;
+      frame = anim[animIdx];
     }else if(spr.frames && spr.frames.length>0){
       const animIdx = Math.floor(now/200) % spr.frames.length;
       frame = spr.frames[animIdx];
