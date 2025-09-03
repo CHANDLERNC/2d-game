@@ -86,6 +86,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) with
 
 ### Fixed
 - Slime idle animations now render without missing image assets.
+- Slime variants now display distinct colored sprites.
 - Melee attacks now track the mouse and register hits within a 35° cone (2-tile reach by default).
 - Berserker class no longer registers as a Spellbinder.
 - Berserker skill menu now displays ability descriptions.

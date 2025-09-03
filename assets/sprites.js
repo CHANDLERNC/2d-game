@@ -211,7 +211,7 @@ function genSprites(){
   SPRITES.player_rogue = makePlayerRogueAnim();
 
   // Slime animation frames loaded from external assets
-  function loadSlimeAnim(){
+  function loadSlimeAnim(tint){
     const frames = [];
     for(let i=0;i<4;i++){
       const img = new Image();
@@ -220,18 +220,26 @@ function genSprites(){
       c.width = c.height = 32;
       const g = c.getContext('2d');
       g.imageSmoothingEnabled = false;
-      img.onload = () => { g.clearRect(0,0,32,32); g.drawImage(img,0,0); };
+      img.onload = () => {
+        g.clearRect(0,0,32,32);
+        g.drawImage(img,0,0);
+        if(tint){
+          g.globalCompositeOperation = 'source-atop';
+          g.fillStyle = tint;
+          g.fillRect(0,0,32,32);
+          g.globalCompositeOperation = 'source-over';
+        }
+      };
       frames.push(c);
     }
     return { cv: frames[0], frames };
   }
-  const slimeSprite = loadSlimeAnim();
-  SPRITES.slime = slimeSprite;
-  SPRITES.slime_red = slimeSprite;
-  SPRITES.slime_yellow = slimeSprite;
-  SPRITES.slime_blue = slimeSprite;
-  SPRITES.slime_purple = slimeSprite;
-  SPRITES.slime_shadow = slimeSprite;
+  SPRITES.slime = loadSlimeAnim();
+  SPRITES.slime_red = loadSlimeAnim('#ff6b4a');
+  SPRITES.slime_yellow = loadSlimeAnim('#ffd24a');
+  SPRITES.slime_blue = loadSlimeAnim('#7dd3fc');
+  SPRITES.slime_purple = loadSlimeAnim('#b84aff');
+  SPRITES.slime_shadow = loadSlimeAnim('#3a3a3a');
 
   // Coin loot 14x14 rotating animation
   function makeCoinAnim(){
