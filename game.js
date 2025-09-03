@@ -1984,24 +1984,21 @@ function drawLootIcon(it, x, y, size = 14){
     ctx.drawImage(frames[idx]||spr.cv, x+1, y+1);
   }else{
     switch(it.slot){
-      case 'weapon':
-        if(it.wclass === 'bow'){
-          const spr = ASSETS.sprites.bow_loot;
-          const frames = spr.frames;
-          const idx = frames.length ? Math.floor(performance.now()/100)%frames.length : 0;
-          ctx.drawImage(frames[idx]||spr.cv, x, y);
-        }else if(it.wclass === 'sword'){
-          const spr = ASSETS.sprites.sword_loot;
-          const frames = spr.frames;
-          const idx = frames.length ? Math.floor(performance.now()/100)%frames.length : 0;
-          ctx.drawImage(frames[idx]||spr.cv, x, y);
-        }else{
+      case 'weapon': {
+        const lootSpr = ASSETS.sprites[it.wclass + '_loot'];
+        const spr = lootSpr || ASSETS.sprites[it.icon];
+        if (spr) {
+          const frames = spr.frames || [];
+          const idx = frames.length ? Math.floor(performance.now()/100) % frames.length : 0;
+          ctx.drawImage(frames[idx] || spr.cv, x, y);
+        } else {
           ctx.fillRect(x+6, y, 2, 10);
           ctx.strokeRect(x+6, y, 2, 10);
           ctx.fillRect(x+4, y+8, 6, 2);
           ctx.strokeRect(x+4, y+8, 6, 2);
         }
         break;
+      }
       case 'helmet':
         ctx.beginPath();
         ctx.arc(x+7, y+6, 5, Math.PI, 0);
