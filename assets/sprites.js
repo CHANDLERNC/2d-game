@@ -751,9 +751,9 @@ function genSprites(){
   }
   SPRITES.bat = makeBatAnim('#20222b','#2e3240');
   SPRITES.bat_brown = makeBatAnim('#3b2b1a','#4c3524');
-  // Skeleton warrior animation loaded from external assets
+  // Skeleton warrior animation loaded from external assets (run + attack frames)
   function loadSkeletonWarriorAnim(){
-    const frames = [];
+    const run = [], attack = [];
     for(let i=0;i<6;i++){
       const img = new Image();
       img.src = `assets/Skeleton warrior/Frames/Run/Down/${String(i).padStart(2,'0')}.png`;
@@ -766,14 +766,60 @@ function genSprites(){
         // source frames are 32x48, scale to square 24x24
         g.drawImage(img,0,0,32,48,0,0,24,24);
       };
-      frames.push(c);
+      run.push(c);
     }
-    return { cv: frames[0], frames };
+    for(let i=0;i<4;i++){
+      const img = new Image();
+      img.src = `assets/Skeleton warrior/Frames/Attack/Down/${String(i).padStart(2,'0')}.png`;
+      const c = document.createElement('canvas');
+      c.width = c.height = 24;
+      const g = c.getContext('2d');
+      g.imageSmoothingEnabled = false;
+      img.onload = () => {
+        g.clearRect(0,0,24,24);
+        g.drawImage(img,0,0,32,48,0,0,24,24);
+      };
+      attack.push(c);
+    }
+    return { cv: run[0], frames: run, attack };
   }
   const skeletonSprite = loadSkeletonWarriorAnim();
   SPRITES.skeleton = skeletonSprite;
   SPRITES.skeleton_red = skeletonSprite;
   SPRITES.skeleton_green = skeletonSprite;
+
+  // Skeleton archer animation loaded from external assets
+  function loadSkeletonArcherAnim(){
+    const run = [], attack = [];
+    for(let i=0;i<6;i++){
+      const img = new Image();
+      img.src = `assets/Skeleton archer/Frames/Run/Down/${String(i).padStart(2,'0')}.png`;
+      const c = document.createElement('canvas');
+      c.width = c.height = 24;
+      const g = c.getContext('2d');
+      g.imageSmoothingEnabled = false;
+      img.onload = () => {
+        g.clearRect(0,0,24,24);
+        g.drawImage(img,0,0,32,48,0,0,24,24);
+      };
+      run.push(c);
+    }
+    for(let i=0;i<6;i++){
+      const img = new Image();
+      img.src = `assets/Skeleton archer/Frames/Attack/Down/${String(i).padStart(2,'0')}.png`;
+      const c = document.createElement('canvas');
+      c.width = c.height = 24;
+      const g = c.getContext('2d');
+      g.imageSmoothingEnabled = false;
+      img.onload = () => {
+        g.clearRect(0,0,24,24);
+        g.drawImage(img,0,0,32,48,0,0,24,24);
+      };
+      attack.push(c);
+    }
+    return { cv: run[0], frames: run, attack };
+  }
+  SPRITES.skeleton_archer = loadSkeletonArcherAnim();
 
   // Skeleton Mage 24x24 (caster enemy)
   function makeMageAnim(){
