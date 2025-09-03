@@ -941,7 +941,9 @@ function spawnChests(){
     const key = `${x},${y}`;
     if(lootMap.has(key)){ attempts++; continue; }
     const isMimic = rng.int(1,600) === 1;
-    lootMap.set(key,{type:'chest', color:'#b8860b', mimic:isMimic});
+    const variants = ['bronze','silver','golden'];
+    const variant = variants[rng.int(0, variants.length-1)];
+    lootMap.set(key,{type:'chest', color:'#b8860b', mimic:isMimic, variant, opened:false});
     placed++;
   }
 }
@@ -963,8 +965,12 @@ function pickupHere(){
     return;
   }
   if(it.type === 'chest'){
-    lootMap.delete(key);
+    if(it.opened){
+      showToast('The chest is empty');
+      return;
+    }
     if(it.mimic){
+      lootMap.delete(key);
       const m = spawnMonster(8, player.x, player.y);
       m.hpMax *= 2; m.hp = m.hpMax;
       m.miniBoss = true;
@@ -974,6 +980,7 @@ function pickupHere(){
       monsters.push(m);
       showToast("It's a mimic!");
     }else{
+      it.opened = true;
       const drops = rng.int(1,3);
       for(let i=0;i<drops;i++) dropLoot(player.x, player.y);
       showToast('Opened a chest!');
@@ -1893,7 +1900,7 @@ function monsterAI(m, dt){
 }
 
 // ===== Drawing =====
-function drawLootIcon(it, x, y){
+function drawLootIcon(it, x, y, size = 14){
   ctx.save();
   if(it.rarity>0){
     ctx.shadowColor = it.color;
@@ -1912,14 +1919,10 @@ function drawLootIcon(it, x, y){
     const idx = frames.length ? Math.floor(performance.now()/100)%frames.length : 0;
     ctx.drawImage(frames[idx]||spr.cv, x+1, y+1);
   }else if(it.type==='chest'){
-    ctx.fillStyle = '#8b4513';
-    ctx.fillRect(x+1, y+5, 12, 8);
-    ctx.fillStyle = '#cd853f';
-    ctx.fillRect(x+1, y+3, 12, 4);
-    ctx.strokeRect(x+1, y+3, 12, 10);
-    ctx.fillStyle = '#d2b48c';
-    ctx.fillRect(x+6, y+8, 2, 2);
-    ctx.strokeRect(x+6, y+8, 2, 2);
+    const variant = ASSETS.sprites.chests[it.variant] ? it.variant : 'bronze';
+    const spr = ASSETS.sprites.chests[variant];
+    const img = it.opened ? spr.open : spr.closed;
+    ctx.drawImage(img, x, y, size, size);
   }else{
     switch(it.slot){
       case 'weapon':
@@ -2063,9 +2066,10 @@ function draw(dt){
   for(const [k,it] of lootMap.entries()){
     const [lx,ly]=k.split(',').map(Number);
     if(vis[ly*MAP_W+lx]){
-      const lxpx = lx*TILE - camX + (TILE-14)/2;
-      const lypy = ly*TILE - camY + (TILE-14)/2;
-      drawLootIcon(it, lxpx, lypy);
+      const size = it.type === 'chest' ? TILE : 14;
+      const lxpx = lx*TILE - camX + (TILE-size)/2;
+      const lypy = ly*TILE - camY + (TILE-size)/2;
+      drawLootIcon(it, lxpx, lypy, size);
     }
   }
 
