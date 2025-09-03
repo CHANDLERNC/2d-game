@@ -13,6 +13,7 @@ import { renderLayers } from './modules/rendering.js';
 import { MIN_ROOM_SIZE, connectRooms, pruneSmallAreas } from './modules/mapGen.js';
 import { createNoise2D } from './modules/noise.js';
 import { ARMOR_TYPES, ARMOR_TYPE_MODS } from './modules/armorTypes.js';
+import weaponManifest from './assets/weaponManifest.json' assert { type: 'json' };
 
 // ===== Config / Globals =====
 let VIEW_W=window.innerWidth, VIEW_H=window.innerHeight;
@@ -1370,7 +1371,12 @@ function makeRandomGear(){
   else baseName = generateItemName(base);
   const name = `${RARITY[rarityIdx].n} ${baseName}`;
   const item = { color: RARITY[rarityIdx].c, type:'gear', slot, name, rarity: rarityIdx, lvl: floorNum, mods: affixMods(slot, rarityIdx, floorNum) };
-  if(slot==='weapon'){ item.wclass = base.toLowerCase(); item.icon = 'icon_'+item.wclass; }
+  if(slot==='weapon'){
+    item.wclass = base.toLowerCase();
+    item.icon = 'icon_'+item.wclass;
+    const imgs = weaponManifest[item.wclass];
+    if(imgs && imgs.length) item.img = imgs[rng.int(0, imgs.length-1)];
+  }
   else if(slot==='ring1' || slot==='ring2'){ item.icon = 'icon_ring'; }
   else if(slot==='necklace'){ item.icon = 'icon_necklace'; }
   else{
