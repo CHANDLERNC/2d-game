@@ -210,31 +210,28 @@ function genSprites(){
   }
   SPRITES.player_rogue = makePlayerRogueAnim();
 
-  // Slime idle animations 24x24
-  function makeSlimeAnim(c1, c2, c3){
+  // Slime animation frames loaded from external assets
+  function loadSlimeAnim(){
     const frames = [];
     for(let i=0;i<4;i++){
-      const c=document.createElement('canvas');
-      c.width=c.height=24;
-      const g=c.getContext('2d');
-      g.imageSmoothingEnabled=false;
-      const bob = (i%2===0)?0:1;
-      px(g,4,10+bob,16,10-bob,c1);
-      px(g,6,8+bob,12,10-bob,c2);
-      px(g,8,6+bob,8,8,c3);
-      px(g,9,11+bob,2,2,'#131340');
-      px(g,13,11+bob,2,2,'#131340');
-      outline(g,24);
+      const img = new Image();
+      img.src = `assets/Slime/Frames/Move/${String(i).padStart(2,'0')}.png`;
+      const c = document.createElement('canvas');
+      c.width = c.height = 32;
+      const g = c.getContext('2d');
+      g.imageSmoothingEnabled = false;
+      img.onload = () => { g.clearRect(0,0,32,32); g.drawImage(img,0,0); };
       frames.push(c);
     }
     return { cv: frames[0], frames };
   }
-  SPRITES.slime = makeSlimeAnim('#5ca94a','#6bbd59','#8ed97b');
-  SPRITES.slime_red = makeSlimeAnim('#d35e5e','#e06e6e','#f18b8b');
-  SPRITES.slime_yellow = makeSlimeAnim('#d3c85e','#e0d56e','#f1e58b');
-  SPRITES.slime_blue = makeSlimeAnim('#5e6ed3','#6e7ce0','#8b9bf1');
-  SPRITES.slime_purple = makeSlimeAnim('#a45ed3','#b06ee0','#c68bf1');
-  SPRITES.slime_shadow = makeSlimeAnim('#1a1f2f','#2f1a1a','#3a2a2a');
+  const slimeSprite = loadSlimeAnim();
+  SPRITES.slime = slimeSprite;
+  SPRITES.slime_red = slimeSprite;
+  SPRITES.slime_yellow = slimeSprite;
+  SPRITES.slime_blue = slimeSprite;
+  SPRITES.slime_purple = slimeSprite;
+  SPRITES.slime_shadow = slimeSprite;
 
   // Coin loot 14x14 rotating animation
   function makeCoinAnim(){
