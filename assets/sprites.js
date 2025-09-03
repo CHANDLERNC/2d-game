@@ -723,43 +723,29 @@ function genSprites(){
   }
   SPRITES.bat = makeBatAnim('#20222b','#2e3240');
   SPRITES.bat_brown = makeBatAnim('#3b2b1a','#4c3524');
-  // Skeleton warrior 24x24 animated (sword & shield)
-  function makeSkeletonWarriorAnim(skull='#e9edf1', bone='#dde3ea'){
+  // Skeleton warrior animation loaded from external assets
+  function loadSkeletonWarriorAnim(){
     const frames = [];
-    for(let i=0;i<4;i++){
-      const c=document.createElement('canvas');
-      c.width=c.height=24;
-      const g=c.getContext('2d');
-      g.imageSmoothingEnabled=false;
-      const oy = i%2;             // simple vertical bob
-      const step = i<2?-1:1;      // step direction for walk cycle
-      // head & helmet
-      px(g,8,2+oy,8,6,skull);
-      px(g,9,4+oy,2,2,'#000'); px(g,13,4+oy,2,2,'#000');
-      px(g,7,1+oy,10,2,'#3a3d44');
-      px(g,7,2+oy,2,3,'#3a3d44'); px(g,15,2+oy,2,3,'#3a3d44');
-      // torso
-      px(g,8,8+oy,8,6,bone);
-      px(g,8,10+oy,8,1,'#000'); px(g,8,12+oy,8,1,'#000');
-      // legs
-      px(g,7+step,14+oy,2,4,bone);
-      px(g,15-step,14+oy,2,4,bone);
-      px(g,7+step,18+oy,3,2,bone); px(g,14-step,18+oy,3,2,bone);
-      // right arm holding sword
-      px(g,18+step,12+oy,2,4,bone);
-      px(g,20+step,8+oy,2,10,'#c0c0c0');
-      px(g,19+step,17+oy,4,2,'#3a2d1a');
-      // shield on left
-      px(g,2-step,8+oy,6,8,'#5a4b3a');
-      px(g,3-step,9+oy,4,6,'#8b6b43');
-      outline(g,24);
+    for(let i=0;i<6;i++){
+      const img = new Image();
+      img.src = `assets/Skeleton warrior/Frames/Run/Down/${String(i).padStart(2,'0')}.png`;
+      const c = document.createElement('canvas');
+      c.width = c.height = 24;
+      const g = c.getContext('2d');
+      g.imageSmoothingEnabled = false;
+      img.onload = () => {
+        g.clearRect(0,0,24,24);
+        // source frames are 32x48, scale to square 24x24
+        g.drawImage(img,0,0,32,48,0,0,24,24);
+      };
       frames.push(c);
     }
     return { cv: frames[0], frames };
   }
-  SPRITES.skeleton = makeSkeletonWarriorAnim();
-  SPRITES.skeleton_red = makeSkeletonWarriorAnim('#ff8b8b','#ff6b6b');
-  SPRITES.skeleton_green = makeSkeletonWarriorAnim('#9fe2a1','#76d38b');
+  const skeletonSprite = loadSkeletonWarriorAnim();
+  SPRITES.skeleton = skeletonSprite;
+  SPRITES.skeleton_red = skeletonSprite;
+  SPRITES.skeleton_green = skeletonSprite;
 
   // Skeleton Mage 24x24 (caster enemy)
   function makeMageAnim(){
