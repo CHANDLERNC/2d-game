@@ -2086,10 +2086,21 @@ function draw(dt){
     const mx = mtx*TILE - camX + (TILE-size)/2; const my = mty*TILE - camY + (TILE-size)/2;
     const key = m.spriteKey || (m.type===0?'slime' : m.type===1?'bat' : m.type===2?'skeleton' : m.type===5?'goblin' : m.type===6?'ghost' : m.type===7?'invader' : m.type===8?'chomper' : m.type===9?'rat' : 'mage');
     const spr = ASSETS.sprites[key];
-    let frame = spr.cv;
-    if(spr.frames && spr.frames.length>0){
+    let frame;
+    if(spr.attack && m.attackAnim>0){
+      const idx = Math.floor((6 - m.attackAnim) * spr.attack.length / 7);
+      frame = spr.attack[Math.min(idx, spr.attack.length - 1)];
+    } else if(spr.move && m.moving){
+      const anim = spr.move;
+      frame = anim[Math.floor(now/200) % anim.length];
+    } else if(spr.idle){
+      const anim = spr.idle;
+      frame = anim[Math.floor(now/200) % anim.length];
+    } else if(spr.frames && spr.frames.length>0){
       const animIdx = Math.floor(now/200) % spr.frames.length;
       frame = spr.frames[animIdx];
+    } else {
+      frame = spr.cv;
     }
     if(m.elite || m.miniBoss || m.bigBoss){
       const pulse = 0.5 + 0.5*Math.sin(now*0.002);

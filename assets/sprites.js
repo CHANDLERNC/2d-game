@@ -241,23 +241,29 @@ function genSprites(){
   SPRITES.slime_purple = loadSlimeAnim('#b84aff');
   SPRITES.slime_shadow = loadSlimeAnim('#3a3a3a');
 
-  // Rat animation frames loaded from external assets
+  // Rat animation frames loaded from external assets (idle, move, attack)
   function loadRatAnim(){
-    const frames = [];
-    for(let i=0;i<5;i++){
-      const img = new Image();
-      img.src = `assets/Rat/Frames/Move/${String(i).padStart(2,'0')}.png`;
-      const c = document.createElement('canvas');
-      c.width = c.height = 32;
-      const g = c.getContext('2d');
-      g.imageSmoothingEnabled = false;
-      img.onload = () => {
-        g.clearRect(0,0,32,32);
-        g.drawImage(img,0,0);
-      };
-      frames.push(c);
+    function loadSet(folder, count){
+      const frames = [];
+      for(let i=0;i<count;i++){
+        const img = new Image();
+        img.src = `assets/Rat/Frames/${folder}/${String(i).padStart(2,'0')}.png`;
+        const c = document.createElement('canvas');
+        c.width = c.height = 32;
+        const g = c.getContext('2d');
+        g.imageSmoothingEnabled = false;
+        img.onload = () => {
+          g.clearRect(0,0,32,32);
+          g.drawImage(img,0,0);
+        };
+        frames.push(c);
+      }
+      return frames;
     }
-    return { cv: frames[0], frames };
+    const idle = loadSet('Idle_rat_frames',5);
+    const move = loadSet('Move',5);
+    const attack = loadSet('Attack',4);
+    return { idle, move, attack, cv: idle[0] };
   }
   SPRITES.rat = loadRatAnim();
 
