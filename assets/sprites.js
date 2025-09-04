@@ -41,6 +41,35 @@ function makeFloorTiles(count = 16) {
   }
   return tiles;
 }
+
+// load external floor tile sets (4x 16x16 sprites each)
+const floorTileSets = {};
+function loadFloorTileSet(name, file) {
+  const img = new Image();
+  img.src = 'assets/' + file;
+  img.onload = () => {
+    const tiles = [];
+    const cols = Math.floor(img.width / 16);
+    for (let i = 0; i < 4; i++) {
+      const sx = (i % cols) * 16;
+      const sy = Math.floor(i / cols) * 16;
+      const c = document.createElement('canvas');
+      c.width = c.height = 32;
+      const g = c.getContext('2d');
+      g.imageSmoothingEnabled = false;
+      g.drawImage(img, sx, sy, 16, 16, 0, 0, 32, 32);
+      tiles.push(c);
+    }
+    floorTileSets[name] = tiles;
+  };
+}
+
+loadFloorTileSet('graybrick', 'floor_graybrick.png');
+loadFloorTileSet('graystone', 'floor_graystone.png');
+loadFloorTileSet('greenmoss', 'floor_greenmoss.png');
+loadFloorTileSet('ice', 'floor_ice.png');
+loadFloorTileSet('lava', 'floor_lava.png');
+
 // generate enough variations to include newly added patterns
 const floorTiles = makeFloorTiles(32);
 const wallTex = (() => {
@@ -59,6 +88,7 @@ const wallTex = (() => {
 const TEXTURES = {
   floorTiles,
   wall: wallTex,
+  floorTileSets,
 };
 
 // ====== Sprites (generated at runtime) ======
