@@ -116,6 +116,13 @@ window.onFloorTilesLoaded = () => {
   if (floorLayer) buildLayers();
 };
 
+if (globalThis.__floorTileQueue && globalThis.__floorTileQueue.length) {
+  for (const _ of globalThis.__floorTileQueue) {
+    window.onFloorTilesLoaded();
+  }
+  globalThis.__floorTileQueue.length = 0;
+}
+
 
 // --- Smooth helpers & settings ---
 function smoothstep01(t){ return t*t*(3-2*t); }

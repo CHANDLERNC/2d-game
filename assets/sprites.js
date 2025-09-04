@@ -1,6 +1,7 @@
 // floor and wall textures (external tile sets only)
 // load external floor tile sets (4x 16x16 sprites each)
 const floorTileSets = {};
+const floorTileQueue = [];
 function loadFloorTileSet(name, file) {
   const img = new Image();
   // floor tile images live under assets/floor_tiles
@@ -20,6 +21,8 @@ function loadFloorTileSet(name, file) {
     floorTileSets[name] = tiles;
     if (typeof window.onFloorTilesLoaded === 'function') {
       window.onFloorTilesLoaded(name, tiles);
+    } else {
+      floorTileQueue.push({ name, tiles });
     }
   };
   // set src after onload to avoid missing cached load events
@@ -1266,3 +1269,4 @@ genSprites();
 // expose a single global for game code and modders
 const ASSETS = { textures: TEXTURES, sprites: SPRITES };
 globalThis.ASSETS = ASSETS;
+globalThis.__floorTileQueue = floorTileQueue;
