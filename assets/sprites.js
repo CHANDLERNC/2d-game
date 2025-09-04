@@ -1014,6 +1014,58 @@ function genSprites(){
   }
   SPRITES.griffin = makeGriffinAnim();
 
+  // Dragon animations loaded from sprite sheets
+  function loadDragonAnim(type){
+    const idle=[], damage=[], death=[];
+    const sprite={ cv: document.createElement('canvas'), idle, move: idle, damage, death };
+    sprite.cv.width = sprite.cv.height = 64;
+    const base = 'assets/dragon_sprites/'+type;
+
+    const idleImg = new Image();
+    idleImg.src = base + '_idle.png';
+    idleImg.onload = () => {
+      const frameW = Math.floor(idleImg.width/5);
+      const frameH = idleImg.height;
+      for(let i=0;i<5;i++){
+        const c=document.createElement('canvas'); c.width=frameW; c.height=frameH;
+        const g=c.getContext('2d'); g.imageSmoothingEnabled=false;
+        g.drawImage(idleImg,i*frameW,0,frameW,frameH,0,0,frameW,frameH);
+        idle.push(c);
+      }
+      sprite.cv = idle[0];
+    };
+
+    const dmgImg = new Image();
+    dmgImg.src = base + '_damage.png';
+    dmgImg.onload = () => {
+      const frameW = Math.floor(dmgImg.width/9);
+      const frameH = dmgImg.height;
+      for(let i=0;i<9;i++){
+        const c=document.createElement('canvas'); c.width=frameW; c.height=frameH;
+        const g=c.getContext('2d'); g.imageSmoothingEnabled=false;
+        g.drawImage(dmgImg,i*frameW,0,frameW,frameH,0,0,frameW,frameH);
+        damage.push(c);
+      }
+    };
+
+    const deathImg = new Image();
+    deathImg.src = base + '_death.png';
+    deathImg.onload = () => {
+      const frameW = Math.floor(deathImg.width/17);
+      const frameH = deathImg.height;
+      for(let i=0;i<17;i++){
+        const c=document.createElement('canvas'); c.width=frameW; c.height=frameH;
+        const g=c.getContext('2d'); g.imageSmoothingEnabled=false;
+        g.drawImage(deathImg,i*frameW,0,frameW,frameH,0,0,frameW,frameH);
+        death.push(c);
+      }
+    };
+
+    return sprite;
+  }
+
+  SPRITES.dragon_fire = loadDragonAnim('fire');
+  SPRITES.dragon_ice = loadDragonAnim('ice');
 
   // Invader alien 24x24 (retro space shooter homage)
   SPRITES.invader = makeSprite(24,(g,S)=>{
