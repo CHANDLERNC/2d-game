@@ -13,12 +13,17 @@ import { renderLayers } from './modules/rendering.js';
 import { MIN_ROOM_SIZE, connectRooms, pruneSmallAreas } from './modules/mapGen.js';
 import { createNoise2D } from './modules/noise.js';
 import { ARMOR_TYPES, ARMOR_TYPE_MODS } from './modules/armorTypes.js';
-// Load weapon manifest JSON without using import assertions for wider browser support
+// Load weapon manifest JSON via fetch to avoid import assertions
 let weaponManifest = {};
-fetch('./assets/weaponManifest.json')
-  .then(r => r.json())
-  .then(data => weaponManifest = data)
-  .catch(err => console.error('Failed to load weapon manifest', err));
+async function loadWeaponManifest(){
+  try{
+    const res = await fetch('./assets/weaponManifest.json');
+    weaponManifest = await res.json();
+  }catch(err){
+    console.error('Failed to load weapon manifest', err);
+  }
+}
+loadWeaponManifest();
 
 // ===== Config / Globals =====
 let VIEW_W=window.innerWidth, VIEW_H=window.innerHeight;
