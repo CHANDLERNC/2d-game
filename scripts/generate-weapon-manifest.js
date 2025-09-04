@@ -18,7 +18,7 @@ const manifest = {};
 for (const type of readdirSync(baseDir)) {
   const dir = path.join(baseDir, type);
   if (statSync(dir).isDirectory()) {
-    manifest[type] = collect(dir, `weapons/${type}`);
+    manifest[type] = collect(dir, `weapons/${type}`).sort();
   }
 }
 

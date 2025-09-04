@@ -13,8 +13,8 @@ import { renderLayers } from './modules/rendering.js';
 import { MIN_ROOM_SIZE, connectRooms, pruneSmallAreas } from './modules/mapGen.js';
 import { createNoise2D } from './modules/noise.js';
 import { ARMOR_TYPES, ARMOR_TYPE_MODS } from './modules/armorTypes.js';
-// Load weapon manifest JSON via fetch to avoid import assertions
-let weaponManifest = {};
+// Load weapon/armor manifest JSON via fetch to avoid import assertions
+let weaponManifest = {}, armorManifest = {};
 async function loadWeaponManifest(){
   try{
     const res = await fetch('./assets/weaponManifest.json');
@@ -23,7 +23,25 @@ async function loadWeaponManifest(){
     console.error('Failed to load weapon manifest', err);
   }
 }
+async function loadArmorManifest(){
+  try{
+    const res = await fetch('./assets/armorManifest.json');
+    armorManifest = await res.json();
+  }catch(err){
+    console.error('Failed to load armor manifest', err);
+  }
+}
 loadWeaponManifest();
+loadArmorManifest();
+const imgCache = {};
+function getAssetImage(rel){
+  if(!imgCache[rel]){
+    const img = new Image();
+    img.src = 'assets/' + rel;
+    imgCache[rel] = img;
+  }
+  return imgCache[rel];
+}
 
 // ===== Config / Globals =====
 let VIEW_W=window.innerWidth, VIEW_H=window.innerHeight;
@@ -1095,8 +1113,12 @@ function redrawInventory(){
   html += '<div class="equip-grid">';
   for(const slot of SLOTS){
     const it = inventory.equip[slot];
-    const iconKey = getItemIcon(it, slot); if(it && !it.icon && iconKey) it.icon = iconKey;
-    const icon = iconKey ? `<canvas class="item-img rar${it.rarity||0}" data-icon="${iconKey}"></canvas>` : '';
+    const iconKey = it && !it.img ? getItemIcon(it, slot) : null; if(it && !it.icon && iconKey) it.icon = iconKey;
+    let icon = '';
+    if(it){
+      if(it.img) icon = `<img class="item-img rar${it.rarity||0}" src="assets/${it.img}">`;
+      else if(iconKey) icon = `<canvas class="item-img rar${it.rarity||0}" data-icon="${iconKey}"></canvas>`;
+    }
     html += `<div class="inv-slot list-row ${it?'':'empty'}" data-type="eq" data-slot="${slot}">${icon}</div>`;
   }
   html += '</div>';
@@ -1106,8 +1128,12 @@ function redrawInventory(){
   html += '<div class="potion-grid">';
   for(let i=0;i<POTION_BAG_SIZE;i++){
     const it = inventory.potionBag[i];
-    const iconKey = getItemIcon(it);
-    const icon = iconKey ? `<canvas class="item-img rar${it.rarity||0}" data-icon="${iconKey}"></canvas>` : '';
+    const iconKey = it && !it.img ? getItemIcon(it) : null;
+    let icon = '';
+    if(it){
+      if(it.img) icon = `<img class="item-img rar${it.rarity||0}" src="assets/${it.img}">`;
+      else if(iconKey) icon = `<canvas class="item-img rar${it.rarity||0}" data-icon="${iconKey}"></canvas>`;
+    }
     html += `<div class="inv-slot list-row ${it?'':'empty'}" data-type="pbag" data-idx="${i}">${icon}</div>`;
   }
   html += '</div>';
@@ -1115,8 +1141,12 @@ function redrawInventory(){
   html += '<div class="bag-grid">';
   for(let i=0;i<BAG_SIZE;i++){
     const it = inventory.bag[i];
-    const iconKey = getItemIcon(it);
-    const icon = iconKey ? `<canvas class="item-img rar${it.rarity||0}" data-icon="${iconKey}"></canvas>` : '';
+    const iconKey = it && !it.img ? getItemIcon(it) : null;
+    let icon = '';
+    if(it){
+      if(it.img) icon = `<img class="item-img rar${it.rarity||0}" src="assets/${it.img}">`;
+      else if(iconKey) icon = `<canvas class="item-img rar${it.rarity||0}" data-icon="${iconKey}"></canvas>`;
+    }
     html += `<div class="inv-slot list-row ${it?'':'empty'}" data-type="bag" data-idx="${i}">${icon}</div>`;
   }
   html += '</div>';
@@ -1391,6 +1421,8 @@ function makeRandomGear(){
   else if(slot==='necklace'){ item.icon = 'icon_necklace'; }
   else{
     item.icon = 'icon_'+slot;
+    const imgs = armorManifest[slot];
+    if(imgs && imgs.length) item.img = imgs[rng.int(0, imgs.length-1)];
     // Armor types provide baseline stats and defensive buffs
     const t = ARMOR_TYPES[rng.int(0, ARMOR_TYPES.length-1)];
     item.armorType = t;
@@ -1995,21 +2027,27 @@ function drawLootIcon(it, x, y, size = 14){
   }else{
     switch(it.slot){
       case 'weapon': {
-        const lootSpr = ASSETS.sprites[it.wclass + '_loot'];
-        const spr = lootSpr || ASSETS.sprites[it.icon];
-        if (spr) {
-          const frames = spr.frames || [];
-          const idx = frames.length ? Math.floor(performance.now()/100) % frames.length : 0;
-          ctx.drawImage(frames[idx] || spr.cv, x, y);
-        } else {
-          ctx.fillRect(x+6, y, 2, 10);
-          ctx.strokeRect(x+6, y, 2, 10);
-          ctx.fillRect(x+4, y+8, 6, 2);
-          ctx.strokeRect(x+4, y+8, 6, 2);
+        if(it.img){
+          const img = getAssetImage(it.img);
+          ctx.drawImage(img, x, y, 16, 16);
+        }else{
+          const lootSpr = ASSETS.sprites[it.wclass + '_loot'];
+          const spr = lootSpr || ASSETS.sprites[it.icon];
+          if (spr) {
+            const frames = spr.frames || [];
+            const idx = frames.length ? Math.floor(performance.now()/100) % frames.length : 0;
+            ctx.drawImage(frames[idx] || spr.cv, x, y);
+          } else {
+            ctx.fillRect(x+6, y, 2, 10);
+            ctx.strokeRect(x+6, y, 2, 10);
+            ctx.fillRect(x+4, y+8, 6, 2);
+            ctx.strokeRect(x+4, y+8, 6, 2);
+          }
         }
         break;
       }
       case 'helmet':
+        if(it.img){ ctx.drawImage(getAssetImage(it.img), x, y, 16, 16); break; }
         ctx.beginPath();
         ctx.arc(x+7, y+6, 5, Math.PI, 0);
         ctx.fill();
@@ -2018,6 +2056,7 @@ function drawLootIcon(it, x, y, size = 14){
         ctx.strokeRect(x+2, y+6, 10, 6);
         break;
       case 'chest': {
+        if(it.img){ ctx.drawImage(getAssetImage(it.img), x, y, 16, 16); break; }
         const spr = ASSETS.sprites.chest_loot;
         const frames = spr.frames;
         const idx = frames.length ? Math.floor(performance.now()/100)%frames.length : 0;
@@ -2025,18 +2064,21 @@ function drawLootIcon(it, x, y, size = 14){
         break;
       }
       case 'legs':
+        if(it.img){ ctx.drawImage(getAssetImage(it.img), x, y, 16, 16); break; }
         ctx.fillRect(x+4, y+3, 3, 8);
         ctx.strokeRect(x+4, y+3, 3, 8);
         ctx.fillRect(x+7, y+3, 3, 8);
         ctx.strokeRect(x+7, y+3, 3, 8);
         break;
       case 'hands':
+        if(it.img){ ctx.drawImage(getAssetImage(it.img), x, y, 16, 16); break; }
         ctx.beginPath();
         ctx.arc(x+7, y+7, 5, 0, Math.PI*2);
         ctx.fill();
         ctx.stroke();
         break;
       case 'feet':
+        if(it.img){ ctx.drawImage(getAssetImage(it.img), x, y, 16, 16); break; }
         ctx.fillRect(x+3, y+8, 4, 4);
         ctx.strokeRect(x+3, y+8, 4, 4);
         ctx.fillRect(x+7, y+8, 4, 4);
