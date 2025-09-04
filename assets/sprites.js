@@ -876,6 +876,32 @@ function genSprites(){
   }
   SPRITES.skeleton_archer = loadSkeletonArcherAnim();
 
+  // Skull wolf animation loaded from sprite sheet
+  function loadSkullWolfAnim(){
+    const frameW = 64, frameH = 64;
+    const idle = [], death = [];
+    const img = new Image();
+    img.src = 'assets/Skullwolf/Massacre Sprite Sheet.png';
+    img.onload = () => {
+      for(let i=0;i<7;i++){
+        const ig = idle[i].getContext('2d');
+        ig.imageSmoothingEnabled = false;
+        ig.clearRect(0,0,frameW,frameH);
+        ig.drawImage(img,i*frameW,0,frameW,frameH,0,0,frameW,frameH);
+        const dg = death[i].getContext('2d');
+        dg.imageSmoothingEnabled = false;
+        dg.clearRect(0,0,frameW,frameH);
+        dg.drawImage(img,i*frameW,frameH*3,frameW,frameH,0,0,frameW,frameH);
+      }
+    };
+    for(let i=0;i<7;i++){
+      const ci=document.createElement('canvas'); ci.width=ci.height=frameW; idle.push(ci);
+      const cd=document.createElement('canvas'); cd.width=cd.height=frameH; death.push(cd);
+    }
+    return { cv: idle[0], idle, move: idle, death };
+  }
+  SPRITES.skull_wolf = loadSkullWolfAnim();
+
   // Skeleton Mage 24x24 (caster enemy)
   function makeMageAnim(){
     const frames = [];
