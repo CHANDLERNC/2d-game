@@ -84,7 +84,6 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) with
 
 ### Removed
 - Blue slime enemy variant.
-- Dragon assets and animations removed pending redesign.
 
 ### Fixed
 - Slime idle animations now render without missing image assets.

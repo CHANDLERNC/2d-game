@@ -836,11 +836,11 @@ const RARITY=[
   {n:'Legendary',c:'#f97316',m:1.6}
 ];
 const RARITY_WEIGHTS=[40,30,15,8,5,2];
-const WEAPON_PREFIXES=['Ancient','Flaming','Shadow','Swift','Vicious','Mystic','Dragon','Stormforged','Ethereal','Gloom','Silver','Blood','Infernal','Eternal','Sacred','Dark','Frost','Thunder','Cursed','Luminous','Valkyrie','Arcane','Ghostly'];
-const WEAPON_SUFFIXES=['of Power','of Doom','of the Fox','of Frost','of Flames','of Shadows','of the Dragon','of Vengeance','of Nightmares','of the Phoenix','of Destiny','of the Ancients','of the Depths','of Kings','of Ruin','of Glory','of Fury','of the Reaper','of Whispers','of the Titan','of the Tempest','of Ages','of the Void'];
-const ITEM_PREFIXES=['Sturdy','Blessed','Cursed','Enchanted','Gleaming','Guardian','Eternal','Shadowed','Dragonhide','Stormforged','Silver','Ironbound','Silent','Glacial','Luminous','Infernal','Radiant','Venerable','Mystic','Obsidian'];
+const WEAPON_PREFIXES=['Ancient','Flaming','Shadow','Swift','Vicious','Mystic','Stormforged','Ethereal','Gloom','Silver','Blood','Infernal','Eternal','Sacred','Dark','Frost','Thunder','Cursed','Luminous','Valkyrie','Arcane','Ghostly'];
+const WEAPON_SUFFIXES=['of Power','of Doom','of the Fox','of Frost','of Flames','of Shadows','of Vengeance','of Nightmares','of the Phoenix','of Destiny','of the Ancients','of the Depths','of Kings','of Ruin','of Glory','of Fury','of the Reaper','of Whispers','of the Titan','of the Tempest','of Ages','of the Void'];
+const ITEM_PREFIXES=['Sturdy','Blessed','Cursed','Enchanted','Gleaming','Guardian','Eternal','Shadowed','Stormforged','Silver','Ironbound','Silent','Glacial','Luminous','Infernal','Radiant','Venerable','Mystic','Obsidian'];
 const ITEM_SUFFIXES=['of Protection','of the Bear','of Fortitude','of Stealth','of the Lion','of Resilience','of Twilight','of the Wolf','of the Eagle','of the Serpent','of the Mountain','of Grace','of the Titan','of Endurance','of the Seas','of Insight','of the Wind','of Shadows','of the Void'];
-const WEAPON_UNIQUES=["Shadow's Bane","Dragon's Heart","The Cleaver","Nightfall","Sunseeker","Soulreaper","Stormcaller","Frostbite","Bloodletter","Kingslayer","Dawnbringer","Voidrender","Thunderfury","Eclipse Edge","Grim Herald","Starforged","Venomspike"];
+const WEAPON_UNIQUES=["Shadow's Bane","The Cleaver","Nightfall","Sunseeker","Soulreaper","Stormcaller","Frostbite","Bloodletter","Kingslayer","Dawnbringer","Voidrender","Thunderfury","Eclipse Edge","Grim Herald","Starforged","Venomspike"];
 
 function rollRarity(){
   const total=RARITY_WEIGHTS.reduce((a,b)=>a+b,0);
