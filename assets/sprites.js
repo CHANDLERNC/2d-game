@@ -4,7 +4,6 @@ const floorTileSets = {};
 function loadFloorTileSet(name, file) {
   const img = new Image();
   // floor tile images live under assets/floor_tiles
-  img.src = 'assets/floor_tiles/' + file;
   img.onload = () => {
     const tiles = [];
     const cols = Math.floor(img.width / 16);
@@ -23,6 +22,8 @@ function loadFloorTileSet(name, file) {
       window.onFloorTilesLoaded(name, tiles);
     }
   };
+  // set src after onload to avoid missing cached load events
+  img.src = 'assets/floor_tiles/' + file;
 }
 
 loadFloorTileSet('graybrick', 'floor_graybrick.png');
