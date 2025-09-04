@@ -71,7 +71,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) with
 - Mage enemies now fire 30% slower but hit 10% harder.
 - Increased level-based weapon damage scaling to keep pace with mid-floor monster health.
 - Mage enemies now use an animated skeleton sprite with purple energy.
-- Dragon bosses now use sprite sheets with idle, damage, and death animations.
+- Dragon bosses now load animations from separate fire and ice sprite files.
 - Enemy elemental resistances now scale with floor level.
 - Mini bosses now always drop gold and may also drop gear or weapons.
 - Berserker abilities now unlock sequentially on the skill tree and bind to Q instead of using modifier keys.

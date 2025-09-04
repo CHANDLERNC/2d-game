@@ -1030,41 +1030,37 @@ function genSprites(){
   }
   SPRITES.griffin = makeGriffinAnim();
 
-  // Dragon animations loaded from sprite sheets
-  function loadDragonSheet(src){
+  // Dragon animations loaded from separate files per state
+  function loadDragon(type){
     const frame = 256;
     const cols = 4;
     const idle = [], damaged = [], death = [];
-    for(let i=0;i<cols;i++){
-      const ci=document.createElement('canvas'); ci.width=ci.height=frame; idle.push(ci);
-      const cd=document.createElement('canvas'); cd.width=cd.height=frame; damaged.push(cd);
-      const cdd=document.createElement('canvas'); cdd.width=cdd.height=frame; death.push(cdd);
-    }
-    const img = new Image();
-    img.src = src;
-    img.onload = () => {
-      for(let i=0;i<cols;i++){
-        const sx=i*frame;
-        const ig=idle[i].getContext('2d');
-        ig.imageSmoothingEnabled=false;
-        ig.clearRect(0,0,frame,frame);
-        ig.drawImage(img,sx,0,frame,frame,0,0,frame,frame);
-
-        const dg=damaged[i].getContext('2d');
-        dg.imageSmoothingEnabled=false;
-        dg.clearRect(0,0,frame,frame);
-        dg.drawImage(img,sx,frame,frame,frame,0,0,frame,frame);
-
-        const de=death[i].getContext('2d');
-        de.imageSmoothingEnabled=false;
-        de.clearRect(0,0,frame,frame);
-        de.drawImage(img,sx,frame*2,frame,frame,0,0,frame,frame);
+    const variants = [
+      ['idle', idle],
+      ['damage', damaged],
+      ['death', death]
+    ];
+    variants.forEach(([state, arr]) => {
+      for (let i = 0; i < cols; i++) {
+        const c = document.createElement('canvas');
+        c.width = c.height = frame;
+        arr.push(c);
       }
-    };
+      const img = new Image();
+      img.src = `assets/dragon_sprites/${type}_${state}.png`;
+      img.onload = () => {
+        for (let i = 0; i < cols; i++) {
+          const ctx = arr[i].getContext('2d');
+          ctx.imageSmoothingEnabled = false;
+          ctx.clearRect(0, 0, frame, frame);
+          ctx.drawImage(img, i * frame, 0, frame, frame, 0, 0, frame, frame);
+        }
+      };
+    });
     return { cv: idle[0], idle, move: idle, damaged, death, frames: idle };
   }
-  SPRITES.dragon_red = loadDragonSheet('assets/red_dragon_sheet.png');
-  SPRITES.dragon_blue = loadDragonSheet('assets/ice_blue_dragon.png');
+  SPRITES.dragon_red = loadDragon('fire');
+  SPRITES.dragon_blue = loadDragon('ice');
 
   function makeDragonHatchling() {
     const frames = [];
