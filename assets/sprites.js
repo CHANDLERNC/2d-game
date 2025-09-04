@@ -3,7 +3,8 @@
 const floorTileSets = {};
 function loadFloorTileSet(name, file) {
   const img = new Image();
-  img.src = 'assets/' + file;
+  // floor tile images live under assets/floor_tiles
+  img.src = 'assets/floor_tiles/' + file;
   img.onload = () => {
     const tiles = [];
     const cols = Math.floor(img.width / 16);
