@@ -72,6 +72,14 @@ window.addEventListener('resize', resizeCanvas); resizeCanvas();
 let camX=0, camY=0; let floorLayer=null, wallLayer=null;
 let zoom=1;
 let floorTint='#ffffff', wallTint='#ffffff';
+const FLOOR_THEMES=[
+  {name:'graybrick',wall:'#7d7d7d'},
+  {name:'graystone',wall:'#6e6e6e'},
+  {name:'greenmoss',wall:'#556b2f'},
+  {name:'ice',wall:'#9ed0ff'},
+  {name:'lava',wall:'#b44d26'},
+];
+let currentFloorTiles=ASSETS.textures.floorTiles;
 let gameOver=false;
 let paused=false;
 let scoreUpdateTimer=0;
@@ -544,14 +552,10 @@ function checkHazard(x,y){
 function generate(){
   resetMapState();
   monsters=[]; projectiles=[]; breakables=[]; lootMap.clear(); player.effects = [];
-  const hue=rng.int(0,360);
-  const sat=8+rng.int(0,8);
-  const baseLight=35+rng.int(-5,5);
-  const light=Math.min(100,Math.round(baseLight*1.1));
-  floorTint=`hsl(${hue}, ${sat}%, ${light}%)`;
-  const wallHue=(hue + rng.int(-20,20) + 360)%360;
-  const wallLight=Math.max(10, light-5);
-  wallTint=`hsl(${wallHue}, ${sat}%, ${wallLight}%)`;
+  const theme=FLOOR_THEMES[rng.int(0,FLOOR_THEMES.length-1)];
+  currentFloorTiles=ASSETS.textures.floorTileSets[theme.name]||ASSETS.textures.floorTiles;
+  floorTint='#ffffff';
+  wallTint=theme.wall;
   const r=rng.next();
   if(r<0.33) generateNoiseTerrain();
   else if(r<0.66) generateCave();
@@ -726,7 +730,7 @@ function buildLayers(){
   wallLayer=document.createElement('canvas'); wallLayer.width=MAP_W*TILE; wallLayer.height=MAP_H*TILE;
   const f=floorLayer.getContext('2d'), w=wallLayer.getContext('2d');
 
-  const tiles=ASSETS.textures.floorTiles;
+  const tiles=currentFloorTiles;
   for(let y=0;y<MAP_H;y++) for(let x=0;x<MAP_W;x++){
     const idx=y*MAP_W+x;
     const t=map[idx];
