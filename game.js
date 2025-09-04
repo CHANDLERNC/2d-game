@@ -88,7 +88,14 @@ let projectiles=[];
 let breakables=[];
 // floating combat text
 let damageTexts=[];
-function addDamageText(tx,ty,text,color){ damageTexts.push({ tx, ty, text, color, age:0, ttl:800 }); }
+let healEffects=[];
+let hitEffects=[];
+function addHealEffect(tx,ty){ healEffects.push({ tx, ty, age:0, ttl:500 }); }
+function addHitEffect(tx,ty,elem){ hitEffects.push({ tx, ty, elem, age:0, ttl:300 }); }
+function addDamageText(tx,ty,text,color){
+  damageTexts.push({ tx, ty, text, color, age:0, ttl:800 });
+  if(color && color.toLowerCase()==='#76d38b') addHealEffect(tx,ty);
+}
 // melee slash effects
 let slashes=[];
 function addSlash(tx,ty,dir,color){ slashes.push({ tx, ty, dir, color, age:0, ttl:ATTACK_ANIM_TIME }); }
@@ -2394,6 +2401,49 @@ function draw(dt){
     s.age += dt;
   }
   slashes = slashes.filter(s=>s.age < s.ttl);
+  // healing effects
+  for(const h of healEffects){
+    const hx = h.tx*TILE - camX + TILE/2;
+    const hy = h.ty*TILE - camY + TILE/2;
+    const prog = h.age / h.ttl;
+    ctx.save();
+    ctx.globalAlpha = 1 - prog;
+    ctx.strokeStyle = '#76d38b';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(hx, hy, 4 + prog*12, 0, Math.PI*2);
+    ctx.stroke();
+    ctx.restore();
+    h.age += dt;
+  }
+  healEffects = healEffects.filter(h=>h.age < h.ttl);
+
+  // elemental hit effects
+  for(const h of hitEffects){
+    const hx = h.tx*TILE - camX + TILE/2;
+    const hy = h.ty*TILE - camY + TILE/2;
+    const prog = h.age / h.ttl;
+    const col = getDamageColor(h.elem);
+    ctx.save();
+    ctx.translate(hx, hy);
+    ctx.globalAlpha = 1 - prog;
+    ctx.strokeStyle = col;
+    ctx.lineWidth = 2;
+    const r = 4 + prog*8;
+    if(h.elem==='ice'){
+      for(let i=0;i<4;i++){ const ang=i*Math.PI/2; ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(Math.cos(ang)*r, Math.sin(ang)*r); ctx.stroke(); }
+    }else if(h.elem==='shock'){
+      for(let i=0;i<3;i++){ const ang=i*2*Math.PI/3; ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(Math.cos(ang)*r, Math.sin(ang)*r); ctx.stroke(); }
+    }else{
+      ctx.beginPath();
+      ctx.arc(0,0,r,0,Math.PI*2);
+      ctx.stroke();
+    }
+    ctx.restore();
+    h.age += dt;
+  }
+  hitEffects = hitEffects.filter(h=>h.age < h.ttl);
+
   // player status pips
   drawStatusPips(ctx, player, px+12, py-9);
 
@@ -2616,6 +2666,7 @@ function update(dt){
         for(const st of sts){ tryApplyStatus(player, st, st.elem); }
       }
       p.alive=false;
+      addHitEffect(player.x, player.y, p.elem);
     }
     // hit monster if player-owned
     if(p.owner==='player'){
@@ -2627,6 +2678,7 @@ function update(dt){
           const sts = Array.isArray(p.status) ? p.status : [p.status];
           for(const st of sts){ tryApplyStatus(m, st, st.elem); }
         }
+        addHitEffect(m.x, m.y, p.elem);
         if(p.ls>0){ const heal=Math.max(1,Math.floor(p.damage*p.ls/100)); player.hp=Math.min(player.hpMax, player.hp+heal); addDamageText(player.x,player.y,`+${heal}`,'#76d38b'); }
         if(p.md>0){ const gain=Math.max(1,Math.floor(p.damage*p.md/100)); if(player.class==='mage'||player.class==='summoner'){ player.mp=Math.min(player.mpMax,player.mp+gain); } else { player.sp=Math.min(player.spMax,player.sp+gain); } addDamageText(player.x,player.y,`+${gain}`,'#4aa3ff'); updateResourceUI(); }
         if(p.kb>0){
