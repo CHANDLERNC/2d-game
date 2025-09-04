@@ -89,6 +89,9 @@ let breakables=[];
 // floating combat text
 let damageTexts=[];
 function addDamageText(tx,ty,text,color){ damageTexts.push({ tx, ty, text, color, age:0, ttl:800 }); }
+// melee slash effects
+let slashes=[];
+function addSlash(tx,ty,dir,color){ slashes.push({ tx, ty, dir, color, age:0, ttl:ATTACK_ANIM_TIME }); }
 let currentStats={dmgMin:0,dmgMax:0,crit:0,armor:0,resF:0,resI:0,resS:0,resM:0,resP:0,hpMax:0,mpMax:0,spMax:0};
 
 
@@ -1722,6 +1725,7 @@ function performPlayerAttack(dx,dy,dmgMult=1){
     player.attackTimer = ATTACK_ANIM_TIME;
     const elem = atkStatuses.find(st=>st.elem)?.elem;
     player.attackColor = getDamageColor(elem);
+    addSlash(player.x, player.y, dir, player.attackColor);
   }
   const {min,max,crit,ls,md} = currentAtk();
   let dmg=rng.int(min,max);
@@ -2343,30 +2347,36 @@ function draw(dt){
   if(invis) ctx.globalAlpha=0.4;
   ctx.drawImage(frame, px, py);
   if(invis) ctx.globalAlpha=1;
-  if(player.attackTimer>0){
+  // slashing effects
+  for(const s of slashes){
+    const sx = s.tx*TILE - camX + (TILE-24)/2;
+    const sy = s.ty*TILE - camY + (TILE-24)/2;
     ctx.save();
-    ctx.translate(px+12, py+12);
-    const t = 1 - player.attackTimer/ATTACK_ANIM_TIME;
-    let start, end;
-    switch(player.attackDir){
-      case 'down': start=Math.PI/4; end=3*Math.PI/4; break;
-      case 'left': start=3*Math.PI/4; end=5*Math.PI/4; break;
-      case 'up': start=-3*Math.PI/4; end=-Math.PI/4; break;
-      default: start=-Math.PI/4; end=Math.PI/4; break;
+    ctx.translate(sx+12, sy+12);
+    let ang;
+    switch(s.dir){
+      case 'down': ang=Math.PI/2; break;
+      case 'left': ang=Math.PI; break;
+      case 'up': ang=-Math.PI/2; break;
+      default: ang=0; break;
     }
-    const col = player.attackColor || '#fff';
-    ctx.strokeStyle = col;
-    ctx.lineWidth = 2;
-    ctx.globalAlpha = 1 - t;
+    ctx.rotate(ang);
+    const prog = s.age / s.ttl;
+    const len = 24;
+    const w = 12*(1-prog);
+    ctx.globalAlpha = 1 - prog;
+    ctx.fillStyle = s.color || '#fff';
     ctx.beginPath();
-    ctx.moveTo(0, 0);
-    ctx.arc(0, 0, 16, start, end);
+    ctx.moveTo(0,0);
+    ctx.lineTo(len*prog, -w/2);
+    ctx.lineTo(len*prog + w/2, 0);
+    ctx.lineTo(len*prog, w/2);
     ctx.closePath();
-    ctx.fillStyle = col;
     ctx.fill();
-    ctx.stroke();
     ctx.restore();
+    s.age += dt;
   }
+  slashes = slashes.filter(s=>s.age < s.ttl);
   // player status pips
   drawStatusPips(ctx, player, px+12, py-9);
 
