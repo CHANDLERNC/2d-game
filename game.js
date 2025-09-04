@@ -1998,7 +1998,6 @@ function mageAI(m, dt, dx, dy, manhattan){
 function dragonBossAI(m, dt, dx, dy, manhattan){
   const {elem, status} = (function(key){
     if(key==='dragon_blue') return {elem:'ice', status:{k:'freeze',dur:1800,power:0.40,chance:0.9}};
-    if(key==='dragon_gold') return {elem:'shock',status:{k:'shock',dur:2000,power:0.25,chance:0.9}};
     return {elem:'fire', status:{k:'burn', dur:2200, power:1.0, chance:0.9}};
   })(m.spriteKey);
 

@@ -26,8 +26,8 @@ export const SCORE_PER_KILL = 10;
 export const SCORE_PER_FLOOR_CLEAR = 100;
 export const SCORE_PER_FLOOR_REACHED = 50;
 
-// Mega bosses now use distinct dragon variants
-export const BOSS_VARIANTS = ['dragon_red','dragon_blue','dragon_gold'];
+// Mega bosses now use red and blue dragon variants
+export const BOSS_VARIANTS = ['dragon_red','dragon_blue'];
 export const XP_GAIN_MULT = 1.1;
 export const ENEMY_SPEED_MULT = 1.5;
 export const MONSTER_HP_MULT = 1.2;

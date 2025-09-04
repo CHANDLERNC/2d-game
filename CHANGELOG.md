@@ -36,7 +36,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) with
 - Rotating chest armor loot icon with rarity glow.
 - Torches now cast light, revealing nearby tiles for increased visibility.
 - Subtle floor and wall color variations between floors for greater variety.
-- Griffin, dragon, and snake boss variants.
+- Griffin and dual dragon boss variants (fire and frost).
 - Red and yellow slime variants with unique stats, plus new mage and bat color schemes.
 - Added blue, purple, and shadow slime variants; the shadow slime teleports near players before attacking.
 - Animated dragon boss idle sprite sheet and generic frame-based monster animation.
@@ -71,7 +71,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) with
 - Mage enemies now fire 30% slower but hit 10% harder.
 - Increased level-based weapon damage scaling to keep pace with mid-floor monster health.
 - Mage enemies now use an animated skeleton sprite with purple energy.
-- Snake boss now uses an image sprite with a simple bobbing idle animation.
+- Dragon bosses now use sprite sheets with idle, damage, and death animations.
 - Enemy elemental resistances now scale with floor level.
 - Mini bosses now always drop gold and may also drop gear or weapons.
 - Berserker abilities now unlock sequentially on the skill tree and bind to Q instead of using modifier keys.

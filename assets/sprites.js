@@ -1030,62 +1030,41 @@ function genSprites(){
   }
   SPRITES.griffin = makeGriffinAnim();
 
-  // Dragon idle animation 48x48
-  // Inspired by OpenGameArt dragon sprites
-  // Reference: https://opengameart.org/content/dragon-48x48-green
-  function makeDragonAnim(cols){
-    const {body, wingCol, belly, horn, flame} = cols;
-    const frames=[], bob=[0,1,0,-1], wing=[0,-2,0,-2];
-    for(let i=0;i<4;i++){
-      const c=document.createElement('canvas');
-      c.width=c.height=48;
-      const g=c.getContext('2d');
-      g.imageSmoothingEnabled=false;
-      const oy=bob[i], wy=wing[i];
-      px(g,2,8+wy+oy,18,12,wingCol);
-      px(g,28,8+wy+oy,18,12,wingCol);
-      px(g,14,22+oy,20,12,body);
-      px(g,14,26+oy,20,6,belly);
-      px(g,18,14+oy,12,8,body);
-      px(g,18,12+oy,2,4,horn);
-      px(g,28,12+oy,2,4,horn);
-      px(g,22,18+oy,2,2,'#000');
-      px(g,8,18+oy+i%2,4,2,flame);
-      px(g,32,26+oy,10,4,body);
-      outline(g,48);
-      frames.push(c);
+  // Dragon animations loaded from sprite sheets
+  function loadDragonSheet(src){
+    const frame = 256;
+    const cols = 4;
+    const idle = [], damaged = [], death = [];
+    for(let i=0;i<cols;i++){
+      const ci=document.createElement('canvas'); ci.width=ci.height=frame; idle.push(ci);
+      const cd=document.createElement('canvas'); cd.width=cd.height=frame; damaged.push(cd);
+      const cdd=document.createElement('canvas'); cdd.width=cdd.height=frame; death.push(cdd);
     }
-    return { cv: frames[0], frames };
-  }
-  SPRITES.dragon_red  = makeDragonAnim({body:'#8a423f', wingCol:'#a75e5e', belly:'#d46f6f', horn:'#ffffb5', flame:'#ff9b4a'});
-  SPRITES.dragon_blue = makeDragonAnim({body:'#425c8a', wingCol:'#5e7ba7', belly:'#6fa2d4', horn:'#ffffb5', flame:'#6cf'});
-  SPRITES.dragon_gold = makeDragonAnim({body:'#b8860b', wingCol:'#d4af37', belly:'#f0d64f', horn:'#fff8dc', flame:'#ffd24a'});
+    const img = new Image();
+    img.src = src;
+    img.onload = () => {
+      for(let i=0;i<cols;i++){
+        const sx=i*frame;
+        const ig=idle[i].getContext('2d');
+        ig.imageSmoothingEnabled=false;
+        ig.clearRect(0,0,frame,frame);
+        ig.drawImage(img,sx,0,frame,frame,0,0,frame,frame);
 
-  // Snake idle animation 48x48
-  // Inspired by OpenGameArt snake sprite sheets
-  function makeSnakeAnim(){
-    const frames=[], bob=[0,1,0,-1], sway=[0,2,0,-2];
-    for(let i=0;i<4;i++){
-      const c=document.createElement('canvas');
-      c.width=c.height=48;
-      const g=c.getContext('2d');
-      g.imageSmoothingEnabled=false;
-      const oy=bob[i], sx=sway[i];
-      const body='#8a5c8a', belly='#b97ab9', tongue='#f44';
-      px(g,12+sx,28+oy,24,8,body);
-      px(g,8+sx,20+oy,16,8,body);
-      px(g,24+sx,20+oy,16,8,body);
-      px(g,18+sx,14+oy,12,6,body);
-      px(g,18+sx,18+oy,12,4,belly);
-      px(g,20+sx,16+oy,2,2,'#000');
-      px(g,26+sx,16+oy,2,2,'#000');
-      if(i%2===0) px(g,24+sx,20+oy,2,4,tongue);
-      outline(g,48);
-      frames.push(c);
-    }
-    return { cv: frames[0], frames };
+        const dg=damaged[i].getContext('2d');
+        dg.imageSmoothingEnabled=false;
+        dg.clearRect(0,0,frame,frame);
+        dg.drawImage(img,sx,frame,frame,frame,0,0,frame,frame);
+
+        const de=death[i].getContext('2d');
+        de.imageSmoothingEnabled=false;
+        de.clearRect(0,0,frame,frame);
+        de.drawImage(img,sx,frame*2,frame,frame,0,0,frame,frame);
+      }
+    };
+    return { cv: idle[0], idle, move: idle, damaged, death, frames: idle };
   }
-  SPRITES.snake = makeSnakeAnim();
+  SPRITES.dragon_red = loadDragonSheet('assets/red_dragon_sheet.png');
+  SPRITES.dragon_blue = loadDragonSheet('assets/ice_blue_dragon.png');
 
   function makeDragonHatchling() {
     const frames = [];
