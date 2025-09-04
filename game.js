@@ -89,6 +89,16 @@ let breakables=[];
 // floating combat text
 let damageTexts=[];
 function addDamageText(tx,ty,text,color){ damageTexts.push({ tx, ty, text, color, age:0, ttl:800 }); }
+// transient visual spell effects
+let spellEffects=[];
+function addSpellEffect(x,y,key,ttl=400){ spellEffects.push({ x, y, key, age:0, ttl }); }
+function impactEffectKey(elem){
+  return elem==='fire' ? 'fx_hit_fire'
+       : elem==='ice' ? 'fx_hit_ice'
+       : elem==='shock' ? 'fx_hit_shock'
+       : elem==='poison'? 'fx_hit_poison'
+       : 'fx_hit_magic';
+}
 let currentStats={dmgMin:0,dmgMax:0,crit:0,armor:0,resF:0,resI:0,resS:0,resM:0,resP:0,hpMax:0,mpMax:0,spMax:0};
 
 
@@ -2370,6 +2380,20 @@ function draw(dt){
   // player status pips
   drawStatusPips(ctx, player, px+12, py-9);
 
+  // spell effects
+  for(const fx of spellEffects){
+    const spr = ASSETS.sprites[fx.key];
+    if(!spr) continue;
+    const idx = Math.min(spr.frames.length-1, Math.floor(fx.age / (fx.ttl / spr.frames.length)));
+    const frame = spr.frames[idx];
+    const size = spr.cv.width;
+    const ex = fx.x*TILE - camX - size/2;
+    const ey = fx.y*TILE - camY - size/2;
+    ctx.drawImage(frame, ex, ey);
+    fx.age += dt;
+  }
+  spellEffects = spellEffects.filter(fx=>fx.age < fx.ttl);
+
   // floating damage texts
   for(const t of damageTexts){
     const tx = t.tx*TILE - camX;
@@ -2588,6 +2612,7 @@ function update(dt){
         const sts = Array.isArray(p.status) ? p.status : [p.status];
         for(const st of sts){ tryApplyStatus(player, st, st.elem); }
       }
+      addSpellEffect(p.x, p.y, impactEffectKey(p.elem));
       p.alive=false;
     }
     // hit monster if player-owned
@@ -2606,15 +2631,17 @@ function update(dt){
           const kdx=Math.sign(p.dx), kdy=Math.sign(p.dy);
           for(let i=0;i<p.kb;i++){ if(!tryMoveMonster(m,kdx,kdy)) break; }
         }
-        if(p.pierce>0){ p.pierce--; }
-        else{ p.alive=false; }
-      } else if(b){
-        damageBreakable(b, p.damage);
-        if(p.ls>0){ const heal=Math.max(1,Math.floor(p.damage*p.ls/100)); player.hp=Math.min(player.hpMax, player.hp+heal); addDamageText(player.x,player.y,`+${heal}`,'#76d38b'); }
-        if(p.md>0){ const gain=Math.max(1,Math.floor(p.damage*p.md/100)); if(player.class==='mage'||player.class==='summoner'){ player.mp=Math.min(player.mpMax,player.mp+gain); } else { player.sp=Math.min(player.spMax,player.sp+gain); } addDamageText(player.x,player.y,`+${gain}`,'#4aa3ff'); updateResourceUI(); }
-        if(p.pierce>0){ p.pierce--; }
-        else{ p.alive=false; }
-      }
+        addSpellEffect(p.x, p.y, impactEffectKey(p.elem));
+      if(p.pierce>0){ p.pierce--; }
+      else{ p.alive=false; }
+    } else if(b){
+      damageBreakable(b, p.damage);
+      if(p.ls>0){ const heal=Math.max(1,Math.floor(p.damage*p.ls/100)); player.hp=Math.min(player.hpMax, player.hp+heal); addDamageText(player.x,player.y,`+${heal}`,'#76d38b'); }
+      if(p.md>0){ const gain=Math.max(1,Math.floor(p.damage*p.md/100)); if(player.class==='mage'||player.class==='summoner'){ player.mp=Math.min(player.mpMax,player.mp+gain); } else { player.sp=Math.min(player.spMax,player.sp+gain); } addDamageText(player.x,player.y,`+${gain}`,'#4aa3ff'); updateResourceUI(); }
+      addSpellEffect(p.x, p.y, impactEffectKey(p.elem));
+      if(p.pierce>0){ p.pierce--; }
+      else{ p.alive=false; }
+    }
     }
     // range limit
     if(p.maxDist && p.dist>=p.maxDist){ p.alive=false; }
@@ -2871,6 +2898,7 @@ function castSelectedSpell(){
     const amt=ab.value===null?player.hpMax:ab.value;
     const heal=Math.min(amt, player.hpMax-player.hp);
     player.hp+=heal; hpFill.style.width=`${(player.hp/player.hpMax)*100}%`; hpLbl.textContent=`HP ${player.hp}/${player.hpMax}`; addDamageText(player.x,player.y,'+'+heal,'#76d38b');
+    addSpellEffect(player.x+0.5, player.y+0.5, 'fx_heal');
     return;
   } else if(ab.type==='summon') {
     const key = `${b.tree}-${b.idx}`;

@@ -1258,12 +1258,40 @@ function genSprites(){
     }
     return { cv: frames[0], frames };
   }
+  function makeBurstAnim(c1, c2, size=16){
+    const frames=[];
+    for(let i=0;i<4;i++){
+      const c=document.createElement('canvas');
+      c.width=c.height=size;
+      const g=c.getContext('2d');
+      g.imageSmoothingEnabled=false;
+      g.globalAlpha = 1 - i/4;
+      g.fillStyle = c1;
+      g.beginPath();
+      g.arc(size/2,size/2,3+i*2,0,Math.PI*2);
+      g.fill();
+      if(c2){
+        g.fillStyle = c2;
+        g.beginPath();
+        g.arc(size/2,size/2,1+i*1.5,0,Math.PI*2);
+        g.fill();
+      }
+      frames.push(c);
+    }
+    return { cv: frames[0], frames };
+  }
   SPRITES.proj_fire   = makeBallAnim('#ff9b4a','#ff6b4a');
   SPRITES.proj_poison = makeBallAnim('#9fe2a1','#76d38b');
   SPRITES.proj_magic  = makeBallAnim('#b84aff','#d6a2ff');
   SPRITES.proj_blast  = makeBallAnim('#ffd24a','#ffe68a');
   SPRITES.proj_ice    = makeBallAnim('#7dd3fc','#bdeafe');
   SPRITES.proj_shock  = makeBallAnim('#facc15','#fde047');
+  SPRITES.fx_heal     = makeBurstAnim('#76d38b','#9fe2a1',24);
+  SPRITES.fx_hit_fire = makeBurstAnim('#ff9b4a','#ff6b4a');
+  SPRITES.fx_hit_ice  = makeBurstAnim('#7dd3fc','#bdeafe');
+  SPRITES.fx_hit_shock= makeBurstAnim('#facc15','#fde047');
+  SPRITES.fx_hit_magic= makeBurstAnim('#b84aff','#d6a2ff');
+  SPRITES.fx_hit_poison=makeBurstAnim('#9fe2a1','#76d38b');
   SPRITES.arrow       = makeArrowAnim();
   SPRITES.arrow_fire  = makeArrowAnim('#ff6b4a','#ff9b4a');
   SPRITES.arrow_shock = makeArrowAnim('#facc15','#fde047');
