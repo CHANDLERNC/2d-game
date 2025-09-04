@@ -1075,22 +1075,26 @@ function genSprites(){
       const g = c.getContext('2d');
       g.imageSmoothingEnabled = false;
       const oy = bob[i];
-      const shell = '#e8e8e8', shellShade = '#c6c6c6';
-      const dragon = '#5c8a42', horn = '#ffffb5';
-      px(g,7,11,10,1,shell);
-      px(g,6,12,12,1,shell);
-      px(g,5,13,14,1,shell);
-      px(g,4,14,16,6,shell);
-      px(g,5,20,14,1,shell);
-      px(g,6,21,12,1,shell);
-      px(g,7,22,10,1,shell);
-      px(g,4,14,1,6,shellShade);
-      px(g,19,14,1,6,shellShade);
-      px(g,9,5+oy,6,6,dragon);
-      px(g,8,5+oy,1,2,horn);
-      px(g,15,5+oy,1,2,horn);
-      px(g,10,7+oy,1,1,'#000');
-      px(g,13,7+oy,1,1,'#000');
+      const bone = '#e8e8e8', boneShade = '#c6c6c6';
+      const flame = '#4fc3f7', flameDark = '#0288d1';
+      // body
+      px(g,8,10+oy,8,4,bone);
+      px(g,8,14+oy,8,1,boneShade);
+      // head
+      px(g,10,8+oy,4,2,bone);
+      px(g,10,8+oy,1,1,'#000');
+      px(g,13,8+oy,1,1,'#000');
+      // limbs
+      px(g,6,12+oy,2,2,bone);
+      px(g,16,12+oy,2,2,bone);
+      // wings
+      px(g,6,9+oy,2,3,bone);
+      px(g,16,9+oy,2,3,bone);
+      // blue flames
+      px(g,5,8+oy,1,6,flame);
+      px(g,18,8+oy,1,6,flame);
+      px(g,9,6+oy,6,2,flame);
+      px(g,9,5+oy,6,1,flameDark);
       outline(g,24);
       frames.push(c);
     }
