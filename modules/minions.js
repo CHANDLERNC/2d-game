@@ -3,8 +3,7 @@ export const minions = [];
 const MINION_STATS = {
   skeleton: { hp: 15, dmg: [2, 4], sprite: 'skeleton', stepDelay: 300, atkDelay: 600 },
   golem: { hp: 25, dmg: [4, 6], sprite: 'goblin', stepDelay: 400, atkDelay: 800 },
-  demon: { hp: 20, dmg: [5, 8], sprite: 'mage', stepDelay: 300, atkDelay: 700 },
-  dragon: { hp: 30, dmg: [6, 10], sprite: 'dragon_hatchling', stepDelay: 300, atkDelay: 650 }
+  demon: { hp: 20, dmg: [5, 8], sprite: 'mage', stepDelay: 300, atkDelay: 700 }
 };
 
 export function spawnMinion(type, x, y, opts = {}) {
