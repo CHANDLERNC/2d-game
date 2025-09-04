@@ -576,7 +576,10 @@ function chooseMonsterType(floor){
     pool.push({type:2, w:2}); // skeleton warriors
     pool.push({type:10, w:2}); // skeleton archers
   }
-  if(floor>=4) pool.push({type:6, w:1}); // ghosts
+  if(floor>=4) {
+    pool.push({type:6, w:1}); // ghosts
+    pool.push({type:11, w:2}); // skull wolves
+  }
   if(floor>=5) pool.push({type:3, w:1}); // mages
   if(floor>=6) pool.push({type:7, w:1}); // invaders
   if(floor>=7) pool.push({type:8, w:1}); // chompers
@@ -609,6 +612,7 @@ function spawnMonster(type,x,y,elite=false){
     { hp:12, dmg:[3,6], atkCD:28, moveCD:[4,8] },     // chomper: fast arcade muncher
     { hp:8,  dmg:[1,3], atkCD:24, moveCD:[5,9] },     // rat: weak scavenger
     { hp:14, dmg:[2,5], atkCD:38, moveCD:[6,10] },    // skeleton archer: ranged attacker
+    { hp:12, dmg:[3,6], atkCD:26, moveCD:[4,8] },     // skull wolf: undead hound
   ];
   let a = archetypes[type] || archetypes[0];
   let spriteKey;
@@ -647,6 +651,8 @@ function spawnMonster(type,x,y,elite=false){
     spriteKey = 'rat';
   } else if(type===10){ // skeleton archer
     spriteKey = 'skeleton_archer';
+  } else if(type===11){ // skull wolf
+    spriteKey = 'skull_wolf';
   }
   const diff = 1 + SCALE.HARDNESS_MULT * Math.max(0, floorNum-1);
   const m = {
@@ -679,6 +685,7 @@ function spawnMonster(type,x,y,elite=false){
   m.resMagic = magicRes;
   if(spriteKey) m.spriteKey = spriteKey;
   if(type===9) m.spriteSize = 32; // rat uses 32x32 frames
+  if(type===11) m.spriteSize = 64; // skull wolf uses 64x64 frames
   return m;
 }
 
@@ -1923,6 +1930,16 @@ function ratAI(m, dt, dx, dy, manhattan){
   }
 }
 
+function wolfAI(m, dt, dx, dy, manhattan){
+  if(m.moveCD===0){
+    if(!tryMoveMonster(m, dx, 0, 140)) tryMoveMonster(m, 0, dy, 140);
+    if(m.elite){
+      if(!tryMoveMonster(m, dx, 0, 140)) tryMoveMonster(m, 0, dy, 140);
+    }
+    m.moveCD = Math.round(rng.int(3, 7) * ENEMY_SPEED_MULT);
+  }
+}
+
 function ghostAI(m, dt, dx, dy, manhattan){
   if(m.moveCD===0){
     if(!tryMoveMonster(m, dx, dy, 140)){
@@ -1995,7 +2012,7 @@ function dragonBossAI(m, dt, dx, dy, manhattan){
   }
 }
 
-const MONSTER_BEHAVIORS = {0:slimeAI,1:batAI,2:goblinAI,3:mageAI,4:mageAI,5:goblinAI,6:ghostAI,7:skeletonAI,8:batAI,9:ratAI,10:skeletonAI};
+const MONSTER_BEHAVIORS = {0:slimeAI,1:batAI,2:goblinAI,3:mageAI,4:mageAI,5:goblinAI,6:ghostAI,7:skeletonAI,8:batAI,9:ratAI,10:skeletonAI,11:wolfAI};
 
 function monsterAI(m, dt){
   m.attackAnim = Math.max(0, (m.attackAnim||0) - 1);
