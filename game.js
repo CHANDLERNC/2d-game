@@ -79,6 +79,7 @@ const FLOOR_THEMES=[
   {name:'ice',wall:'#9ed0ff'},
   {name:'lava',wall:'#b44d26'},
 ];
+let currentThemeName='graybrick';
 let currentFloorTiles=ASSETS.textures.floorTileSets.graybrick || [];
 let gameOver=false;
 let paused=false;
@@ -108,6 +109,12 @@ function addDamageText(tx,ty,text,color){
 let slashes=[];
 function addSlash(tx,ty,dir,color){ slashes.push({ tx, ty, dir, color, age:0, ttl:ATTACK_ANIM_TIME }); }
 let currentStats={dmgMin:0,dmgMax:0,crit:0,armor:0,resF:0,resI:0,resS:0,resM:0,resP:0,hpMax:0,mpMax:0,spMax:0};
+
+// rebuild floor layer once tile assets load
+window.onFloorTilesLoaded = () => {
+  currentFloorTiles = ASSETS.textures.floorTileSets[currentThemeName] || ASSETS.textures.floorTileSets.graybrick || [];
+  if (floorLayer) buildLayers();
+};
 
 
 // --- Smooth helpers & settings ---
@@ -553,7 +560,8 @@ function generate(){
   resetMapState();
   monsters=[]; projectiles=[]; breakables=[]; lootMap.clear(); player.effects = [];
   const theme=FLOOR_THEMES[rng.int(0,FLOOR_THEMES.length-1)];
-  currentFloorTiles=ASSETS.textures.floorTileSets[theme.name] || ASSETS.textures.floorTileSets.graybrick || [];
+  currentThemeName = theme.name;
+  currentFloorTiles = ASSETS.textures.floorTileSets[currentThemeName] || ASSETS.textures.floorTileSets.graybrick || [];
   floorTint='#ffffff';
   wallTint=theme.wall;
   const r=rng.next();
