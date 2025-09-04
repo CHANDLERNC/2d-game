@@ -27,7 +27,7 @@ export const SCORE_PER_FLOOR_CLEAR = 100;
 export const SCORE_PER_FLOOR_REACHED = 50;
 
 // Mega boss variant
-export const BOSS_VARIANTS = ['griffin'];
+export const BOSS_VARIANTS = ['griffin', 'dragon_fire', 'dragon_ice'];
 export const XP_GAIN_MULT = 1.1;
 export const ENEMY_SPEED_MULT = 1.5;
 export const MONSTER_HP_MULT = 1.2;
