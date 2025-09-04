@@ -79,7 +79,7 @@ const FLOOR_THEMES=[
   {name:'ice',wall:'#9ed0ff'},
   {name:'lava',wall:'#b44d26'},
 ];
-let currentFloorTiles=ASSETS.textures.floorTiles;
+let currentFloorTiles=ASSETS.textures.floorTileSets.graybrick || [];
 let gameOver=false;
 let paused=false;
 let scoreUpdateTimer=0;
@@ -553,7 +553,7 @@ function generate(){
   resetMapState();
   monsters=[]; projectiles=[]; breakables=[]; lootMap.clear(); player.effects = [];
   const theme=FLOOR_THEMES[rng.int(0,FLOOR_THEMES.length-1)];
-  currentFloorTiles=ASSETS.textures.floorTileSets[theme.name]||ASSETS.textures.floorTiles;
+  currentFloorTiles=ASSETS.textures.floorTileSets[theme.name] || ASSETS.textures.floorTileSets.graybrick || [];
   floorTint='#ffffff';
   wallTint=theme.wall;
   const r=rng.next();
@@ -729,34 +729,35 @@ function buildLayers(){
   floorLayer=document.createElement('canvas'); floorLayer.width=MAP_W*TILE; floorLayer.height=MAP_H*TILE;
   wallLayer=document.createElement('canvas'); wallLayer.width=MAP_W*TILE; wallLayer.height=MAP_H*TILE;
   const f=floorLayer.getContext('2d'), w=wallLayer.getContext('2d');
-
   const tiles=currentFloorTiles;
-  for(let y=0;y<MAP_H;y++) for(let x=0;x<MAP_W;x++){
-    const idx=y*MAP_W+x;
-    const t=map[idx];
-    if(t!==T_FLOOR && t!==T_TRAP && t!==T_LAVA) continue;
-    const h=((x*73856093)^(y*19349663)^seed)>>>0;
-    const tile=tiles[h%tiles.length];
-    const rot=(h>>4)&3;
-    f.save();
-    f.translate(x*TILE+TILE/2,y*TILE+TILE/2);
-    f.rotate(rot*Math.PI/2);
-    f.drawImage(tile,-TILE/2,-TILE/2);
-    f.restore();
-  }
+  if(tiles.length){
+    for(let y=0;y<MAP_H;y++) for(let x=0;x<MAP_W;x++){
+      const idx=y*MAP_W+x;
+      const t=map[idx];
+      if(t!==T_FLOOR && t!==T_TRAP && t!==T_LAVA) continue;
+      const h=((x*73856093)^(y*19349663)^seed)>>>0;
+      const tile=tiles[h%tiles.length];
+      const rot=(h>>4)&3;
+      f.save();
+      f.translate(x*TILE+TILE/2,y*TILE+TILE/2);
+      f.rotate(rot*Math.PI/2);
+      f.drawImage(tile,-TILE/2,-TILE/2);
+      f.restore();
+    }
 
-  f.globalCompositeOperation='multiply';
-  for(let y=0;y<MAP_H;y++) for(let x=0;x<MAP_W;x++){
-    const idx=y*MAP_W+x;
-    if(map[idx]!==T_FLOOR && map[idx]!==T_TRAP && map[idx]!==T_LAVA) continue;
-    let col=floorTint;
-    const b=biomeMap[idx];
-    if(b===B_DESERT) col='#d7c67f';
-    else if(b===B_MOUNTAIN) col='#c2c2c2';
-    f.fillStyle=col;
-    f.fillRect(x*TILE,y*TILE,TILE,TILE);
+    f.globalCompositeOperation='multiply';
+    for(let y=0;y<MAP_H;y++) for(let x=0;x<MAP_W;x++){
+      const idx=y*MAP_W+x;
+      if(map[idx]!==T_FLOOR && map[idx]!==T_TRAP && map[idx]!==T_LAVA) continue;
+      let col=floorTint;
+      const b=biomeMap[idx];
+      if(b===B_DESERT) col='#d7c67f';
+      else if(b===B_MOUNTAIN) col='#c2c2c2';
+      f.fillStyle=col;
+      f.fillRect(x*TILE,y*TILE,TILE,TILE);
+    }
+    f.globalCompositeOperation='source-over';
   }
-  f.globalCompositeOperation='source-over';
 
   // walls
   w.fillStyle=w.createPattern(ASSETS.textures.wall,'repeat');

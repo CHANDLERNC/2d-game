@@ -1,47 +1,4 @@
-// procedural floor and wall textures (no external assets)
-// generate a set of stone floor tiles with subtle crack variations
-function makeFloorTiles(count = 16) {
-  const tiles = [];
-  for (let i = 0; i < count; i++) {
-    const c = document.createElement('canvas');
-    c.width = c.height = 32;
-    const g = c.getContext('2d');
-    // base stone color and border
-    g.fillStyle = '#5c5d60';
-    g.fillRect(0, 0, 32, 32);
-    g.strokeStyle = '#2f3033';
-    g.lineWidth = 2;
-    g.strokeRect(0, 0, 32, 32);
-
-    // inner lighter area
-    g.fillStyle = '#6d6e72';
-    g.fillRect(2, 2, 28, 28);
-
-    // deterministic pseudo-random cracks
-    let s = i * 1234567;
-    function rnd() {
-      s = (s * 1664525 + 1013904223) | 0;
-      return (s >>> 0) / 4294967296;
-    }
-    g.strokeStyle = '#3c3d40';
-    g.lineWidth = 1;
-    const cracks = 2 + (rnd() * 3) | 0; // 2-4 cracks
-    for (let j = 0; j < cracks; j++) {
-      const sx = 4 + rnd() * 24;
-      const sy = 4 + rnd() * 24;
-      const ex = sx + (rnd() * 2 - 1) * 8;
-      const ey = sy + (rnd() * 2 - 1) * 8;
-      g.beginPath();
-      g.moveTo(sx, sy);
-      g.lineTo(ex, ey);
-      g.stroke();
-    }
-
-    tiles.push(c);
-  }
-  return tiles;
-}
-
+// floor and wall textures (external tile sets only)
 // load external floor tile sets (4x 16x16 sprites each)
 const floorTileSets = {};
 function loadFloorTileSet(name, file) {
@@ -70,8 +27,6 @@ loadFloorTileSet('greenmoss', 'floor_greenmoss.png');
 loadFloorTileSet('ice', 'floor_ice.png');
 loadFloorTileSet('lava', 'floor_lava.png');
 
-// generate enough variations to include newly added patterns
-const floorTiles = makeFloorTiles(32);
 const wallTex = (() => {
   const c = document.createElement('canvas');
   c.width = c.height = 32;
@@ -86,7 +41,6 @@ const wallTex = (() => {
 
 // Collect textures under a descriptive object so they can be tweaked from one place
 const TEXTURES = {
-  floorTiles,
   wall: wallTex,
   floorTileSets,
 };
