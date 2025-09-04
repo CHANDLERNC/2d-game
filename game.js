@@ -568,7 +568,7 @@ function generate(){
   monsters=[]; projectiles=[]; breakables=[]; lootMap.clear(); player.effects = [];
   const theme=FLOOR_THEMES[rng.int(0,FLOOR_THEMES.length-1)];
   currentThemeName = theme.name;
-  currentFloorTiles = ASSETS.textures.floorTileSets[currentThemeName] || ASSETS.textures.floorTileSets.graybrick || [];
+  currentFloorTiles = ASSETS.textures.floorTileSets[currentThemeName] || [];
   floorTint='#ffffff';
   wallTint=theme.wall;
   const r=rng.next();
@@ -576,6 +576,17 @@ function generate(){
   else if(r<0.66) generateCave();
   else generateRooms();
   placeHazards();
+  if(!currentFloorTiles.length){
+    const prev = window.onFloorTilesLoaded;
+    window.onFloorTilesLoaded = (name, tiles) => {
+      if(prev) prev(name, tiles);
+      if(name === currentThemeName){
+        currentFloorTiles = tiles || [];
+        buildLayers();
+        window.onFloorTilesLoaded = prev;
+      }
+    };
+  }
   buildLayers();
   recomputeFOV();
   seedRoomLoot();
@@ -769,6 +780,14 @@ function buildLayers(){
       f.fillRect(x*TILE,y*TILE,TILE,TILE);
     }
     f.globalCompositeOperation='source-over';
+  } else {
+    f.fillStyle='#555';
+    for(let y=0;y<MAP_H;y++) for(let x=0;x<MAP_W;x++){
+      const idx=y*MAP_W+x;
+      const t=map[idx];
+      if(t!==T_FLOOR && t!==T_TRAP && t!==T_LAVA) continue;
+      f.fillRect(x*TILE,y*TILE,TILE,TILE);
+    }
   }
 
   // walls
