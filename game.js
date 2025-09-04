@@ -1603,16 +1603,31 @@ function tickEffects(entity, dt){
   }
   entity.effects = entity.effects.filter(e=>e.t>0);
 }
+function getDamageColor(k){
+  switch(k){
+    case 'burn':
+    case 'fire':
+      return '#ff6b4a';
+    case 'freeze':
+    case 'ice':
+      return '#7dd3fc';
+    case 'shock':
+      return '#facc15';
+    case 'poison':
+      return '#76d38b';
+    case 'bleed':
+      return '#dc2626';
+    case 'magic':
+      return '#b84aff';
+    default:
+      return '#fff';
+  }
+}
 function drawStatusPips(ctx, entity, cx, cy){
   if(!entity.effects||entity.effects.length===0) return;
-  const mapColor = (k)=> k==='burn'?'#ff6b4a'
-                         :k==='freeze'?'#7dd3fc'
-                         :k==='shock'?'#facc15'
-                         :k==='poison'?'#76d38b'
-                         :k==='bleed'?'#dc2626':'#b84aff';
   let i=0; for(const e of entity.effects){
     const x = cx - 8 + i*8, y = cy;
-    ctx.fillStyle = mapColor(e.k); ctx.beginPath(); ctx.arc(x, y, 2.5, 0, Math.PI*2); ctx.fill(); i++;
+    ctx.fillStyle = getDamageColor(e.k); ctx.beginPath(); ctx.arc(x, y, 2.5, 0, Math.PI*2); ctx.fill(); i++;
     if(i>=4) break;
   }
 }
@@ -1695,14 +1710,6 @@ function performPlayerAttack(dx,dy,dmgMult=1){
   const ndx = dx/mag, ndy = dy/mag;
   player.faceDx = ndx; player.faceDy = ndy; playAttack();
   const dir = Math.abs(ndx) > Math.abs(ndy) ? (ndx>0?'right':'left') : (ndy>0?'down':'up');
-  if(prof.kind==='melee'){
-    player.attackDir = dir;
-    player.attackTimer = ATTACK_ANIM_TIME;
-  }
-  const {min,max,crit,ls,md} = currentAtk();
-  let dmg=rng.int(min,max);
-  const wasCrit=(Math.random()*100<crit); if(wasCrit) dmg=Math.floor(dmg*1.5);
-  dmg=Math.max(1,Math.floor(dmg*dmgMult));
   const wStatus = inventory.equip.weapon?.mods?.status;
   const atkStatuses = [];
   if(wStatus){
@@ -1710,6 +1717,16 @@ function performPlayerAttack(dx,dy,dmgMult=1){
     atkStatuses.push(...ws);
   }
   if(prof.status) atkStatuses.push(prof.status);
+  if(prof.kind==='melee'){
+    player.attackDir = dir;
+    player.attackTimer = ATTACK_ANIM_TIME;
+    const elem = atkStatuses.find(st=>st.elem)?.elem;
+    player.attackColor = getDamageColor(elem);
+  }
+  const {min,max,crit,ls,md} = currentAtk();
+  let dmg=rng.int(min,max);
+  const wasCrit=(Math.random()*100<crit); if(wasCrit) dmg=Math.floor(dmg*1.5);
+  dmg=Math.max(1,Math.floor(dmg*dmgMult));
   const wmods = inventory.equip.weapon?.mods || {};
   const kb = (wmods.kb || 0) + (prof.kb || 0);
   const aspd = wmods.atkSpd || 0;
@@ -2337,14 +2354,15 @@ function draw(dt){
       case 'up': start=-3*Math.PI/4; end=-Math.PI/4; break;
       default: start=-Math.PI/4; end=Math.PI/4; break;
     }
-    ctx.strokeStyle = '#fff';
+    const col = player.attackColor || '#fff';
+    ctx.strokeStyle = col;
     ctx.lineWidth = 2;
     ctx.globalAlpha = 1 - t;
     ctx.beginPath();
     ctx.moveTo(0, 0);
     ctx.arc(0, 0, 16, start, end);
     ctx.closePath();
-    ctx.fillStyle = '#fff';
+    ctx.fillStyle = col;
     ctx.fill();
     ctx.stroke();
     ctx.restore();

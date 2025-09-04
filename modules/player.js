@@ -18,6 +18,7 @@ const player = {
   faceDy: 0,
   attackTimer: 0,
   attackDir: 'right',
+  attackColor: '#fff',
   effects: []
 };
 
