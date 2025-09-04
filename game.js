@@ -616,7 +616,6 @@ function spawnMonster(type,x,y,elite=false){
     { hp:6,  dmg:[1,3], atkCD:22, moveCD:[4,8] },     // bat: frail but fast
     { hp:14, dmg:[2,5], atkCD:38, moveCD:[6,10] },    // skeleton warrior: sturdy melee
     { hp:11, dmg:[3,7], atkCD:39, moveCD:[6,10] },    // mage: higher damage, slower attack
-    { hp:12, dmg:[3,6], atkCD:30, moveCD:[6,10] },    // dragon hatchling
     { hp:10, dmg:[2,5], atkCD:26, moveCD:[5,9] },     // goblin: agile melee
     { hp:8,  dmg:[1,4], atkCD:32, moveCD:[6,12] },    // ghost: drifting foe
     { hp:9,  dmg:[2,5], atkCD:30, moveCD:[5,9] },     // invader: retro alien shooter
@@ -648,21 +647,19 @@ function spawnMonster(type,x,y,elite=false){
   } else if(type===3){ // mage variants
     const vars = ['mage','mage_red','mage_green'];
     spriteKey = vars[rng.int(0, vars.length-1)];
-  } else if(type===4){ // dragon hatchling
-    spriteKey = 'dragon_hatchling';
-  } else if(type===5){ // goblin
+  } else if(type===4){ // goblin
     spriteKey = 'goblin';
-  } else if(type===6){ // ghost
+  } else if(type===5){ // ghost
     spriteKey = 'ghost';
-  } else if(type===7){ // invader
+  } else if(type===6){ // invader
     spriteKey = 'invader';
-  } else if(type===8){ // chomper
+  } else if(type===7){ // chomper
     spriteKey = 'chomper';
-  } else if(type===9){ // rat
+  } else if(type===8){ // rat
     spriteKey = 'rat';
-  } else if(type===10){ // skeleton archer
+  } else if(type===9){ // skeleton archer
     spriteKey = 'skeleton_archer';
-  } else if(type===11){ // skull wolf
+  } else if(type===10){ // skull wolf
     spriteKey = 'skull_wolf';
   }
   const diff = 1 + SCALE.HARDNESS_MULT * Math.max(0, floorNum-1);
@@ -695,8 +692,8 @@ function spawnMonster(type,x,y,elite=false){
   m.resPoison = elemRes;
   m.resMagic = magicRes;
   if(spriteKey) m.spriteKey = spriteKey;
-  if(type===9) m.spriteSize = 32; // rat uses 32x32 frames
-  if(type===11) m.spriteSize = 64; // skull wolf uses 64x64 frames
+  if(type===8) m.spriteSize = 32; // rat uses 32x32 frames
+  if(type===10) m.spriteSize = 64; // skull wolf uses 64x64 frames
   return m;
 }
 
@@ -1998,32 +1995,7 @@ function mageAI(m, dt, dx, dy, manhattan){
   }
 }
 
-// Dragon boss AI with cone breath attack
-// Animation inspiration: https://opengameart.org/content/dragon-fire-breath-16x16
-function dragonBossAI(m, dt, dx, dy, manhattan){
-  const {elem, status} = (function(key){
-    if(key==='dragon_blue') return {elem:'ice', status:{k:'freeze',dur:1800,power:0.40,chance:0.9}};
-    return {elem:'fire', status:{k:'burn', dur:2200, power:1.0, chance:0.9}};
-  })(m.spriteKey);
-
-  if(manhattan<=6 && clearPath8(m.x,m.y,player.x,player.y) && m.atkCD===0){
-    const ang=Math.atan2(player.y-m.y, player.x-m.x);
-    const dmg=rng.int(m.dmgMin,m.dmgMax);
-    for(let s=-2; s<=2; s++){
-      const a=ang + s*0.1;
-      const adx=Math.cos(a), ady=Math.sin(a);
-      projectiles.push({x:m.x+0.5,y:m.y+0.5,dx:adx,dy:ady,speed:10,damage:dmg,type:'magic',elem,owner:'enemy',alive:true,maxDist:8,dist:0,status});
-    }
-    m.atkCD=rng.int(50,70);
-    return;
-  }
-  if(m.moveCD===0){
-    if(!tryMoveMonster(m, dx, 0, 160)) tryMoveMonster(m, 0, dy, 160);
-    m.moveCD=Math.round(rng.int(6,10)*ENEMY_SPEED_MULT);
-  }
-}
-
-const MONSTER_BEHAVIORS = {0:slimeAI,1:batAI,2:goblinAI,3:mageAI,4:mageAI,5:goblinAI,6:ghostAI,7:skeletonAI,8:batAI,9:ratAI,10:skeletonAI,11:wolfAI};
+const MONSTER_BEHAVIORS = {0:slimeAI,1:batAI,2:goblinAI,3:mageAI,4:goblinAI,5:ghostAI,6:skeletonAI,7:batAI,8:ratAI,9:skeletonAI,10:wolfAI};
 
 function monsterAI(m, dt){
   m.attackAnim = Math.max(0, (m.attackAnim||0) - 1);
@@ -2036,11 +2008,6 @@ function monsterAI(m, dt){
   const dx = sign(player.x - m.x), dy = sign(player.y - m.y);
   const manhattan = Math.abs(player.x-m.x)+Math.abs(player.y-m.y);
   if(manhattan>AGGRO_RANGE && (m.aggroT||0)<=0) return;
-  if(m.bigBoss && m.spriteKey && m.spriteKey.startsWith('dragon')){
-    dragonBossAI(m, dt, dx, dy, manhattan);
-    if(prevAtk===0 && m.atkCD>0) m.attackAnim = 6;
-    return;
-  }
   const fn = MONSTER_BEHAVIORS[m.type] || mageAI;
   fn(m, dt, dx, dy, manhattan);
   if(prevAtk===0 && m.atkCD>0) m.attackAnim = 6;
@@ -2266,7 +2233,17 @@ function draw(dt){
     const mty = (m.ry!==undefined ? m.ry : m.y);
     const size = m.spriteSize || 24;
     const mx = mtx*TILE - camX + (TILE-size)/2; const my = mty*TILE - camY + (TILE-size)/2;
-    const key = m.spriteKey || (m.type===0?'slime' : m.type===1?'bat' : m.type===2?'skeleton' : m.type===5?'goblin' : m.type===6?'ghost' : m.type===7?'invader' : m.type===8?'chomper' : m.type===9?'rat' : 'mage');
+    const key = m.spriteKey || (
+      m.type===0?'slime' :
+      m.type===1?'bat' :
+      m.type===2?'skeleton' :
+      m.type===4?'goblin' :
+      m.type===5?'ghost' :
+      m.type===6?'invader' :
+      m.type===7?'chomper' :
+      m.type===8?'rat' :
+      'mage'
+    );
     const spr = ASSETS.sprites[key];
     let frame = spr.cv;
     if(m.attackAnim>0 && spr.attack && spr.attack.length>0){

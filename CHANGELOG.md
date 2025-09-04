@@ -36,10 +36,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) with
 - Rotating chest armor loot icon with rarity glow.
 - Torches now cast light, revealing nearby tiles for increased visibility.
 - Subtle floor and wall color variations between floors for greater variety.
-- Griffin and dual dragon boss variants (fire and frost).
+- Griffin boss variant.
 - Red and yellow slime variants with unique stats, plus new mage and bat color schemes.
 - Added blue, purple, and shadow slime variants; the shadow slime teleports near players before attacking.
-- Animated dragon boss idle sprite sheet and generic frame-based monster animation.
+- Generic frame-based monster animation.
 - Animated bat idle sprite with flapping wings.
 - Fire and poison skeleton variants that inflict burn or poison damage.
 - Passive health regeneration when out of combat.
@@ -71,14 +71,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) with
 - Mage enemies now fire 30% slower but hit 10% harder.
 - Increased level-based weapon damage scaling to keep pace with mid-floor monster health.
 - Mage enemies now use an animated skeleton sprite with purple energy.
-- Dragon bosses now load animations from separate fire and ice sprite files.
 - Enemy elemental resistances now scale with floor level.
 - Mini bosses now always drop gold and may also drop gear or weapons.
 - Berserker abilities now unlock sequentially on the skill tree and bind to Q instead of using modifier keys.
 - Adjusted special ability damage scaling for Spellbinder and Berserker classes, weakening early skills and strengthening later unlocks.
 - Rebalanced loot rarity distribution to favor common and uncommon gear and increased bonuses on rare items.
 - Mini bosses and bosses now appear at twice the size of normal monsters.
-- Replaced dragon and dragon hatchling sprites with a bone dragon sporting blue flames.
 - Health and mana potions now use custom SVG sprites with rarity glow and a simple rotation animation.
 - Weapon damage and armor/resistance values now scale with item level and rarity. Player base resistances increase slightly each level.
 - Gear slot drops now balance weapons and armor with dynamic weighting and floor-based scaling.
@@ -86,6 +84,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) with
 
 ### Removed
 - Blue slime enemy variant.
+- Dragon assets and animations removed pending redesign.
 
 ### Fixed
 - Slime idle animations now render without missing image assets.
