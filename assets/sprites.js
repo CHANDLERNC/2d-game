@@ -19,6 +19,9 @@ function loadFloorTileSet(name, file) {
       tiles.push(c);
     }
     floorTileSets[name] = tiles;
+    if (typeof window.onFloorTilesLoaded === 'function') {
+      window.onFloorTilesLoaded(name, tiles);
+    }
   };
 }
 
