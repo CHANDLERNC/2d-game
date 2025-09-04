@@ -5,9 +5,17 @@ const floorTileQueue = [];
 function loadFloorTileSet(name, file) {
   const img = new Image();
   // floor tile images live under assets/floor_tiles
-  img.onload = () => {
+  function finalize(tiles) {
+    floorTileSets[name] = tiles;
+    if (typeof window.onFloorTilesLoaded === 'function') {
+      window.onFloorTilesLoaded(name, tiles);
+    } else {
+      floorTileQueue.push({ name, tiles });
+    }
+  }
+  function buildTiles() {
     const tiles = [];
-    const cols = Math.floor(img.width / 16);
+    const cols = Math.floor(img.width / 16) || 1;
     for (let i = 0; i < 4; i++) {
       const sx = (i % cols) * 16;
       const sy = Math.floor(i / cols) * 16;
@@ -15,16 +23,18 @@ function loadFloorTileSet(name, file) {
       c.width = c.height = 32;
       const g = c.getContext('2d');
       g.imageSmoothingEnabled = false;
-      g.drawImage(img, sx, sy, 16, 16, 0, 0, 32, 32);
+      if (img.width && img.height) {
+        g.drawImage(img, sx, sy, 16, 16, 0, 0, 32, 32);
+      } else {
+        g.fillStyle = '#555';
+        g.fillRect(0, 0, 32, 32);
+      }
       tiles.push(c);
     }
-    floorTileSets[name] = tiles;
-    if (typeof window.onFloorTilesLoaded === 'function') {
-      window.onFloorTilesLoaded(name, tiles);
-    } else {
-      floorTileQueue.push({ name, tiles });
-    }
-  };
+    return tiles;
+  }
+  img.onload = () => finalize(buildTiles());
+  img.onerror = () => finalize(buildTiles());
   // set src after onload to avoid missing cached load events
   img.src = 'assets/floor_tiles/' + file;
 }
@@ -1210,8 +1220,8 @@ function genSprites(){
   if(prevSummoner){ const c=SPRITES.player_summoner.idle[0]; prevSummoner.width=c.width; prevSummoner.height=c.height; prevSummoner.getContext('2d').drawImage(c,0,0);}
 }
 
-// generate immediately so previews show on start
-genSprites();
+// generate immediately so previews show on start unless disabled for tests
+if(!globalThis.__noGenSprites) genSprites();
 
 // expose a single global for game code and modders
 const ASSETS = { textures: TEXTURES, sprites: SPRITES };
