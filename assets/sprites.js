@@ -663,9 +663,10 @@ function genSprites(){
   SPRITES.chests = {};
   for(const v of chestVariants){
     const closed = new Image();
-    closed.src = `assets/Static/${v}_chest_closed.png`;
+    // Bust browser cache so updated art is always loaded
+    closed.src = `assets/Static/${v}_chest_closed.png?v=1`;
     const open = new Image();
-    open.src = `assets/Static/${v}_chest_open.png`;
+    open.src = `assets/Static/${v}_chest_open.png?v=1`;
     SPRITES.chests[v] = { closed, open };
   }
 
